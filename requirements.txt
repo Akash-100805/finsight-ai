@@ -1,0 +1,14 @@
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+httpx
+python-dotenv
+pydantic
+pydantic-settings
+qdrant-client
+sentence-transformers
+transformers
+torch
+networkx
+numpy

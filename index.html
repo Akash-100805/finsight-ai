@@ -1,0 +1,1743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Finance | Institutional Market Intelligence & Knowledge Graph Terminal</title>
+    <!-- Typography & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Vis.js for Interactive Knowledge Graph -->
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-dark: #070a12;
+            --bg-nav: #0b0f19;
+            --bg-card: #111827;
+            --bg-card-hover: #192237;
+            --bg-accent: #1e293b;
+            
+            --border-color: #1e293b;
+            --border-highlight: #334155;
+            
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-emerald: #10b981;
+            --accent-purple: #a855f7;
+            --accent-amber: #f59e0b;
+            --accent-rose: #f43f5e;
+            
+            --gradient-primary: linear-gradient(135deg, #1d4ed8 0%, #7e22ce 100%);
+            --gradient-subtle: linear-gradient(180deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.9) 100%);
+            --shadow-glow: 0 0 25px rgba(59, 130, 246, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            padding-top: 34px;
+        }
+
+        /* Sticky Top Market Ticker Bar */
+        .ticker-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 34px;
+            z-index: 10000;
+            background: #04070d;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+        }
+
+        .ticker-track-wrapper {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            height: 100%;
+            display: flex;
+            align-items: center;
+        }
+
+        .ticker-track {
+            display: flex;
+            align-items: center;
+            gap: 36px;
+            white-space: nowrap;
+            will-change: transform;
+            animation: ticker-roll 30s linear infinite;
+        }
+
+        .ticker-track-wrapper:hover .ticker-track {
+            animation-play-state: paused;
+        }
+
+        @keyframes ticker-roll {
+            0% { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .ticker-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ticker-symbol {
+            color: var(--text-main);
+            font-weight: 700;
+        }
+
+        .ticker-up {
+            color: var(--accent-emerald);
+        }
+
+        .ticker-down {
+            color: var(--accent-rose);
+        }
+
+        .ticker-status {
+            padding: 0 16px;
+            background: #04070d;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 10;
+            flex-shrink: 0;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-emerald);
+            box-shadow: 0 0 8px var(--accent-emerald);
+            animation: pulse-dot 2s infinite;
+        }
+
+        @keyframes pulse-dot {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Header Navigation */
+        header {
+            background: rgba(11, 15, 25, 0.92);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 14px 32px;
+            position: sticky;
+            top: 34px;
+            z-index: 9999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: var(--gradient-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            color: white;
+            box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .brand-title h1 {
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #ffffff 0%, #93c5fd 50%, #c084fc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-title p {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn {
+            background: var(--bg-card);
+            color: var(--text-main);
+            border: 1px solid var(--border-highlight);
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--accent-blue);
+            transform: translateY(-1px);
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            border: none;
+            color: white;
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 22px rgba(37, 99, 235, 0.55);
+            transform: translateY(-2px);
+        }
+
+        /* Status Metrics Dashboard Bar */
+        .metrics-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+            gap: 16px;
+            padding: 20px 32px 10px 32px;
+        }
+
+        .metric-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            transition: border-color 0.2s ease;
+        }
+
+        .metric-card:hover {
+            border-color: var(--border-highlight);
+        }
+
+        .metric-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .metric-info h4 {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--text-main);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .metric-info p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        /* Tab Navigation Bar */
+        .tab-nav-container {
+            padding: 10px 32px;
+            background: rgba(11, 15, 25, 0.5);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .tab-btn {
+            padding: 10px 22px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-muted);
+            background: transparent;
+            border: 1px solid transparent;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .tab-btn.active {
+            color: #60a5fa;
+            background: rgba(30, 58, 138, 0.35);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+        }
+
+        /* Main Workspace Container */
+        main {
+            flex: 1;
+            padding: 24px 32px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Tab 1: Articles Feed Grid */
+        .feed-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .feed-header h2 {
+            font-size: 17px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sector-filters {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .filter-chip:hover, .filter-chip.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+
+        .articles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+            gap: 20px;
+        }
+
+        .article-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: all 0.25s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .article-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-blue);
+            opacity: 0.7;
+        }
+
+        .article-card:hover {
+            border-color: var(--border-highlight);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .article-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .sector-badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-energy { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+        .badge-aviation { background: rgba(6, 182, 212, 0.15); color: #38bdf8; border: 1px solid rgba(6, 182, 212, 0.3); }
+        .badge-tech { background: rgba(168, 85, 247, 0.15); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.3); }
+        .badge-banking { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .badge-logistics { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+        .article-timestamp {
+            font-size: 11px;
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .article-title {
+            font-size: 15px;
+            font-weight: 700;
+            line-height: 1.45;
+            color: var(--text-main);
+            margin-bottom: 10px;
+        }
+
+        .article-excerpt {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.55;
+            margin-bottom: 16px;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .entities-container {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .entity-pill {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .entity-pill.ORG { border-color: rgba(59, 130, 246, 0.35); color: #93c5fd; }
+        .entity-pill.COMMODITY { border-color: rgba(245, 158, 11, 0.35); color: #fde047; }
+        .entity-pill.FINANCIAL_EVENT { border-color: rgba(244, 63, 94, 0.35); color: #fda4af; }
+
+        .article-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+            font-size: 12px;
+        }
+
+        .article-source {
+            color: var(--text-dim);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .article-link {
+            color: var(--accent-blue);
+            text-decoration: none;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Tab 2: Interactive Knowledge Graph Visualizer */
+        .graph-workspace {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 20px;
+            height: calc(100vh - 240px);
+            min-height: 550px;
+        }
+
+        .graph-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            min-height: 520px;
+        }
+
+        .graph-toolbar {
+            padding: 12px 16px;
+            background: rgba(15, 23, 42, 0.7);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .graph-toolbar-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .graph-legend {
+            display: flex;
+            gap: 12px;
+            font-size: 11px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        #kg-canvas {
+            width: 100%;
+            height: 520px;
+            min-height: 480px;
+            flex: 1;
+        }
+
+        .graph-sidebar {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+        }
+
+        .sidebar-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .sidebar-header p {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .impact-group {
+            margin-bottom: 20px;
+        }
+
+        .impact-group-title {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .impact-item {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 8px;
+        }
+
+        .impact-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 4px;
+        }
+
+        .severity-tag {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 700;
+        }
+
+        .severity-High { background: rgba(244, 63, 94, 0.2); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.4); }
+        .severity-Medium { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .severity-Low { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
+
+        .impact-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.45;
+        }
+
+        /* Tab 3: Semantic Search & Shock Simulator */
+        .search-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .search-input {
+            flex: 1;
+            background: #0a0f1d;
+            border: 1px solid var(--border-highlight);
+            border-radius: 10px;
+            padding: 14px 20px;
+            color: white;
+            font-size: 15px;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        .search-input:focus {
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+        }
+
+        .preset-chips {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .preset-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dim);
+            margin-right: 4px;
+        }
+
+        .preset-chip {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 5px 12px;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .preset-chip:hover {
+            background: rgba(59, 130, 246, 0.15);
+            color: #93c5fd;
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+
+        .search-results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        .section-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .section-title {
+            font-size: 15px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        footer {
+            border-top: 1px solid var(--border-color);
+            padding: 16px 32px;
+            background: #05080e;
+            color: var(--text-dim);
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        footer a {
+            color: var(--text-muted);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            color: var(--accent-blue);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sticky Rolling Market Ticker Bar -->
+    <div class="ticker-bar">
+        <div class="ticker-track-wrapper">
+            <div class="ticker-track" id="ticker-track">
+                <!-- Dynamically populated from Finnhub /api/market-ticker -->
+                <div class="ticker-item"><span class="ticker-symbol"><i class="fa-solid fa-sync fa-spin"></i> Fetching Live Market Quotes...</span></div>
+            </div>
+        </div>
+        <div class="ticker-status">
+            <div class="status-dot"></div>
+            <span>FINBERT 2.0 • QDRANT VECTOR DB • KNOWLEDGE GRAPH ONLINE</span>
+        </div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="brand">
+            <div class="brand-icon">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <div class="brand-title">
+                <h1>RAG Finance Intelligence</h1>
+                <p><i class="fa-solid fa-shield-halved" style="color: #10b981;"></i> Enterprise Market Risk & Downstream Propagation Engine</p>
+            </div>
+        </div>
+
+        <div class="header-actions">
+            <button class="btn" id="btn-refresh" onclick="fetchAndProcessNews()">
+                <i class="fa-solid fa-arrows-rotate"></i>
+                <span>Fetch Live News</span>
+            </button>
+            <button class="btn btn-primary" onclick="runPipeline()">
+                <i class="fa-solid fa-bolt"></i>
+                <span>Run AI Pipeline</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Institutional Status Metrics Bar -->
+    <section class="metrics-bar">
+        <div class="metric-card">
+            <div class="metric-icon" style="background: rgba(59, 130, 246, 0.15); color: #60a5fa;">
+                <i class="fa-solid fa-database"></i>
+            </div>
+            <div class="metric-info">
+                <h4 id="stat-articles-count">36</h4>
+                <p>PostgreSQL Articles</p>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">
+                <i class="fa-solid fa-brain"></i>
+            </div>
+            <div class="metric-info">
+                <h4>FinBERT / BGE</h4>
+                <p>Dense Vector NLP Active</p>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon" style="background: rgba(6, 182, 212, 0.15); color: #38bdf8;">
+                <i class="fa-solid fa-vector-square"></i>
+            </div>
+            <div class="metric-info">
+                <h4>Qdrant Vector DB</h4>
+                <p>1024-Dim BGE Embeddings</p>
+            </div>
+        </div>
+
+        <div class="metric-card">
+            <div class="metric-icon" style="background: rgba(16, 185, 129, 0.15); color: #34d399;">
+                <i class="fa-solid fa-diagram-project"></i>
+            </div>
+            <div class="metric-info">
+                <h4 id="stat-kg-nodes">20 Nodes</h4>
+                <p>Knowledge Graph</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Navigation Tabs Bar -->
+    <div class="tab-nav-container">
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('tab-feed', this)">
+                <i class="fa-solid fa-newspaper"></i>
+                <span>Market Intelligence Feed</span>
+            </button>
+
+            <button class="tab-btn" onclick="switchTab('tab-graph', this)">
+                <i class="fa-solid fa-diagram-project"></i>
+                <span>Inter-Sector Knowledge Graph</span>
+            </button>
+
+            <button class="tab-btn" onclick="switchTab('tab-search', this)">
+                <i class="fa-solid fa-bolt"></i>
+                <span>AI Market Shock & Vector Simulator</span>
+            </button>
+
+            <button class="tab-btn" onclick="switchTab('tab-portfolio', this)">
+                <i class="fa-solid fa-briefcase"></i>
+                <span>Portfolio Risk Advisory</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Workspace Container -->
+    <main>
+
+        <!-- Tab 1: Live Market Articles Feed -->
+        <div id="tab-feed" class="tab-content active">
+            <div class="feed-header">
+                <h2>
+                    <i class="fa-solid fa-rss" style="color: var(--accent-blue);"></i>
+                    Classified Financial News Feed
+                </h2>
+                <div class="sector-filters">
+                    <div class="filter-chip active" onclick="filterSector('All')">All Sectors</div>
+                    <div class="filter-chip" onclick="filterSector('Technology')">Tech & Chips</div>
+                    <div class="filter-chip" onclick="filterSector('Energy')">Energy & Oil</div>
+                    <div class="filter-chip" onclick="filterSector('Banking')">Banking & Finance</div>
+                    <div class="filter-chip" onclick="filterSector('Aviation')">Airlines</div>
+                    <div class="filter-chip" onclick="filterSector('Automotive')">Automotive & EV</div>
+                    <div class="filter-chip" onclick="filterSector('Logistics')">Logistics</div>
+                    <div class="filter-chip" onclick="filterSector('Retail')">Retail</div>
+                </div>
+            </div>
+
+            <div class="articles-grid" id="articles-container">
+                <div class="spinner"></div> Loading articles...
+            </div>
+        </div>
+
+        <!-- Tab 2: Interactive Knowledge Graph Visualizer -->
+        <div id="tab-graph" class="tab-content">
+            <div class="graph-workspace">
+                <div class="graph-container">
+                    <div class="graph-toolbar">
+                        <div class="graph-toolbar-title">
+                            <i class="fa-solid fa-network-wired" style="color: var(--accent-purple);"></i>
+                            Interactive Sector & Entity Dependency Graph
+                        </div>
+                        <div class="graph-legend">
+                            <div class="legend-item"><div class="legend-dot" style="background: #3b82f6;"></div> Sectors</div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #10b981;"></div> Companies</div>
+                            <div class="legend-item"><div class="legend-dot" style="background: #f59e0b;"></div> Commodities</div>
+                        </div>
+                    </div>
+                    <div id="kg-canvas"></div>
+                </div>
+
+                <div class="graph-sidebar">
+                    <div class="sidebar-header">
+                        <h3 id="kg-selected-title">Select Node</h3>
+                        <p id="kg-selected-subtitle">Click any sector or entity node in the graph to run real-time shock propagation analysis.</p>
+                    </div>
+
+                    <div id="kg-impact-details">
+                        <div class="impact-group">
+                            <div class="impact-group-title">
+                                <i class="fa-solid fa-arrow-right-from-bracket" style="color: var(--accent-amber);"></i> Direct Downstream Sectors (1st Hop)
+                            </div>
+                            <div id="direct-impacts-list" style="color: var(--text-dim); font-size: 12px;">No node selected.</div>
+                        </div>
+
+                        <div class="impact-group">
+                            <div class="impact-group-title">
+                                <i class="fa-solid fa-diagram-next" style="color: var(--accent-rose);"></i> Indirect Cascading Effects (2nd Hop)
+                            </div>
+                            <div id="indirect-impacts-list" style="color: var(--text-dim); font-size: 12px;">No node selected.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 3: Vector Search & Impact Shock Simulator -->
+        <div id="tab-search" class="tab-content">
+            <div class="search-section">
+                <div class="search-box">
+                    <input type="text" id="sim-query-input" class="search-input" placeholder="Simulate a market shock event (e.g. 'AI bubble has burst' or 'OPEC crude oil supply cut')...">
+                    <button class="btn btn-primary" onclick="executeSimulator()">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Simulate Impact Shock</span>
+                    </button>
+                </div>
+                <div class="preset-chips">
+                    <span class="preset-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Quick Presets:</span>
+                    <span class="preset-chip" onclick="setSimQuery('AI bubble has burst')">AI Bubble Burst</span>
+                    <span class="preset-chip" onclick="setSimQuery('OPEC emergency crude production cut')">OPEC Oil Cut</span>
+                    <span class="preset-chip" onclick="setSimQuery('Federal Reserve interest rate hike')">Fed Rate Hike</span>
+                    <span class="preset-chip" onclick="setSimQuery('Semiconductor supply chain shortage')">Chip Shortage</span>
+                </div>
+            </div>
+
+            <!-- AI RAG Synthesized Briefing Container -->
+            <div id="sim-ai-briefing-box" style="display: none; margin-bottom: 24px; background: rgba(15, 23, 42, 0.85); border: 1px solid var(--accent-blue); border-radius: 14px; padding: 22px; box-shadow: 0 8px 30px rgba(59, 130, 246, 0.15);">
+                <div style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 10px;">
+                    <span style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fa-solid fa-brain" style="color: #c084fc;"></i>
+                        <span>AI RAG Financial Intelligence Briefing</span>
+                    </span>
+                    <span style="font-size: 11px; background: rgba(168, 85, 247, 0.2); color: #e9d5ff; padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(168, 85, 247, 0.4); font-weight: 600;">Synthesized via BGE + Qdrant + KG</span>
+                </div>
+                <div id="sim-ai-briefing-content" style="font-size: 13.5px; line-height: 1.65; color: var(--text-main); white-space: pre-line;"></div>
+                <div id="sim-risk-metrics" style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;"></div>
+            </div>
+
+            <div class="search-results-grid">
+                <div class="section-box">
+                    <div class="section-title">
+                        <i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-rose);"></i>
+                        <span>Knowledge Graph Downstream Impact Traversal</span>
+                    </div>
+                    <div id="sim-kg-analysis">
+                        <p style="color: var(--text-muted); font-size: 13px;">Type a query above or click a quick preset to simulate downstream market shock propagation.</p>
+                    </div>
+                </div>
+
+                <div class="section-box">
+                    <div class="section-title">
+                        <i class="fa-solid fa-vector-square" style="color: var(--accent-cyan);"></i>
+                        <span>Qdrant BGE Vector Similarity Matches</span>
+                    </div>
+                    <div id="sim-vector-results">
+                        <p style="color: var(--text-muted); font-size: 13px;">Dense vector search results will appear here.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 4: Institutional Portfolio Risk Advisory -->
+        <div id="tab-portfolio" class="tab-content">
+            <div class="search-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 12px;">
+                    <div>
+                        <h2 style="font-size: 18px; font-weight: 800; display: flex; align-items: center; gap: 10px; color: var(--text-main);">
+                            <i class="fa-solid fa-chart-pie" style="color: var(--accent-cyan);"></i>
+                            Institutional Portfolio Allocation & Stress Test Audit
+                        </h2>
+                        <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+                            Input your asset holdings and simulate market shock propagation against Knowledge Graph sector dependencies.
+                        </p>
+                    </div>
+                    <div class="preset-chips">
+                        <span class="preset-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Portfolio Presets:</span>
+                        <span class="preset-chip" onclick="loadPortfolioPreset('tech_aviation')">Tech & Aviation Heavy</span>
+                        <span class="preset-chip" onclick="loadPortfolioPreset('oil_airlines')">Oil & Airlines Squeeze</span>
+                        <span class="preset-chip" onclick="loadPortfolioPreset('diversified')">Balanced Multi-Sector</span>
+                    </div>
+                </div>
+
+                <!-- Dynamic Holding Asset Input Rows -->
+                <div style="font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                    <i class="fa-solid fa-layer-group" style="color: var(--accent-blue);"></i> Portfolio Holdings & Target Weights
+                </div>
+
+                <div id="portfolio-holdings-list" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px;">
+                    <!-- Dynamic Rows Populated by JS -->
+                </div>
+
+                <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button class="btn" onclick="addHoldingRow()" style="background: rgba(30, 41, 59, 0.7);">
+                        <i class="fa-solid fa-plus" style="color: var(--accent-emerald);"></i>
+                        <span>Add Asset Holding</span>
+                    </button>
+                </div>
+
+                <!-- Market Shock Scenario Input -->
+                <div class="search-box" style="margin-bottom: 0;">
+                    <input type="text" id="port-shock-input" class="search-input" placeholder="Simulate Macro Market Shock against Portfolio (e.g. 'OPEC Oil Price Spike' or 'Fed Interest Rate Freeze')...">
+                    <button class="btn btn-primary" onclick="executePortfolioAnalysis()">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span>Audit Portfolio Risk</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Portfolio Analysis Results Workspace -->
+            <div id="portfolio-results-container" style="display: none;">
+                
+                <!-- Executive AI Risk Advisory Briefing Box -->
+                <div id="port-ai-briefing-box" style="margin-bottom: 24px; background: rgba(15, 23, 42, 0.85); border: 1px solid var(--accent-cyan); border-radius: 14px; padding: 22px; box-shadow: 0 8px 30px rgba(6, 182, 212, 0.15);">
+                    <div style="font-size: 16px; font-weight: 800; color: #38bdf8; margin-bottom: 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.08); padding-bottom: 10px;">
+                        <span style="display: flex; align-items: center; gap: 10px;">
+                            <i class="fa-solid fa-user-shield" style="color: #60a5fa;"></i>
+                            <span>Executive Portfolio Risk & Scenario Advisory</span>
+                        </span>
+                        <span style="font-size: 11px; background: rgba(6, 182, 212, 0.2); color: #a5f3fc; padding: 4px 12px; border-radius: 12px; border: 1px solid rgba(6, 182, 212, 0.4); font-weight: 600;">KG Shock Propagation & Qdrant Evidence</span>
+                    </div>
+                    <div id="port-ai-briefing-content" style="font-size: 13.5px; line-height: 1.65; color: var(--text-main); white-space: pre-line;"></div>
+                </div>
+
+                <div class="search-results-grid">
+                    <!-- Left Column: Sector Allocation & Concentration Exposures -->
+                    <div class="section-box">
+                        <div class="section-title">
+                            <i class="fa-solid fa-chart-pie" style="color: var(--accent-amber);"></i>
+                            <span>Sector Allocation Breakdown</span>
+                        </div>
+                        <div id="port-sector-allocation-list" style="margin-bottom: 24px;"></div>
+
+                        <div class="section-title">
+                            <i class="fa-solid fa-triangle-exclamation" style="color: var(--accent-rose);"></i>
+                            <span>Concentration & Inverse Correlation Risks</span>
+                        </div>
+                        <div id="port-direct-risks-list"></div>
+                    </div>
+
+                    <!-- Right Column: Knowledge Graph Shock Cascade & Actionable Guidance -->
+                    <div class="section-box">
+                        <div class="section-title">
+                            <i class="fa-solid fa-diagram-project" style="color: var(--accent-purple);"></i>
+                            <span>Knowledge Graph Downstream Shock Impact</span>
+                        </div>
+                        <div id="port-shock-impacts-list" style="margin-bottom: 24px;"></div>
+
+                        <div class="section-title">
+                            <i class="fa-solid fa-list-check" style="color: var(--accent-emerald);"></i>
+                            <span>Actionable Advisory Recommendations</span>
+                        </div>
+                        <div id="port-actions-list"></div>
+                    </div>
+                </div>
+
+                <!-- Relevant Live Market Signals Section -->
+                <div class="section-box" style="margin-top: 24px;">
+                    <div class="section-title">
+                        <i class="fa-solid fa-vector-square" style="color: var(--accent-blue);"></i>
+                        <span>Matching Qdrant Live Market Intelligence Headlines</span>
+                    </div>
+                    <div id="port-news-list" class="articles-grid" style="grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); margin-top: 16px;"></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div>
+            <strong>RAG Finance Intelligence Terminal v2.4.0 Enterprise</strong> • Institutional Market Risk Platform
+        </div>
+        <div>
+            Engine: FinBERT 2.0 • BGE-Large Dense Vectors • Qdrant DB • Vis.js Knowledge Graph
+        </div>
+    </footer>
+
+    <!-- Client-Side JavaScript Logic -->
+    <script>
+        let allArticles = [];
+        let activeSectorFilter = 'All';
+        let kgNetwork = null;
+
+        // Fetch Live Market Ticker Quotes from Finnhub API
+        async function loadMarketTicker() {
+            try {
+                const res = await fetch('/api/market-ticker');
+                const items = await res.json();
+                if (!items || items.length === 0) return;
+
+                const renderItem = (item) => {
+                    const isUp = item.percent_change >= 0;
+                    const sign = isUp ? '+' : '';
+                    const caret = isUp ? '<i class="fa-solid fa-caret-up"></i>' : '<i class="fa-solid fa-caret-down"></i>';
+                    const colorClass = isUp ? 'ticker-up' : 'ticker-down';
+                    
+                    return `
+                        <div class="ticker-item">
+                            <span class="ticker-symbol">${item.name} (${item.symbol})</span>
+                            <span>$${item.price.toFixed(2)}</span>
+                            <span class="${colorClass}">${caret} ${sign}${item.percent_change.toFixed(2)}%</span>
+                        </div>
+                    `;
+                };
+
+                const singleHtml = items.map(renderItem).join('');
+                // Duplicate track content twice for seamless infinite loop marquee
+                document.getElementById('ticker-track').innerHTML = singleHtml + singleHtml;
+            } catch (err) {
+                console.error("Error loading live market ticker:", err);
+            }
+        }
+
+        // Initialize application on DOM load
+        document.addEventListener("DOMContentLoaded", () => {
+            loadMarketTicker();
+            setInterval(loadMarketTicker, 30000); // Live refresh every 30 seconds
+            loadArticles();
+            loadKnowledgeGraph();
+            loadPortfolioPreset('tech_aviation');
+        });
+
+        // Tab Switching
+        function switchTab(tabId, el) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            if (el) {
+                el.classList.add('active');
+            } else if (window.event && window.event.currentTarget) {
+                window.event.currentTarget.classList.add('active');
+            }
+
+            const targetTab = document.getElementById(tabId);
+            if (targetTab) {
+                targetTab.classList.add('active');
+            }
+
+            if (tabId === 'tab-graph') {
+                setTimeout(() => {
+                    if (kgNetwork) {
+                        kgNetwork.redraw();
+                        kgNetwork.fit();
+                    } else {
+                        loadKnowledgeGraph();
+                    }
+                }, 100);
+            }
+        }
+
+        function setSimQuery(text) {
+            document.getElementById('sim-query-input').value = text;
+            executeSimulator();
+        }
+
+        // Fetch Articles from API
+        async function loadArticles() {
+            try {
+                const res = await fetch('/articles');
+                allArticles = await res.json();
+
+                document.getElementById('stat-articles-count').innerText = allArticles.length;
+                renderArticles();
+            } catch (err) {
+                console.error("Error loading articles:", err);
+                document.getElementById('articles-container').innerHTML = `<p style="color: var(--accent-rose);">Error connecting to API server.</p>`;
+            }
+        }
+
+        // Render Articles Feed
+        function renderArticles() {
+            const container = document.getElementById('articles-container');
+            container.innerHTML = '';
+
+            let filtered = allArticles;
+            if (activeSectorFilter !== 'All') {
+                filtered = allArticles.filter(a => (a.sector || '').toLowerCase().includes(activeSectorFilter.toLowerCase()));
+            }
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<p style="color: var(--text-muted); grid-column: 1/-1;">No articles found for sector '${activeSectorFilter}'.</p>`;
+                return;
+            }
+
+            filtered.forEach(article => {
+                let badgeClass = 'badge-banking';
+                const sec = (article.sector || '').toLowerCase();
+                if (sec.includes('energy')) badgeClass = 'badge-energy';
+                if (sec.includes('aviation') || sec.includes('airline')) badgeClass = 'badge-aviation';
+                if (sec.includes('tech') || sec.includes('semiconductor')) badgeClass = 'badge-tech';
+                if (sec.includes('logistics') || sec.includes('freight')) badgeClass = 'badge-logistics';
+
+                const confPercent = Math.round((article.confidence_score || 0.85) * 100);
+                const pubDate = article.published_time ? new Date(article.published_time).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent';
+
+                let entitiesHtml = '';
+                if (article.entities && article.entities.length > 0) {
+                    entitiesHtml = article.entities.slice(0, 4).map(e => `
+                        <span class="entity-pill ${e.category}">${e.category}: ${e.text}</span>
+                    `).join('');
+                }
+
+                const card = document.createElement('div');
+                card.className = 'article-card';
+                card.innerHTML = `
+                    <div>
+                        <div class="article-meta">
+                            <span class="sector-badge ${badgeClass}">${article.sector || 'General'} (${confPercent}%)</span>
+                            <span class="article-timestamp"><i class="fa-regular fa-clock"></i> ${pubDate}</span>
+                        </div>
+                        <h3 class="article-title">${article.title}</h3>
+                        <p class="article-excerpt">${article.content || ''}</p>
+                        <div class="entities-container">${entitiesHtml}</div>
+                    </div>
+                    <div class="article-footer">
+                        <span class="article-source"><i class="fa-solid fa-building-columns"></i> ${article.source}</span>
+                        <a href="${article.url}" target="_blank" class="article-link">Source <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function filterSector(sector) {
+            activeSectorFilter = sector;
+            document.querySelectorAll('.filter-chip').forEach(chip => {
+                chip.classList.toggle('active', chip.innerText.includes(sector) || (sector === 'All' && chip.innerText.includes('All')));
+            });
+            renderArticles();
+        }
+
+        // Fetch & Process API Trigger
+        async function fetchAndProcessNews() {
+            const btn = document.getElementById('btn-refresh');
+            btn.innerHTML = `<div class="spinner"></div> Fetching...`;
+            try {
+                await fetch('/fetch-news', { method: 'POST' });
+                await loadArticles();
+                await loadKnowledgeGraph();
+            } catch (err) {
+                console.error("Error fetching news:", err);
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i> <span>Fetch Live News</span>`;
+            }
+        }
+
+        async function runPipeline() {
+            try {
+                await fetch('/pipeline/process', { method: 'POST' });
+                await loadArticles();
+                await loadKnowledgeGraph();
+                alert("AI Pipeline executed successfully! FinBERT Sector Classification, NER Entity Extraction, BGE Vectorization, and Qdrant storage updated.");
+            } catch (err) {
+                console.error("Error running pipeline:", err);
+            }
+        }
+
+        // Load Knowledge Graph in Vis.js
+        async function loadKnowledgeGraph() {
+            try {
+                const res = await fetch('/pipeline/knowledge-graph');
+                const graphData = await res.json();
+
+                document.getElementById('stat-kg-nodes').innerText = `${graphData.nodes.length} Nodes`;
+
+                const nodesArray = graphData.nodes.map(n => {
+                    let color = '#3b82f6';
+                    if (n.type === 'commodity') color = '#f59e0b';
+                    if (n.type === 'company') color = '#10b981';
+                    if (n.id === 'Energy & Oil') color = '#ef4444';
+                    if (n.id === 'Aviation & Airlines') color = '#06b6d4';
+                    if (n.id === 'Technology & Semiconductors') color = '#a855f7';
+
+                    return {
+                        id: n.id,
+                        label: n.label,
+                        shape: n.type === 'sector' ? 'ellipse' : 'box',
+                        color: {
+                            background: color,
+                            border: '#ffffff',
+                            highlight: { background: '#ec4899', border: '#ffffff' }
+                        },
+                        font: { color: '#ffffff', face: 'Inter', size: 14, weight: 'bold' }
+                    };
+                });
+
+                const edgesArray = graphData.edges.map(e => ({
+                    from: e.from_node,
+                    to: e.to_node,
+                    label: e.relationship === 'IMPACTS' ? 'IMPACTS' : '',
+                    arrows: 'to',
+                    color: { color: 'rgba(255,255,255,0.25)', highlight: '#38bdf8' },
+                    width: Math.max(1, Math.round(e.weight * 3))
+                }));
+
+                const container = document.getElementById('kg-canvas');
+                const data = {
+                    nodes: new vis.DataSet(nodesArray),
+                    edges: new vis.DataSet(edgesArray)
+                };
+
+                const options = {
+                    physics: {
+                        barnesHut: { gravitationalConstant: -3000, springLength: 120 }
+                    },
+                    interaction: { hover: true, tooltipDelay: 200 }
+                };
+
+                kgNetwork = new vis.Network(container, data, options);
+
+                kgNetwork.on("click", function (params) {
+                    if (params.nodes.length > 0) {
+                        const selectedNode = params.nodes[0];
+                        analyzeNodeImpact(selectedNode);
+                    }
+                });
+
+            } catch (err) {
+                console.error("Error loading Knowledge Graph:", err);
+            }
+        }
+
+        // Run Impact Analysis on Node Click
+        async function analyzeNodeImpact(sectorName) {
+            document.getElementById('kg-selected-title').innerText = sectorName;
+            document.getElementById('kg-selected-subtitle').innerText = `Analyzing downstream financial consequences for shock in ${sectorName}...`;
+
+            try {
+                const res = await fetch('/pipeline/impact-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sector_or_event: sectorName, limit_articles: 3 })
+                });
+
+                const data = await res.json();
+
+                // Render Direct Impacts
+                const directContainer = document.getElementById('direct-impacts-list');
+                if (data.direct_impacts.length === 0) {
+                    directContainer.innerHTML = `<span style="color: var(--text-dim);">No direct downstream sectors connected.</span>`;
+                } else {
+                    directContainer.innerHTML = data.direct_impacts.map(item => `
+                        <div class="impact-item">
+                            <div class="impact-item-header">
+                                <span>${item.sector}</span>
+                                <span class="severity-tag severity-${item.impact_level}">${item.impact_level} Impact</span>
+                            </div>
+                            <div class="impact-desc">${item.explanation}</div>
+                        </div>
+                    `).join('');
+                }
+
+                // Render Indirect Impacts
+                const indirectContainer = document.getElementById('indirect-impacts-list');
+                if (data.indirect_impacts.length === 0) {
+                    indirectContainer.innerHTML = `<span style="color: var(--text-dim);">No 2nd-degree cascading effects detected.</span>`;
+                } else {
+                    indirectContainer.innerHTML = data.indirect_impacts.map(item => `
+                        <div class="impact-item">
+                            <div class="impact-item-header">
+                                <span>${item.sector}</span>
+                                <span class="severity-tag severity-${item.impact_level}">${item.impact_level} Risk</span>
+                            </div>
+                            <div class="impact-desc">${item.explanation}</div>
+                        </div>
+                    `).join('');
+                }
+
+            } catch (err) {
+                console.error("Error analyzing impact:", err);
+            }
+        }
+
+        // Execute Impact Shock Simulator & Vector Search
+        async function executeSimulator() {
+            const query = document.getElementById('sim-query-input').value.trim();
+            if (!query) return;
+
+            document.getElementById('sim-kg-analysis').innerHTML = `<div class="spinner"></div> Traversal analysis in progress...`;
+            document.getElementById('sim-vector-results').innerHTML = `<div class="spinner"></div> BGE vector search in progress...`;
+
+            try {
+                const res = await fetch('/pipeline/impact-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sector_or_event: query, limit_articles: 5 })
+                });
+
+                const data = await res.json();
+
+                // Render AI RAG Briefing
+                if (data.ai_briefing) {
+                    const briefingBox = document.getElementById('sim-ai-briefing-box');
+                    const briefingContent = document.getElementById('sim-ai-briefing-content');
+                    const riskMetricsContainer = document.getElementById('sim-risk-metrics');
+                    
+                    briefingBox.style.display = 'block';
+                    briefingContent.innerHTML = data.ai_briefing
+                        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                        .replace(/\*(.*?)\*/g, '<em>$1</em>');
+                    
+                    if (data.risk_metrics && data.risk_metrics.length > 0) {
+                        riskMetricsContainer.innerHTML = data.risk_metrics.map(m => `
+                            <span class="severity-tag" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 11px; padding: 5px 12px;">
+                                <i class="fa-solid fa-chart-line" style="margin-right: 4px;"></i> ${m}
+                            </span>
+                        `).join('');
+                    } else {
+                        riskMetricsContainer.innerHTML = '';
+                    }
+                }
+
+                // Render KG Analysis
+                let kgHtml = `
+                    <div style="margin-bottom: 12px; font-weight: 700; color: var(--accent-amber); font-size: 14px;">
+                        <i class="fa-solid fa-crosshairs"></i> Primary Sector Epicenter: ${data.source_sector}
+                    </div>
+                `;
+
+                data.direct_impacts.forEach(item => {
+                    kgHtml += `
+                        <div class="impact-item">
+                            <div class="impact-item-header">
+                                <span>Direct: ${item.sector}</span>
+                                <span class="severity-tag severity-${item.impact_level}">${item.impact_level}</span>
+                            </div>
+                            <div class="impact-desc">${item.explanation}</div>
+                        </div>
+                    `;
+                });
+
+                data.indirect_impacts.forEach(item => {
+                    kgHtml += `
+                        <div class="impact-item">
+                            <div class="impact-item-header">
+                                <span>Indirect (Cascading): ${item.sector}</span>
+                                <span class="severity-tag severity-${item.impact_level}">${item.impact_level}</span>
+                            </div>
+                            <div class="impact-desc">${item.explanation}</div>
+                        </div>
+                    `;
+                });
+
+                document.getElementById('sim-kg-analysis').innerHTML = kgHtml;
+
+                // Render Vector Search Results
+                let vecHtml = '';
+                if (data.relevant_articles.length === 0) {
+                    vecHtml = `<p style="color: var(--text-muted);">No similar vectors found in Qdrant.</p>`;
+                } else {
+                    data.relevant_articles.forEach(art => {
+                        const scorePercent = Math.round((art.score || 0.85) * 100);
+                        vecHtml += `
+                            <div class="impact-item" style="border-left: 3px solid var(--accent-cyan);">
+                                <div class="impact-item-header">
+                                    <span style="font-size: 13px; font-weight: 600;">${art.title}</span>
+                                    <span class="severity-tag" style="background: rgba(6,182,212,0.2); color:#38bdf8;">${scorePercent}% Match</span>
+                                </div>
+                                <div class="impact-desc" style="margin-top: 6px;">${art.content || ''}</div>
+                                <div style="margin-top: 8px; font-size: 11px; color: var(--accent-blue);">Sector: ${art.sector || 'General'}</div>
+                            </div>
+                        `;
+                    });
+                }
+
+                document.getElementById('sim-vector-results').innerHTML = vecHtml;
+
+            } catch (err) {
+                console.error("Error executing simulator:", err);
+            }
+        }
+
+        // --- Portfolio Risk Advisory JavaScript Functions ---
+
+        function addHoldingRow(symbol = '', sector = '', weight = '1.0') {
+            const list = document.getElementById('portfolio-holdings-list');
+            const rowId = 'holding-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+            
+            const row = document.createElement('div');
+            row.id = rowId;
+            row.style.cssText = 'display: flex; gap: 12px; align-items: center; background: #0a0f1d; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border-highlight);';
+            row.innerHTML = `
+                <div style="flex: 1; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; font-weight: 700; color: var(--accent-blue); width: 60px;">Ticker:</span>
+                    <input type="text" class="holding-symbol search-input" style="padding: 8px 12px; font-size: 13px; font-weight: 700; text-transform: uppercase;" placeholder="e.g. NVDA" value="${symbol}">
+                </div>
+                <div style="flex: 1.5; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); width: 55px;">Sector:</span>
+                    <select class="holding-sector search-input" style="padding: 8px 12px; font-size: 13px; background: #0a0f1d;">
+                        <option value="">Auto-Detect Sector</option>
+                        <option value="Technology & Semiconductors" ${sector === 'Technology & Semiconductors' ? 'selected' : ''}>Technology & Semiconductors</option>
+                        <option value="Energy & Oil" ${sector === 'Energy & Oil' ? 'selected' : ''}>Energy & Oil</option>
+                        <option value="Aviation & Airlines" ${sector === 'Aviation & Airlines' ? 'selected' : ''}>Aviation & Airlines</option>
+                        <option value="Banking & Financial Services" ${sector === 'Banking & Financial Services' ? 'selected' : ''}>Banking & Financial Services</option>
+                        <option value="Automotive & Electric Vehicles" ${sector === 'Automotive & Electric Vehicles' ? 'selected' : ''}>Automotive & Electric Vehicles</option>
+                        <option value="Logistics & Freight" ${sector === 'Logistics & Freight' ? 'selected' : ''}>Logistics & Freight</option>
+                        <option value="Retail & Consumer Goods" ${sector === 'Retail & Consumer Goods' ? 'selected' : ''}>Retail & Consumer Goods</option>
+                        <option value="Healthcare & Pharmaceuticals" ${sector === 'Healthcare & Pharmaceuticals' ? 'selected' : ''}>Healthcare & Pharmaceuticals</option>
+                        <option value="Real Estate & Construction" ${sector === 'Real Estate & Construction' ? 'selected' : ''}>Real Estate & Construction</option>
+                    </select>
+                </div>
+                <div style="width: 130px; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; font-weight: 700; color: var(--text-muted);">Weight:</span>
+                    <input type="number" step="0.1" class="holding-weight search-input" style="padding: 8px 10px; font-size: 13px;" placeholder="1.0" value="${weight}">
+                </div>
+                <button class="btn" onclick="removeHoldingRow('${rowId}')" style="padding: 8px 12px; background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.3); color: #f43f5e;">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            `;
+            list.appendChild(row);
+        }
+
+        function removeHoldingRow(rowId) {
+            const row = document.getElementById(rowId);
+            if (row) row.remove();
+        }
+
+        function loadPortfolioPreset(presetType) {
+            const list = document.getElementById('portfolio-holdings-list');
+            list.innerHTML = '';
+
+            if (presetType === 'tech_aviation') {
+                addHoldingRow('NVDA', 'Technology & Semiconductors', '0.45');
+                addHoldingRow('DAL', 'Aviation & Airlines', '0.35');
+                addHoldingRow('JPM', 'Banking & Financial Services', '0.20');
+                document.getElementById('port-shock-input').value = 'OPEC Crude Oil Price Spike';
+            } else if (presetType === 'oil_airlines') {
+                addHoldingRow('XOM', 'Energy & Oil', '0.40');
+                addHoldingRow('DAL', 'Aviation & Airlines', '0.40');
+                addHoldingRow('FDX', 'Logistics & Freight', '0.20');
+                document.getElementById('port-shock-input').value = 'OPEC Emergency Production Cut';
+            } else if (presetType === 'diversified') {
+                addHoldingRow('AAPL', 'Technology & Semiconductors', '0.25');
+                addHoldingRow('JPM', 'Banking & Financial Services', '0.25');
+                addHoldingRow('PFE', 'Healthcare & Pharmaceuticals', '0.25');
+                addHoldingRow('AMZN', 'Retail & Consumer Goods', '0.25');
+                document.getElementById('port-shock-input').value = 'Federal Reserve Interest Rate Freeze';
+            }
+        }
+
+        async function executePortfolioAnalysis() {
+            const rows = document.querySelectorAll('#portfolio-holdings-list > div');
+            const holdings = [];
+
+            rows.forEach(row => {
+                const sym = row.querySelector('.holding-symbol').value.trim();
+                const sec = row.querySelector('.holding-sector').value;
+                const w = parseFloat(row.querySelector('.holding-weight').value || '1.0');
+
+                if (sym) {
+                    holdings.push({
+                        symbol: sym,
+                        sector: sec || null,
+                        weight: isNaN(w) ? 1.0 : w
+                    });
+                }
+            });
+
+            if (holdings.length === 0) {
+                alert('Please enter at least one ticker holding.');
+                return;
+            }
+
+            const shockQuery = document.getElementById('port-shock-input').value.trim();
+            const resultsBox = document.getElementById('portfolio-results-container');
+            resultsBox.style.display = 'block';
+
+            document.getElementById('port-ai-briefing-content').innerHTML = '<div class="spinner"></div> Running Knowledge Graph shock cascade analysis and searching Qdrant vector signals...';
+            document.getElementById('port-sector-allocation-list').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('port-direct-risks-list').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('port-shock-impacts-list').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('port-actions-list').innerHTML = '<div class="spinner"></div>';
+            document.getElementById('port-news-list').innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const response = await fetch('/pipeline/portfolio-analysis', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        holdings: holdings,
+                        simulated_shock: shockQuery || null
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                // 1. Render Executive AI Briefing
+                document.getElementById('port-ai-briefing-content').innerText = data.ai_advisory_briefing || 'Analysis complete.';
+
+                // 2. Render Sector Allocation Progress Bars
+                let allocHtml = '';
+                const sortedSectors = Object.entries(data.sector_allocation).sort((a, b) => b[1] - a[1]);
+                sortedSectors.forEach(([sec, pct]) => {
+                    const color = pct >= 40 ? '#f43f5e' : (pct >= 25 ? '#f59e0b' : '#10b981');
+                    allocHtml += `
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 4px;">
+                                <span>${sec}</span>
+                                <span style="font-family: 'JetBrains Mono', monospace; color: ${color};">${pct}%</span>
+                            </div>
+                            <div style="height: 8px; background: rgba(255, 255, 255, 0.08); border-radius: 4px; overflow: hidden;">
+                                <div style="width: ${pct}%; height: 100%; background: ${color}; border-radius: 4px; transition: width 0.5s ease;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                document.getElementById('port-sector-allocation-list').innerHTML = allocHtml || '<p style="color: var(--text-muted);">No allocation data.</p>';
+
+                // 3. Render Concentration & Inverse Risks
+                let risksHtml = '';
+                if (data.direct_exposure_risks.length === 0) {
+                    risksHtml = `<p style="color: var(--text-muted); font-size: 13px;">No critical exposure risks detected.</p>`;
+                } else {
+                    data.direct_exposure_risks.forEach(r => {
+                        risksHtml += `
+                            <div class="impact-item">
+                                <div class="impact-item-header">
+                                    <span>${r.sector}</span>
+                                    <span class="severity-tag severity-${r.risk_level}">${r.risk_level} Risk</span>
+                                </div>
+                                <div class="impact-desc">${r.description}</div>
+                            </div>
+                        `;
+                    });
+                }
+                document.getElementById('port-direct-risks-list').innerHTML = risksHtml;
+
+                // 4. Render Knowledge Graph Shock Impact Cascades
+                let shockHtml = '';
+                if (!data.cascading_shock_impacts || data.cascading_shock_impacts.length === 0) {
+                    shockHtml = `<p style="color: var(--text-muted); font-size: 13px;">No direct shock cascade propagation detected for current portfolio holdings.</p>`;
+                } else {
+                    data.cascading_shock_impacts.forEach(c => {
+                        shockHtml += `
+                            <div class="impact-item" style="border-left: 3px solid var(--accent-rose);">
+                                <div class="impact-item-header">
+                                    <span>${c.sector}</span>
+                                    <span class="severity-tag severity-${c.impact_level}">${c.impact_level}</span>
+                                </div>
+                                <div class="impact-desc">${c.explanation}</div>
+                            </div>
+                        `;
+                    });
+                }
+                document.getElementById('port-shock-impacts-list').innerHTML = shockHtml;
+
+                // 5. Render Actionable Recommendations Checklist
+                let actionsHtml = '';
+                if (data.recommended_action_items && data.recommended_action_items.length > 0) {
+                    data.recommended_action_items.forEach(act => {
+                        actionsHtml += `
+                            <div style="display: flex; gap: 10px; align-items: flex-start; margin-bottom: 10px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.2); padding: 10px 14px; border-radius: 8px; font-size: 13px; color: #a7f3d0;">
+                                <i class="fa-solid fa-circle-check" style="color: #10b981; margin-top: 3px; flex-shrink: 0;"></i>
+                                <span>${act}</span>
+                            </div>
+                        `;
+                    });
+                }
+                document.getElementById('port-actions-list').innerHTML = actionsHtml;
+
+                // 6. Render Relevant News Articles from Qdrant
+                let newsHtml = '';
+                if (!data.relevant_articles || data.relevant_articles.length === 0) {
+                    newsHtml = `<p style="color: var(--text-muted); font-size: 13px; grid-column: 1/-1;">No news headlines logged matching portfolio sectors.</p>`;
+                } else {
+                    data.relevant_articles.forEach(art => {
+                        newsHtml += `
+                            <div class="article-card" style="padding: 16px;">
+                                <div class="article-meta">
+                                    <span class="sector-badge badge-tech">${art.sector || 'General'}</span>
+                                    <span class="article-timestamp">${art.published_time ? art.published_time.substring(0, 10) : 'Recent'}</span>
+                                </div>
+                                <h4 style="font-size: 14px; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">${art.title}</h4>
+                                <p class="article-excerpt" style="font-size: 12px; margin-bottom: 10px;">${art.content || ''}</p>
+                                <a href="${art.url}" target="_blank" class="article-link" style="font-size: 12px;">Read Article <i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                            </div>
+                        `;
+                    });
+                }
+                document.getElementById('port-news-list').innerHTML = newsHtml;
+
+            } catch (err) {
+                console.error("Error executing portfolio analysis:", err);
+                alert("Error connecting to portfolio analysis endpoint: " + err.message);
+            }
+        }
+    </script>
+</body>
+</html>

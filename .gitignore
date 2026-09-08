@@ -1,0 +1,22 @@
+# Environments & Secrets
+.env
+.env.local
+venv/
+env/
+ENV/
+
+# Databases & Local Storage
+*.db
+*.sqlite3
+rag_finance.db
+
+# Python cache & build
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
