@@ -1,0 +1,140 @@
+"""FinSight task runner. Plain Python, no third-party imports at top level.
+
+Usage: python dev.py <command>
+"""
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+NEWS = ROOT / "services" / "news"
+VENV = NEWS / ".venv"
+VENV_PY = VENV / "Scripts" / "python.exe"
+ENV_FILE = ROOT / ".env"
+
+# Executed inside the news venv (psycopg2 lives there). Never prints URLs.
+DB_CHECK_CODE = r'''
+import os, sys
+from urllib.parse import urlparse
+import psycopg2
+
+def vtuple(v):
+    return tuple(int(p) for p in v.split(".") if p.isdigit())
+
+failed = False
+for label, var in (("main", "DATABASE_URL"), ("test", "TEST_DATABASE_URL")):
+    url = os.environ.get(var, "")
+    print(f"[{label}]")
+    if not url:
+        print(f"  FAIL: {var} is not set"); failed = True; continue
+    host = urlparse(url).hostname or ""
+    if "-pooler" in host:
+        print("  FAIL: pooled endpoint (host contains -pooler); use the direct connection string"); failed = True; continue
+    if "sslmode=require" not in url:
+        print("  FAIL: URL lacks sslmode=require"); failed = True; continue
+    try:
+        conn = psycopg2.connect(url, connect_timeout=30)
+    except Exception as exc:
+        print(f"  FAIL: could not connect ({type(exc).__name__})"); failed = True; continue
+    try:
+        conn.set_session(readonly=True, autocommit=True)
+        cur = conn.cursor()
+        cur.execute("SHOW server_version")
+        print("  Postgres version:", cur.fetchone()[0])
+        # pg_stat_ssl on Neon reflects the proxy->compute hop, so also report the client-side TLS state.
+        cur.execute("SELECT ssl FROM pg_stat_ssl WHERE pid = pg_backend_pid()")
+        row = cur.fetchone()
+        server_ssl = bool(row and row[0])
+        client_ssl = bool(conn.info.ssl_in_use)
+        print(f"  SSL active: client={client_ssl} (protocol {conn.info.ssl_attribute('protocol')}), pg_stat_ssl={server_ssl}")
+        cur.execute("SELECT default_version, installed_version FROM pg_available_extensions WHERE name = 'vector'")
+        row = cur.fetchone()
+        if not row:
+            print("  FAIL: pgvector is not available"); failed = True
+        else:
+            print(f"  pgvector available: {row[0]}, installed: {row[1] or 'none'}")
+            if vtuple(row[0]) < (0, 7):
+                print("  FAIL: pgvector < 0.7"); failed = True
+        if not client_ssl:
+            print("  FAIL: SSL is off"); failed = True
+    finally:
+        conn.close()
+print("db-check:", "FAILED" if failed else "OK")
+sys.exit(1 if failed else 0)
+'''
+
+
+def load_env():
+    env = os.environ.copy()
+    if ENV_FILE.exists():
+        for raw in ENV_FILE.read_text(encoding="utf-8").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            env[key.strip()] = value.strip().strip("\"'")
+    return env
+
+
+def run_in_venv(args, input_text=None):
+    if not VENV_PY.exists():
+        print("Virtualenv missing. Run: python dev.py setup")
+        return 1
+    return subprocess.run(
+        [str(VENV_PY), *args], cwd=NEWS, env=load_env(), input=input_text, text=True
+    ).returncode
+
+
+def cmd_setup():
+    if not VENV_PY.exists():
+        rc = subprocess.run(["py", "-3.12", "-m", "venv", str(VENV)]).returncode
+        if rc:
+            return rc
+    return subprocess.run(
+        [str(VENV_PY), "-m", "pip", "install", "-e", f"{NEWS}[dev]"]
+    ).returncode
+
+
+def cmd_db_check():
+    return run_in_venv(["-"], input_text=DB_CHECK_CODE)
+
+
+def cmd_test():
+    return run_in_venv(["-m", "pytest", *sys.argv[2:]])
+
+
+def cmd_migrate():
+    return run_in_venv(["-m", "alembic", "upgrade", "head"])
+
+
+def cmd_ingest():
+    return run_in_venv(["-m", "src.news.scheduler.run_ingestion"])
+
+
+def cmd_report():
+    print("Available from Phase 7")
+    return 1
+
+
+COMMANDS = {
+    "setup": (cmd_setup, "create services/news/.venv and install dependencies (idempotent)"),
+    "db-check": (cmd_db_check, "check both Neon databases: direct endpoint, SSL, Postgres and pgvector versions"),
+    "test": (cmd_test, "run pytest in services/news"),
+    "migrate": (cmd_migrate, "run alembic upgrade head"),
+    "ingest": (cmd_ingest, "run one ingestion cycle"),
+    "report": (cmd_report, "print the latest run report (available from Phase 7)"),
+}
+
+
+def main():
+    if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
+        print("Usage: python dev.py <command>\n\nCommands:")
+        for name, (_, desc) in COMMANDS.items():
+            print(f"  {name:<10} {desc}")
+        return 0 if len(sys.argv) < 2 else 2
+    return COMMANDS[sys.argv[1]][0]()
+
+
+if __name__ == "__main__":
+    sys.exit(main())
