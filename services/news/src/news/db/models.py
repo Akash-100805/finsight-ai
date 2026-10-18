@@ -89,6 +89,9 @@ class Security(Base):
     primary_listing_id: Mapped[str | None] = mapped_column(ForeignKey("news.securities.security_id", ondelete="SET NULL"))
     is_active: Mapped[bool] = mapped_column(Boolean)
     source: Mapped[str] = mapped_column(Text)
+    cik: Mapped[str | None] = mapped_column(Text)
+    alt_symbol: Mapped[str | None] = mapped_column(Text)
+    sector_method: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(TS, server_default=text("now()"))
 
 

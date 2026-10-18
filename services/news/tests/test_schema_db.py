@@ -3,6 +3,7 @@ import uuid
 import pytest
 from alembic import command
 from finsight_shared import vocab
+from finsight_shared.sectors import NSE_SECTORS
 from sqlalchemy import text
 from sqlalchemy.exc import DBAPIError, IntegrityError
 
@@ -66,7 +67,9 @@ def test_seeded_lookups_match_shared_vocab(conn):
     assert sorted(vocab.CATEGORIES) == [tuple(r) for r in cats]
     assert sorted(vocab.EVENT_TYPES) == [tuple(r) for r in evs]
     sectors = conn.execute(text("SELECT sector_id, label, is_macro FROM news.sectors")).all()
-    assert [tuple(r) for r in sectors] == [(vocab.MACRO_SECTOR_ID, "Macro / Cross-sector", True)]
+    assert {r[0]: r[2] for r in sectors} == {**{i: False for i, _ in NSE_SECTORS}, vocab.MACRO_SECTOR_ID: True}
+    assert {r[0]: r[1] for r in sectors if not r[2]} == dict(NSE_SECTORS)  # NSE_SECTORS equals the 0002 seed
+    assert len(NSE_SECTORS) == 22
 
 
 def test_invalid_category_rejected(conn):
