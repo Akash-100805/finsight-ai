@@ -20,3 +20,11 @@ transformers_cache/
 # OS
 .DS_Store
 Thumbs.db
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+venv/
+*.sqlite3
+*.log
