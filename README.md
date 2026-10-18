@@ -33,6 +33,13 @@ infra/                  reserved for deployment config
 
 Run `python dev.py` with no arguments to list all commands.
 
+## Security master
+
+`python dev.py migrate` then `python dev.py securities-refresh` loads NSE, BSE and US securities with sectors and aliases.
+Downloads are cached in `services/news/data_cache/` (git-ignored). BSE blocks scripts, so the BSE scrip list is a manual download
+saved as `services/news/data_cache/bse/<YYYY-MM-DD>.csv`, and BSE industries are fetched through a browser session (see
+`services/news/tools/bse_industry_browser.md`). The reviewed data files live in `shared/data/`; see `docs/review/phase2_owner_review.md`.
+
 ## Build guide
 
 The specification for the news revamp is in [docs/NEWS_REVAMP_GUIDE.md](docs/NEWS_REVAMP_GUIDE.md).

@@ -140,6 +140,25 @@ def cmd_ingest():
     return 1
 
 
+def cmd_securities_refresh():
+    args = sys.argv[2:]
+    target = "main"
+    passthrough = []
+    i = 0
+    while i < len(args):
+        if args[i] == "--target" and i + 1 < len(args) and args[i + 1] in ("main", "test"):
+            target = args[i + 1]
+            i += 2
+        elif args[i] in ("--offline", "--fixtures", "--refresh-bse-industry"):
+            passthrough.append(args[i])
+            i += 1
+        else:
+            print("Usage: python dev.py securities-refresh [--target main|test] [--offline] [--refresh-bse-industry]")
+            return 2
+    print(f"Refreshing security master, target: {target}")
+    return run_in_venv(["-m", "src.news.security_master.refresh", "--target", target, *passthrough])
+
+
 def cmd_report():
     print("Available from Phase 7")
     return 1
@@ -151,6 +170,7 @@ COMMANDS = {
     "test": (cmd_test, "run pytest in services/news"),
     "migrate": (cmd_migrate, "run alembic upgrade head (--target main|test, default main)"),
     "ingest": (cmd_ingest, "disabled until Phase 5"),
+    "securities-refresh": (cmd_securities_refresh, "load NSE/BSE/US securities, sectors and aliases (--target main|test, --offline, --refresh-bse-industry)"),
     "report": (cmd_report, "print the latest run report (available from Phase 7)"),
 }
 

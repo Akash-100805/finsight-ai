@@ -28,3 +28,6 @@ build/
 venv/
 *.sqlite3
 *.log
+
+# Downloaded source files and caches
+data_cache/
