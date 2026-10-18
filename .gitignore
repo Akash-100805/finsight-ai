@@ -1,0 +1,22 @@
+# Secrets
+.env
+.env.*
+!.env.example
+/*.txt
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Model caches
+.cache/
+huggingface/
+hf_cache/
+models_cache/
+transformers_cache/
+
+# OS
+.DS_Store
+Thumbs.db
