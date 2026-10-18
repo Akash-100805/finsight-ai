@@ -1,0 +1,81 @@
+sic_from,sic_to,sector_id,sic_description,note
+0100,0299,fast_moving_consumer_goods,Agricultural production: crops and livestock,CHECK
+0700,0799,services,Agricultural services,
+0800,0899,forest_materials,Forestry,
+0900,0999,fast_moving_consumer_goods,"Fishing, hunting and trapping",CHECK
+1000,1199,metals_and_mining,Metal mining,
+1200,1399,oil_gas_and_consumable_fuels,Coal mining; crude petroleum and natural gas,NSE files coal under Oil Gas & Consumable Fuels
+1400,1499,construction_materials,Mining of nonmetallic minerals,CHECK
+1500,1519,construction,"Building construction, general contractors",
+1520,1539,realty,Residential building construction (homebuilders),
+1540,1799,construction,Heavy construction and special trade contractors,
+2000,2199,fast_moving_consumer_goods,"Food, beverages and tobacco products",
+2200,2399,textiles,"Textile mills, apparel and other finished textile products",
+2400,2499,forest_materials,Lumber and wood products,
+2500,2599,consumer_durables,Furniture and fixtures,
+2600,2699,forest_materials,Paper and allied products,
+2700,2799,media_entertainment_and_publication,"Printing, publishing and allied industries",
+2800,2829,chemicals,Chemicals and allied products; industrial chemicals; plastics materials,
+2830,2839,healthcare,"Drugs: pharmaceutical preparations, biological products",
+2840,2849,fast_moving_consumer_goods,"Soap, detergents, perfumes and cosmetics",
+2850,2899,chemicals,"Paints, agricultural and other chemical products",
+2900,2999,oil_gas_and_consumable_fuels,Petroleum refining and related products,
+3000,3099,chemicals,Rubber and miscellaneous plastics products,CHECK
+3100,3199,consumer_durables,"Leather and leather products, footwear",CHECK
+3200,3299,construction_materials,"Stone, clay, glass and concrete products",
+3300,3399,metals_and_mining,Primary metal industries,
+3400,3499,capital_goods,Fabricated metal products,
+3500,3569,capital_goods,Industrial and commercial machinery,
+3570,3579,information_technology,Computer and office equipment,
+3580,3599,capital_goods,"Refrigeration, service industry and other machinery",
+3600,3629,capital_goods,Electrical industrial apparatus and equipment,
+3630,3659,consumer_durables,"Household appliances, lighting, audio and video equipment",
+3660,3679,information_technology,"Communications equipment, semiconductors and electronic components",CHECK
+3680,3699,capital_goods,Miscellaneous electrical machinery,
+3700,3719,automobile_and_auto_components,Motor vehicles and equipment,
+3720,3749,capital_goods,"Aircraft, ship building, railroad equipment",
+3750,3759,automobile_and_auto_components,"Motorcycles, bicycles and parts",
+3760,3799,capital_goods,"Guided missiles, space vehicles, other transportation equipment",CHECK
+3800,3839,capital_goods,"Measuring, analyzing and controlling instruments",
+3840,3859,healthcare,"Surgical, medical and dental instruments; ophthalmic goods",
+3860,3999,consumer_durables,"Photographic goods, watches, jewelry, toys, sporting goods, misc manufacturing",CHECK
+4000,4299,services,"Railroads, local transit, trucking",
+4300,4399,services,Postal service and courier,
+4400,4599,services,Water and air transportation,
+4600,4699,oil_gas_and_consumable_fuels,Pipelines,
+4700,4799,services,Transportation services,
+4800,4829,telecommunication,Telephone and telegraph communications,
+4830,4841,media_entertainment_and_publication,"Radio, television broadcasting and cable",
+4842,4899,telecommunication,Communications services n.e.c.,
+4900,4909,utilities,"Electric, gas and sanitary services",
+4910,4919,power,Electric services,
+4920,4929,oil_gas_and_consumable_fuels,Gas production and distribution,CHECK
+4930,4999,utilities,"Combination utilities, water supply, sanitary services, cogeneration",CHECK
+5000,5199,services,Wholesale trade,CHECK
+5200,5999,consumer_services,Retail trade,
+6000,6499,financial_services,"Banks, credit, brokers, insurance",
+6500,6599,realty,"Real estate operators, developers and agents",
+6600,6797,financial_services,"Investment offices, trusts, holding companies, blank check companies",
+6798,6798,realty,Real estate investment trusts,CHECK
+6799,6799,financial_services,"Investors, n.e.c.",
+7000,7099,consumer_services,"Hotels, rooming houses, camps",
+7200,7299,consumer_services,Personal services,
+7300,7309,services,Business services (general),
+7310,7319,media_entertainment_and_publication,Advertising,
+7320,7369,services,"Credit reporting, mailing, building and personnel services",
+7370,7379,information_technology,"Computer programming, data processing and software services",
+7380,7399,services,Miscellaneous business services,
+7500,7599,consumer_services,"Automotive repair, services and parking",
+7600,7699,services,Miscellaneous repair services,
+7800,7899,media_entertainment_and_publication,Motion pictures,
+7900,7999,consumer_services,Amusement and recreation services,
+8000,8099,healthcare,Health services,
+8100,8199,services,Legal services,
+8200,8299,consumer_services,Educational services,
+8300,8399,services,Social services,
+8400,8499,consumer_services,"Museums, botanical and zoological gardens",
+8600,8699,services,Membership organizations,
+8700,8730,services,"Engineering, accounting, research, management services",
+8731,8734,healthcare,"Commercial physical and biological research, testing laboratories",
+8735,8999,services,"Engineering, accounting, research, management services",
+9100,9999,services,Public administration; non-classifiable establishments,CHECK
