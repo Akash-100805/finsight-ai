@@ -1,0 +1,36 @@
+{
+ "19617": {
+  "sic": "6021",
+  "sic_description": "National Commercial Banks"
+ },
+ "320193": {
+  "sic": "3571",
+  "sic_description": "Electronic Computers"
+ },
+ "789019": {
+  "sic": "7372",
+  "sic_description": "Services-Prepackaged Software"
+ },
+ "1045810": {
+  "sic": "3674",
+  "sic_description": "Semiconductors & Related Devices"
+ },
+ "1067983": {
+  "sic": "6331",
+  "sic_description": "Fire, Marine & Casualty Insurance"
+ },
+ "1374310": {
+  "sic": "6200",
+  "sic_description": "Security & Commodity Brokers, Dealers, Exchanges & Services"
+ },
+ "1652044": {
+  "sic": "7370",
+  "sic_description": "Services-Computer Programming, Data Processing, Etc."
+ },
+ "2070829": null,
+ "2115436": {
+  "sic": "2911",
+  "sic_description": "Petroleum Refining"
+ },
+ "2156068": null
+}

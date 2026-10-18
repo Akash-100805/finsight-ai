@@ -1,0 +1,119 @@
+{
+ "500012": {
+  "SecurityCode": "500012",
+  "ISIN": "INE714B01016",
+  "Industry": "Commodity Chemicals",
+  "Sector": "Commodities",
+  "IndustryNew": "Chemicals",
+  "_fetched_at": "2026-10-18T21:22:10.130377+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "500014": {
+  "SecurityCode": "500014",
+  "ISIN": "INE096A01010",
+  "Industry": "Precious Metals",
+  "Sector": "Commodities",
+  "IndustryNew": "Metals & Mining",
+  "_fetched_at": "2026-10-18T21:22:10.132378+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "500016": {
+  "SecurityCode": "500016",
+  "ISIN": "INE957C01019",
+  "Industry": "Hotels & Resorts",
+  "Sector": "Consumer Discretionary",
+  "IndustryNew": "Consumer Services",
+  "_fetched_at": "2026-10-18T21:22:10.133377+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "500028": {
+  "SecurityCode": "500028",
+  "ISIN": "INE447A01015",
+  "Industry": "Industrial Products",
+  "Sector": "Industrials",
+  "IndustryNew": "Capital Goods",
+  "_fetched_at": "2026-10-18T21:22:10.135387+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "500051": {
+  "SecurityCode": "500051",
+  "ISIN": "INE099C01010",
+  "Industry": "Industrial Gases",
+  "Sector": "Commodities",
+  "IndustryNew": "Chemicals",
+  "_fetched_at": "2026-10-18T21:22:10.140386+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "523204": {
+  "SecurityCode": "523204",
+  "ISIN": "INE421A01028",
+  "Industry": "Offshore Support Solution Drilling",
+  "Sector": "Energy",
+  "IndustryNew": "Oil, Gas & Consumable Fuels",
+  "_fetched_at": "2026-10-18T21:22:11.158811+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "523395": {
+  "SecurityCode": "523395",
+  "ISIN": "INE470A01017",
+  "Industry": "Diversified",
+  "Sector": "Diversified",
+  "IndustryNew": "Diversified",
+  "_fetched_at": "2026-10-18T21:22:11.185660+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "526397": {
+  "SecurityCode": "526397",
+  "ISIN": "INE137C01018",
+  "Industry": "Offshore Support Solution Drilling",
+  "Sector": "Energy",
+  "IndustryNew": "Oil, Gas & Consumable Fuels",
+  "_fetched_at": "2026-10-18T21:22:11.365591+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "526921": {
+  "SecurityCode": "526921",
+  "ISIN": "INE253B01015",
+  "Industry": "Other Capital Market related Services",
+  "Sector": "Financial Services",
+  "IndustryNew": "Financial Services",
+  "_fetched_at": "2026-10-18T21:22:11.458118+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "532067": {
+  "SecurityCode": "532067",
+  "ISIN": "INE994E01018",
+  "Industry": "Healthcare Service Provider",
+  "Sector": "Healthcare",
+  "IndustryNew": "Healthcare",
+  "_fetched_at": "2026-10-18T21:22:11.945617+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "532628": {
+  "SecurityCode": "532628",
+  "ISIN": "INE748C01038",
+  "Industry": "Computers - Software & Consulting",
+  "Sector": "Information Technology",
+  "IndustryNew": "Information Technology",
+  "_fetched_at": "2026-10-18T21:22:12.062766+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "533022": {
+  "SecurityCode": "533022",
+  "ISIN": "INE144J01027",
+  "Industry": "Industrial Minerals",
+  "Sector": "Commodities",
+  "IndustryNew": "Metals & Mining",
+  "_fetched_at": "2026-10-18T21:22:12.202944+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ },
+ "535276": {
+  "SecurityCode": "535276",
+  "ISIN": "INF200K01VT2",
+  "Industry": "-",
+  "Sector": "",
+  "IndustryNew": "",
+  "_fetched_at": "2026-10-18T21:22:12.334522+00:00",
+  "_source": "BSE ComHeader (selected fields)"
+ }
+}
