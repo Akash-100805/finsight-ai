@@ -134,6 +134,12 @@ Partial unique index `(source_id, source_article_id) WHERE source_article_id IS 
 
 **`news.ingestion_runs`** and **`news.ingestion_source_runs`** — run-level and per-source counters: fetched, rejected (by reason), exact-dupes, near-dupes, stored, embedded, embed_failed, securities_linked, unresolved_mentions, articles_without_sector, error_summary, status.
 
+**Lookup tables** (FK targets, seeded by the baseline migration from the literal lists in `shared/vocab.py`): `news.categories(category_id TEXT PK, label TEXT)`, `news.event_types(event_type_id TEXT PK, label TEXT)`, `news.sectors(sector_id TEXT PK, label TEXT, is_macro BOOL)`. The sectors table starts with only `macro_cross_sector`; Phase 2 seeds the NSE sectors.
+
+**Source operations:** `news.source_state(source_id PK FK, last_attempt_at, last_success_at, consecutive_failures INT, circuit_open_until TIMESTAMPTZ NULL, last_error TEXT NULL, updated_at)` and `news.source_budget_usage(source_id FK, usage_date DATE, requests_made INT, PK(source_id, usage_date))` (as built in Phase 1).
+
+**Housekeeping:** Alembic's version table lives in `news.alembic_version`. A trigger keeps `updated_at` current on `articles` and `securities`.
+
 Drop these legacy objects: `news_entities`, `news_topics`, `news_article_entities`, `news_article_topics`, `importance`. Reliability and recency replace `importance`.
 
 ---
@@ -180,25 +186,39 @@ Rules for all sources:
 ## 6. Security resolution and extraction (the most accuracy-critical part)
 
 ### 6.1 Building the security master (Phase 2)
-- **NSE:** `https://archives.nseindia.com/content/equities/EQUITY_L.csv` (symbol, name, ISIN). Sector comes from the Nifty Total Market constituents CSV on niftyindices.com (`Industry` column), joined by symbol.
-  - NSE stocks not in that index: take the industry from NSE's own classification if it's reachable without scraping; otherwise set `sector=NULL` and report the count.
-  - Target: at least 95% of NSE equities, and 100% of Nifty Total Market stocks, get a sector.
-- **BSE:** BSE "List of Scrips" download (scrip code, name, ISIN, industry). Rows whose ISIN matches NSE get `primary_listing_id` = the NSE row. If the BSE list can't be downloaded, report it and stop.
-- **US:** `https://www.sec.gov/files/company_tickers_exchange.json` (cik, name, ticker, exchange). The SEC requires a User-Agent with a contact email, read from config key `SEC_USER_AGENT`. The SIC code comes from SEC submissions data and is mapped to the shared sectors via `shared/data/sic_to_sector.csv`. Claude Code drafts this mapping and prints it in the phase summary for review.
-- Refresh job: weekly. Deactivate securities that disappear; never delete them.
+Extra columns on `news.securities` (migration 0002): `cik TEXT NULL` (US), `alt_symbol TEXT NULL` (BSE scrip_id ticker, e.g. RELIANCE), `sector_method TEXT NULL CHECK IN ('nifty_index','bse_industry_map','sic_map')`.
+
+- **NSE:** `https://archives.nseindia.com/content/equities/EQUITY_L.csv` (symbol, name, ISIN).
+- **BSE:** the BSE List of Scrips JSON (active equity segment), giving scrip code, scrip_id, name, ISIN and BSE industry.
+  - BSE rows whose ISIN matches an NSE row get `primary_listing_id` = the NSE row.
+  - If the BSE list can't be downloaded, report it and stop.
+- **NSE sector priority** (the first one that applies wins):
+  1. The Industry column of the Nifty Total Market constituents CSV (niftyindices.com) → `nifty_index`. Its distinct values *are* the frozen sector list.
+  2. The company's BSE industry (joined by ISIN), mapped to a frozen sector via `shared/data/bse_industry_to_sector.csv` → `bse_industry_map`. Claude Code drafts the mapping; the owner reviews it.
+  3. Otherwise `NULL`, counted and reported.
+- **Coverage targets:** 100% of Nifty Total Market stocks, at least 95% of active NSE equities, at least 90% of BSE-only equities.
+- **US:** `https://www.sec.gov/files/company_tickers_exchange.json`.
+  - Only the Nasdaq, NYSE and CBOE listings. OTC is excluded because thousands of thinly traded names would create false alias matches.
+  - When one company (CIK) has several tickers, the first ticker in the SEC file is primary; the others point to it via `primary_listing_id`.
+  - SIC comes from `data.sec.gov/submissions/CIK##########.json` (≤8 requests/s, cached locally), mapped via `shared/data/sic_to_sector.csv` → `sic_map`. Claude Code drafts the mapping; the owner reviews it.
+  - Every request carries `SEC_USER_AGENT`.
+- **Refresh** (`python dev.py securities-refresh`, weekly): upsert; deactivate securities that disappear and never delete them; regenerate the generated aliases; re-apply the curated file.
 
 ### 6.2 Aliases
-For each security, generate:
-- `official_name`
-- `short_name`: the name with legal suffixes stripped. The suffix list is fixed in code: Limited, Ltd, Ltd., Inc, Inc., Corp, Corporation, Co, plc, (India), India Ltd.
-- `symbol`: only if it is at least 3 characters, is not an English dictionary word and is not in the stoplist; matched case-sensitive and uppercase only.
-- `curated`: from `shared/data/aliases_curated.csv`. Claude Code drafts this for all Nifty 200 companies plus the top 100 US companies by market cap, covering common short names and abbreviations (RIL, SBI, L&T, M&M, HUL, TCS, Infy, HDFC Bank…). The file has a `reviewed` column defaulting to `false`, and the phase summary lists it for the owner to spot-check.
+**Normalization** (`alias_norm`): casefold → `&` becomes ` and ` → remove `.` and `'` → strip SEC state suffixes such as `/DE/` → collapse every other non-alphanumeric run to one space → trim. Generated aliases shorter than 3 characters after normalization are dropped.
+
+**Name aliases** (`official_name`, `short_name`, `curated`, `brand`) are generated **only for primary listings**: NSE for dual-listed Indian companies, and the first ticker per CIK for US companies. This way one company never collides with itself. Symbol aliases are generated for every listing.
+
+For each primary security, generate:
+- `official_name`.
+- `short_name`: the name with legal suffixes stripped, applied repeatedly from the end. The suffix list is fixed in code: Limited, Ltd, Ltd., Inc, Inc., Corp, Corporation, Co, plc, (India), India Ltd.
+- `symbol`: only if it is at least 3 characters, is not a common English word (`wordfreq` zipf ≥ 3.0) and is not in `shared/data/symbol_stoplist.csv` (CEO, IPO, GDP, RBI, SEBI, NSE, BSE, FII, ETF, EPS, …). Matched case-sensitive and uppercase only. Numeric BSE scrip codes are never aliases.
+- `curated` / `brand`: from `shared/data/aliases_curated.csv`, with columns `security_id, alias, alias_type, reviewed, note`. Claude Code drafts this for the Nifty 200 plus the 100 largest US companies, covering common short names (RIL, SBI, L&T, M&M, HUL, TCS, Infy…). A brand alias is added only when the brand unambiguously means that listed company. `reviewed` defaults to `false`, and all rows are loaded.
 
 An alias is marked `is_ambiguous` if any of these is true:
-- it maps to more than one security,
-- it is an English dictionary word,
-- it is a common Indian surname or group name (Tata, Birla, Adani, Bajaj, Mahindra, Reliance used alone, etc.),
-- it is a place name.
+- it maps to more than one primary security,
+- it is a single word with `wordfreq` zipf ≥ 3.5,
+- it appears in `shared/data/ambiguous_terms.csv` (Indian business-group and surname terms such as Tata, Birla, Adani, Bajaj, Mahindra and Reliance used alone; country, state and city names).
 
 ### 6.3 Resolution flow (every article)
 1. **Exchange filings** (NSE/BSE sources): the company in the filing is resolved by exact symbol, scrip code or registered name → `method='exchange_filing'`, `confidence=1.00`, `role='primary'`.
