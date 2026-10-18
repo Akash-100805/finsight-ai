@@ -189,12 +189,17 @@ Rules for all sources:
 Extra columns on `news.securities` (migration 0002): `cik TEXT NULL` (US), `alt_symbol TEXT NULL` (BSE scrip_id ticker, e.g. RELIANCE), `sector_method TEXT NULL CHECK IN ('nifty_index','bse_industry_map','sic_map')`.
 
 - **NSE:** `https://archives.nseindia.com/content/equities/EQUITY_L.csv` (symbol, name, ISIN).
-- **BSE:** the BSE List of Scrips JSON (active equity segment), giving scrip code, scrip_id, name, ISIN and BSE industry.
+- **BSE scrip list:** the owner's manual download from bseindia.com (List of Scrips: Segment = Equity T+1, Status = Active), saved as `data_cache/bse/<YYYY-MM-DD>.csv`, because BSE's API blocks scripts. It gives scrip code, scrip id, name and ISIN, but no industry. Only rows with Instrument = Equity are loaded.
   - BSE rows whose ISIN matches an NSE row get `primary_listing_id` = the NSE row.
-  - If the BSE list can't be downloaded, report it and stop.
+  - If no BSE list is available, report it and stop.
+- **BSE industry:** BSE's `ComHeader` endpoint, field `IndustryNew` (it also returns `Industry` and `Sector`). BSE refuses scripts, so it is fetched from a real browser session at most 2 requests/s, one at a time, with a pause and backoff after any 403/429, stopping after 10 consecutive blocks.
+  - Fetched only for NSE stocks that are not in Nifty Total Market (joined to BSE by ISIN) and for BSE-only stocks, never for Nifty Total Market stocks.
+  - Each scrip's response is cached in `data_cache/bse_industry/<scrip_code>.json`; `securities-refresh` fetches only scrips with no cache, and `--refresh-bse-industry` re-pulls everything (monthly).
+  - `securities.industry_raw` stores `Industry | Sector | IndustryNew`.
+  - A scrip whose industry can't be fetched keeps `sector = NULL` and is listed in the coverage report.
 - **NSE sector priority** (the first one that applies wins):
   1. The Industry column of the Nifty Total Market constituents CSV (niftyindices.com) → `nifty_index`. Its distinct values *are* the frozen sector list.
-  2. The company's BSE industry (joined by ISIN), mapped to a frozen sector via `shared/data/bse_industry_to_sector.csv` → `bse_industry_map`. Claude Code drafts the mapping; the owner reviews it.
+  2. The company's BSE `IndustryNew` (joined by ISIN). If it exactly equals a frozen sector label it maps directly; any other value is mapped through `shared/data/bse_industry_to_sector.csv` (only non-identical values appear there). Either way → `bse_industry_map`. Claude Code drafts the mapping; the owner reviews it.
   3. Otherwise `NULL`, counted and reported.
 - **Coverage targets:** 100% of Nifty Total Market stocks, at least 95% of active NSE equities, at least 90% of BSE-only equities.
 - **US:** `https://www.sec.gov/files/company_tickers_exchange.json`.
