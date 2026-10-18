@@ -1,0 +1,1 @@
+"""FinSight shared contracts, imported by every service."""
