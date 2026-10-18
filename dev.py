@@ -60,6 +60,20 @@ for label, var in (("main", "DATABASE_URL"), ("test", "TEST_DATABASE_URL")):
             print("  FAIL: SSL is off"); failed = True
     finally:
         conn.close()
+
+print("[startup checks]")
+from src.news.db.engine import get_engine
+from src.news.startup import StartupCheckError, run_startup_checks
+for label in ("main", "test"):
+    try:
+        run_startup_checks(get_engine(label))
+        print(f"  {label}: OK")
+    except StartupCheckError as exc:
+        print(f"  {label}: NOT READY - {exc}")
+        failed = True
+    except Exception as exc:
+        print(f"  {label}: FAIL ({type(exc).__name__})")
+        failed = True
 print("db-check:", "FAILED" if failed else "OK")
 sys.exit(1 if failed else 0)
 '''
@@ -77,13 +91,13 @@ def load_env():
     return env
 
 
-def run_in_venv(args, input_text=None):
+def run_in_venv(args, input_text=None, extra_env=None):
     if not VENV_PY.exists():
         print("Virtualenv missing. Run: python dev.py setup")
         return 1
-    return subprocess.run(
-        [str(VENV_PY), *args], cwd=NEWS, env=load_env(), input=input_text, text=True
-    ).returncode
+    env = load_env()
+    env.update(extra_env or {})
+    return subprocess.run([str(VENV_PY), *args], cwd=NEWS, env=env, input=input_text, text=True).returncode
 
 
 def cmd_setup():
@@ -91,9 +105,10 @@ def cmd_setup():
         rc = subprocess.run(["py", "-3.12", "-m", "venv", str(VENV)]).returncode
         if rc:
             return rc
-    return subprocess.run(
-        [str(VENV_PY), "-m", "pip", "install", "-e", f"{NEWS}[dev]"]
-    ).returncode
+    rc = subprocess.run([str(VENV_PY), "-m", "pip", "install", "-e", f"{NEWS}[dev]"]).returncode
+    if rc:
+        return rc
+    return subprocess.run([str(VENV_PY), "-m", "pip", "install", "-e", str(ROOT / "shared")]).returncode
 
 
 def cmd_db_check():
@@ -105,11 +120,24 @@ def cmd_test():
 
 
 def cmd_migrate():
-    return run_in_venv(["-m", "alembic", "upgrade", "head"])
+    args = sys.argv[2:]
+    target = "main"
+    if args:
+        if len(args) == 2 and args[0] == "--target" and args[1] in ("main", "test"):
+            target = args[1]
+        elif len(args) == 1 and args[0] in ("--target=main", "--target=test"):
+            target = args[0].split("=")[1]
+        else:
+            print("Usage: python dev.py migrate [--target main|test]")
+            return 2
+    env = {"FINSIGHT_DB_TARGET": target}
+    print(f"Migrating target: {target}")
+    return run_in_venv(["-m", "alembic", "upgrade", "head"], extra_env=env)
 
 
 def cmd_ingest():
-    return run_in_venv(["-m", "src.news.scheduler.run_ingestion"])
+    print("Disabled until Phase 5")
+    return 1
 
 
 def cmd_report():
@@ -121,8 +149,8 @@ COMMANDS = {
     "setup": (cmd_setup, "create services/news/.venv and install dependencies (idempotent)"),
     "db-check": (cmd_db_check, "check both Neon databases: direct endpoint, SSL, Postgres and pgvector versions"),
     "test": (cmd_test, "run pytest in services/news"),
-    "migrate": (cmd_migrate, "run alembic upgrade head"),
-    "ingest": (cmd_ingest, "run one ingestion cycle"),
+    "migrate": (cmd_migrate, "run alembic upgrade head (--target main|test, default main)"),
+    "ingest": (cmd_ingest, "disabled until Phase 5"),
     "report": (cmd_report, "print the latest run report (available from Phase 7)"),
 }
 
