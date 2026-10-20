@@ -155,25 +155,30 @@ Configured in `services/news/config/sources.yaml`. Before writing each adapter, 
 | `nse_board_meetings` | NSE RSS `.../Board_Meetings.xml` | A / 1.00 | exchange_filing | india / financial | always | 60 min |
 | `nse_corporate_actions` | NSE RSS `.../Corporate_action.xml` | A / 1.00 | exchange_filing | india / financial | always | 60 min |
 | `nse_insider_trading` | NSE RSS `.../InsiderTrading.xml` | A / 1.00 | exchange_filing | india / financial | always | 60 min |
-| `bse_announcements` | BSE corporate announcements JSON (unofficial endpoint, same one the `bse` PyPI package uses) | A / 1.00 | exchange_filing | india / financial | always (scrip code) | 30 min; circuit breaker after 3 consecutive failures, retry after 6h |
+| `bse_announcements` | BSE corporate announcements JSON (unofficial endpoint, same one the `bse` PyPI package uses). **Disabled:** it answers HTTP 403 to scripts (verified 2026-10-20); the adapter stays dormant. | A / 1.00 | exchange_filing | india / financial | always (scrip code) | 30 min |
 | `sebi` | `https://www.sebi.gov.in/sebirss.xml` | A / 1.00 | regulator | india / financial | sometimes (orders name companies) | 60 min |
 | `rbi_press` | `https://rbi.org.in/pressreleases_rss.xml` | A / 1.00 | regulator | india / financial | never | 60 min |
 | `rbi_notifications` | `https://rbi.org.in/notifications_rss.xml` | A / 1.00 | regulator | india / financial | never | 60 min |
-| `pib` | PIB English RSS (verify current URL on pib.gov.in) | A / 0.95 | government | india / mixed | never | 60 min |
+| `pib` | PIB RSS `https://www.pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3`. **Disabled:** the feed has no dates and Hindi titles (verified 2026-10-20). | A / 0.95 | government | india / mixed | never | 60 min |
 | `fed_press` | `https://www.federalreserve.gov/feeds/press_all.xml` | A / 1.00 | regulator | global / financial | never | 60 min |
-| `et_markets` | Economic Times Markets RSS | B / 0.85 | publisher | india / financial | never | 30 min |
-| `et_economy` | Economic Times Economy RSS | B / 0.85 | publisher | india / financial | never | 60 min |
-| `moneycontrol` | Moneycontrol business/markets RSS | B / 0.85 | publisher | india / financial | never | 30 min |
-| `livemint_markets` | Livemint markets RSS | B / 0.85 | publisher | india / financial | never | 30 min |
-| `business_standard` | Business Standard markets RSS | B / 0.85 | publisher | india / financial | never | 30 min |
-| `the_hindu_national` | The Hindu national RSS | B / 0.80 | publisher | india / non_financial | never | 60 min |
+| `et_markets` | Economic Times Markets RSS `https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms` | B / 0.85 | publisher | india / financial | never | 30 min |
+| `et_economy` | Economic Times Economy RSS `https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms` | B / 0.85 | publisher | india / financial | never | 60 min |
+| `moneycontrol` | Moneycontrol markets RSS `https://www.moneycontrol.com/rss/marketreports.xml`. **Disabled:** every public Moneycontrol feed stopped updating in April 2024 (verified 2026-10-20). | B / 0.85 | publisher | india / financial | never | 30 min |
+| `livemint_markets` | Livemint markets RSS `https://www.livemint.com/rss/markets` | B / 0.85 | publisher | india / financial | never | 30 min |
+| `business_standard` | Business Standard markets RSS `https://www.business-standard.com/rss/markets-106.rss` | B / 0.85 | publisher | india / financial | never | 30 min |
+| `the_hindu_national` | The Hindu national RSS `https://www.thehindu.com/news/national/feeder/default.rss` | B / 0.80 | publisher | india / non_financial | never | 60 min |
 | `marketaux` | Marketaux `/v1/news/all`, two calls per run: India (`countries=in`) and global (`filter_entities=true`) | B / 0.80 | aggregator | both / financial | sometimes (entity symbols plus entity sentiment) | 30 min; budget 96/day |
 | `finnhub` | Finnhub `/news?category=general` and `category=merger` | B / 0.75 | aggregator | global / financial | sometimes (`related`) | 30 min |
-| `alpha_vantage` | `NEWS_SENTIMENT` with topic rotation (economy_macro, economy_monetary, energy_transportation, financial_markets, technology, mergers_and_acquisitions, earnings) | B / 0.75 | aggregator | global / financial | sometimes (ticker_sentiment) | budget 20/day, spread evenly |
-| `newsdata` | NewsData `/news`, three calls per run: India business; India politics+environment+top; global business+world | C / 0.65 | aggregator | both / mixed | never | 30 min; budget 144/day |
-| `gdelt` | GDELT DOC 2.0 `ArtList`, 12 theme queries (6 India-scoped via `sourcecountry:india` or India terms; 6 global: conflict, sanctions/tariffs, oil/OPEC, central banks, disasters/supply chain, elections) | C / 0.60 | event_database | both / non_financial | never | 60 min; 1s between queries |
+| `alpha_vantage` | `NEWS_SENTIMENT` with topic rotation (economy_macro, economy_monetary, energy_transportation, financial_markets, technology, mergers_and_acquisitions, earnings), one call per run. **Disabled:** the endpoint answers "premium endpoint" on the free key (verified 2026-10-20). | B / 0.75 | aggregator | global / financial | sometimes (ticker_sentiment) | budget 20/day, spread evenly |
+| `newsdata` | NewsData `/api/1/latest`, three calls per run: India business; India politics+environment+top; global business+world | C / 0.65 | aggregator | both / mixed | never | 30 min; budget 144/day |
+| `gdelt` | GDELT DOC 2.0 `ArtList`, 12 theme queries (6 India-scoped via `sourcecountry:india` or India terms; 6 global: conflict, sanctions/tariffs, oil/OPEC, central banks, disasters/supply chain, elections) | C / 0.60 | event_database | both / non_financial | never | 120 min; 15 records per query, `sort=hybridrel`; 8 s between queries (GDELT answered 429 even at 6 s spacing); budget 144/day |
 
 Rules for all sources:
+- **Fetch window:** `since = last_success_at - 30 min`; the first-ever run of a source looks back 7 days (as far as its API allows).
+- **Circuit breaker (every source):** 3 consecutive failures open the circuit for 360 minutes (`source_state.circuit_open_until`); a success closes it. A spent daily budget is not a failure.
+- **Cursors** live in `news.source_state.cursor` (Finnhub: JSON of the highest id seen per category, sent as `minId`; Alpha Vantage: the next topic index).
+- **Budgets:** every real HTTP request (including retries) is counted in `news.source_budget_usage` *before* it is sent, per UTC day.
+- **A source that cannot work as specified is set to `enabled: false` in `sources.yaml` with a `disabled_reason`.**
 - Publisher RSS content: store title, summary and link only. Never store or reproduce full article text (`content` = NULL).
 - Keep NSE/BSE requests polite: browser-like User-Agent, no parallel requests to the same host, exponential backoff on 403/429.
 - GDELT `ArtList` returns **no tone field**, so never write a tone. GDELT `sourcecountry` is a country name: map it to ISO alpha-2 through a lookup table and never truncate strings.
