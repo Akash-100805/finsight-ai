@@ -1,0 +1,231 @@
+{
+ "status": "success",
+ "totalResults": 8264,
+ "results": [
+  {
+   "article_id": "95b56d315be96970f37b06b05cf9bbfb",
+   "link": "https://wwd.com/sourcing-journal/trade/chinas-september-exports-apparel-footwear-us-global-trade-surplus-gdp-1239375294/",
+   "title": "China’s September Exports Surged 36% as Apparel and Footwear Posted Standout Turnarounds",
+   "description": "Worldwide, apparel exports rose 24 percent to $15.4 billion and footwear shipments jumped 20.2 percent to $3.5 billion, while U.S.-bound goods jumped 39.6 percent to $47.9 billion.",
+   "content": "ONLY AVAILABLE IN PAID PLANS",
+   "keywords": [
+    "footwear",
+    "apparel exports",
+    "trade",
+    "china exports",
+    "global trade",
+    "china"
+   ],
+   "creator": [
+    "glenn taylor"
+   ],
+   "language": "english",
+   "country": [
+    "vietnam",
+    "indonesia",
+    "bangladesh",
+    "india",
+    "china",
+    "united states of america",
+    "turkey",
+    "pakistan",
+    "germany",
+    "cambodia"
+   ],
+   "category": [
+    "business"
+   ],
+   "datatype": "news",
+   "pubDate": "2026-10-19 19:39:41",
+   "pubDateTZ": "UTC",
+   "fetched_at": "2026-10-19 20:09:09",
+   "image_url": "https://wwd.com/wp-content/uploads/2026/10/chinashezhen.jpg",
+   "video_url": null,
+   "source_id": "sourcingjournal",
+   "source_name": "Sourcing Journal",
+   "source_priority": 66190,
+   "source_url": "https://sourcingjournal.com",
+   "source_icon": "https://i.newsdata.io/sourcingjournal.png",
+   "sentiment": "positive",
+   "sentiment_stats": {
+    "negative": 0.02,
+    "neutral": 0.05,
+    "positive": 99.93
+   },
+   "ai_tag": [
+    "fmcg"
+   ],
+   "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+   "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+   "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+   "duplicate": false
+  },
+  {
+   "article_id": "b5216e2d240547c81ea0d1b68be84262",
+   "link": "https://www.einpresswire.com/article/950773416/dr-timothy-adams-speaks-on-biological-dentistry-at-mindshare-summit-2026",
+   "title": "Dr. Timothy Adams Speaks on Biological Dentistry at Mindshare Summit 2026",
+   "description": "The Indianapolis dentist took the stage at JJ Virgin's annual summit for health practitioners in San Diego to talk about biological dentistry.",
+   "content": "ONLY AVAILABLE IN PAID PLANS",
+   "keywords": [
+    "media",
+    "healthcare and pharmaceuticals industry",
+    "society and lifestyle",
+    "science",
+    "united states",
+    "california",
+    "worldnews",
+    "culture",
+    "social media"
+   ],
+   "creator": [
+    "mirit moon"
+   ],
+   "language": "english",
+   "country": [
+    "china",
+    "australia",
+    "germany",
+    "united states of america",
+    "japan",
+    "france",
+    "canada",
+    "india",
+    "united kingdom"
+   ],
+   "category": [
+    "business"
+   ],
+   "datatype": "news",
+   "pubDate": "2026-10-19 19:39:07",
+   "pubDateTZ": "UTC",
+   "fetched_at": "2026-10-19 19:47:39",
+   "image_url": "https://img.einnews.com/ampsize/1144414/dr-timothy-adams-dds-2.jpeg",
+   "video_url": null,
+   "source_id": "einpresswire",
+   "source_name": "Ein Presswire",
+   "source_priority": 651037,
+   "source_url": "https://www.einpresswire.com",
+   "source_icon": "https://i.newsdata.io/einpresswire.png",
+   "sentiment": "positive",
+   "sentiment_stats": {
+    "negative": 0.05,
+    "neutral": 27.73,
+    "positive": 72.22
+   },
+   "ai_tag": [
+    "health and fitness",
+    "pharma and healthcare"
+   ],
+   "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+   "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+   "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+   "duplicate": false
+  },
+  {
+   "article_id": "33490e701a3a43b217671a90e3843911",
+   "link": "https://econotimes.com/Jio-IPO-Set-to-Open-Oct-21-at-1-065-1-119-a-Share-1756812",
+   "title": "Jio IPO Set to Open Oct. 21 at ₹1,065–₹1,119 a Share.",
+   "description": "The Economic Times said more than 70 institutions sought shares in the Oct. 19 anchor round. Public subscription opens Oct. 21.",
+   "content": "ONLY AVAILABLE IN PAID PLANS",
+   "keywords": [
+    "india",
+    "jio platforms limited",
+    "reliance industries limited",
+    "ipo"
+   ],
+   "creator": [
+    "celia rowan"
+   ],
+   "language": "english",
+   "country": [
+    "japan",
+    "south korea",
+    "france",
+    "india",
+    "china",
+    "united states of america",
+    "united kingdom",
+    "canada",
+    "germany",
+    "australia"
+   ],
+   "category": [
+    "business"
+   ],
+   "datatype": "news",
+   "pubDate": "2026-10-19 19:39:04",
+   "pubDateTZ": "UTC",
+   "fetched_at": "2026-10-19 19:57:32",
+   "image_url": "https://wfuxxvxhdynkhcrlavdu.supabase.co/storage/v1/object/public/article-media/articles/2bc41605bf7111e05bd9c442e4342f98cf0c7b03c0c0bb77b058f5d6660dd601.webp",
+   "video_url": null,
+   "source_id": "econotimes",
+   "source_name": "Econotimes",
+   "source_priority": 99999999,
+   "source_url": "https://www.econotimes.com",
+   "source_icon": "https://i.newsdata.io/econotimes.png",
+   "sentiment": "neutral",
+   "sentiment_stats": {
+    "negative": 0.07,
+    "neutral": 85.57,
+    "positive": 14.36
+   },
+   "ai_tag": [
+    "financial markets"
+   ],
+   "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+   "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+   "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+   "duplicate": false
+  },
+  {
+   "article_id": "c6e9f2704cd6adedc264b8cb438872b7",
+   "link": "https://www.abnewswire.com/pressreleases/the-mad-botter-inc-founder-michael-dominick-brings-an-unusual-path-from-english-major-to-factory-floor-engineer_842297.html",
+   "title": "The Mad Botter INC Founder Michael Dominick Brings an Unusual Path From English Major to Factory Floor Engineer",
+   "description": null,
+   "content": "ONLY AVAILABLE IN PAID PLANS",
+   "keywords": null,
+   "creator": [
+    "admin"
+   ],
+   "language": "english",
+   "country": [
+    "germany",
+    "united states of america",
+    "australia",
+    "france",
+    "china",
+    "india",
+    "united kingdom",
+    "canada"
+   ],
+   "category": [
+    "business"
+   ],
+   "datatype": "news",
+   "pubDate": "2026-10-19 19:39:01",
+   "pubDateTZ": "UTC",
+   "fetched_at": "2026-10-19 21:53:35",
+   "image_url": null,
+   "video_url": null,
+   "source_id": "abnewswire",
+   "source_name": "Abnewswire",
+   "source_priority": 2344368,
+   "source_url": "https://www.abnewswire.com",
+   "source_icon": "https://i.newsdata.io/abnewswire.png",
+   "sentiment": "positive",
+   "sentiment_stats": {
+    "negative": 0.01,
+    "neutral": 0.15,
+    "positive": 99.84
+   },
+   "ai_tag": [
+    "real estate"
+   ],
+   "ai_region": "ONLY AVAILABLE IN CORPORATE PLANS",
+   "ai_org": "ONLY AVAILABLE IN CORPORATE PLANS",
+   "ai_summary": "ONLY AVAILABLE IN PAID PLANS",
+   "duplicate": false
+  }
+ ],
+ "nextPage": "1792438674434700141"
+}
