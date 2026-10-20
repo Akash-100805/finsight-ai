@@ -64,6 +64,7 @@ class SourceState(Base):
     consecutive_failures: Mapped[int] = mapped_column(Integer, server_default=text("0"))
     circuit_open_until: Mapped[datetime | None] = mapped_column(TS)
     last_error: Mapped[str | None] = mapped_column(Text)
+    cursor: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(TS, server_default=text("now()"))
 
 
