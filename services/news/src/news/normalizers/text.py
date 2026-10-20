@@ -8,7 +8,9 @@ description, and content before any other normalization step.
 
 from __future__ import annotations
 
+import html
 import re
+import unicodedata
 
 import bleach
 
@@ -25,7 +27,7 @@ def strip_html(text: str | None) -> str | None:
     if text is None:
         return None
     cleaned = bleach.clean(text, tags=[], attributes={}, strip=True)
-    cleaned = cleaned.strip()
+    cleaned = html.unescape(cleaned).replace("​", "").strip()  # bleach re-escapes '&'; show the real characters
     return cleaned if cleaned else None
 
 
@@ -49,3 +51,19 @@ def clean_text(text: str | None) -> str | None:
     Applied to title, description, and content by the normalization pipeline.
     """
     return clean_whitespace(strip_html(text))
+
+
+def normalize_title(title: str) -> str:
+    """Lower-case, punctuation/symbols removed, whitespace collapsed (input to the exact-dedup title fingerprint)."""
+    folded = unicodedata.normalize("NFKC", title).casefold()
+    kept = "".join(" " if unicodedata.category(ch)[0] in "PSZC" else ch for ch in folded)
+    return re.sub(r"\s+", " ", kept).strip()
+
+
+def non_latin_letter_share(text: str) -> float:
+    """Share of the letters in `text` that are not Latin script (used by the English-only check)."""
+    letters = [ch for ch in text if ch.isalpha()]
+    if not letters:
+        return 0.0
+    non_latin = sum(1 for ch in letters if not unicodedata.name(ch, "").startswith("LATIN"))
+    return non_latin / len(letters)

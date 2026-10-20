@@ -1,0 +1,379 @@
+# Source registry (guide section 5). Registry fields go to news.sources via `python dev.py sources-sync`;
+# adapter fields (adapter, naive_tz, ..., options) are used only by the fetch code.
+# Verified 2026-10-20. A source with enabled: false has a disabled_reason; nothing is fetched from it.
+defaults:
+  default_language: en
+  naive_tz: UTC
+  circuit_breaker_failures: 3
+  circuit_breaker_cooldown_minutes: 360
+
+sources:
+  # ── NSE corporate filings (RSS, items carry naive IST timestamps) ──────────
+  nse_announcements:
+    display_name: NSE - Online announcements
+    tier: A
+    reliability: 1.00
+    source_type: exchange_filing
+    region: india
+    domain: financial
+    ticker_availability: always
+    license_note: NSE public RSS; titles/links/summaries only
+    enabled: true
+    min_interval_minutes: 30
+    daily_request_budget: null
+    adapter: nse_rss
+    naive_tz: Asia/Kolkata
+    options: {url: "https://nsearchives.nseindia.com/content/RSS/Online_announcements.xml", feed_name: Online_announcements, feed_kind: announcements}
+  nse_results:
+    display_name: NSE - Financial results
+    tier: A
+    reliability: 1.00
+    source_type: exchange_filing
+    region: india
+    domain: financial
+    ticker_availability: always
+    license_note: NSE public RSS; titles/links/summaries only
+    enabled: true
+    min_interval_minutes: 30
+    daily_request_budget: null
+    adapter: nse_rss
+    naive_tz: Asia/Kolkata
+    default_event_type: earnings
+    options: {url: "https://nsearchives.nseindia.com/content/RSS/Financial_Results.xml", feed_name: Financial_Results, feed_kind: results}
+  nse_board_meetings:
+    display_name: NSE - Board meetings
+    tier: A
+    reliability: 1.00
+    source_type: exchange_filing
+    region: india
+    domain: financial
+    ticker_availability: always
+    license_note: NSE public RSS; titles/links/summaries only
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: nse_rss
+    naive_tz: Asia/Kolkata
+    default_event_type: board_meeting
+    options: {url: "https://nsearchives.nseindia.com/content/RSS/Board_Meetings.xml", feed_name: Board_Meetings, feed_kind: board_meetings}
+  nse_corporate_actions:
+    display_name: NSE - Corporate actions
+    tier: A
+    reliability: 1.00
+    source_type: exchange_filing
+    region: india
+    domain: financial
+    ticker_availability: always
+    license_note: NSE public RSS; titles/links/summaries only
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: nse_rss
+    naive_tz: Asia/Kolkata
+    default_event_type: dividend_buyback_split
+    options: {url: "https://nsearchives.nseindia.com/content/RSS/Corporate_action.xml", feed_name: Corporate_action, feed_kind: corporate_actions}
+  nse_insider_trading:
+    display_name: NSE - Insider trading
+    tier: A
+    reliability: 1.00
+    source_type: exchange_filing
+    region: india
+    domain: financial
+    ticker_availability: always
+    license_note: NSE public RSS; titles/links/summaries only
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: nse_rss
+    naive_tz: Asia/Kolkata
+    default_event_type: insider_trade
+    options: {url: "https://nsearchives.nseindia.com/content/RSS/InsiderTrading.xml", feed_name: InsiderTrading, feed_kind: insider_trading}
+  bse_announcements:
+    display_name: BSE - Corporate announcements
+    tier: A
+    reliability: 1.00
+    source_type: exchange_filing
+    region: india
+    domain: financial
+    ticker_availability: always
+    license_note: BSE unofficial JSON endpoint
+    enabled: false
+    disabled_reason: "BSE's API answers HTTP 403 (Akamai Access Denied) to scripts; verified 2026-10-20. Adapter kept dormant."
+    min_interval_minutes: 30
+    daily_request_budget: null
+    adapter: bse_announcements
+    naive_tz: Asia/Kolkata
+    options: {}
+
+  # ── Regulators and government (RSS) ────────────────────────────────────────
+  sebi:
+    display_name: SEBI - RSS feed
+    tier: A
+    reliability: 1.00
+    source_type: regulator
+    region: india
+    domain: financial
+    ticker_availability: sometimes
+    license_note: SEBI public RSS; titles/links/summaries only
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    default_category: government_regulation
+    options: {url: "https://www.sebi.gov.in/sebirss.xml"}
+  rbi_press:
+    display_name: RBI - Press releases
+    tier: A
+    reliability: 1.00
+    source_type: regulator
+    region: india
+    domain: financial
+    ticker_availability: never
+    license_note: RBI public RSS; titles/links/summaries only (summary capped at 1000 characters)
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    default_category: central_bank_monetary_policy
+    options: {url: "https://rbi.org.in/pressreleases_rss.xml"}
+  rbi_notifications:
+    display_name: RBI - Notifications
+    tier: A
+    reliability: 1.00
+    source_type: regulator
+    region: india
+    domain: financial
+    ticker_availability: never
+    license_note: RBI public RSS; titles/links/summaries only (summary capped at 1000 characters)
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    default_category: central_bank_monetary_policy
+    options: {url: "https://rbi.org.in/notifications_rss.xml"}
+  pib:
+    display_name: PIB - Press Information Bureau
+    tier: A
+    reliability: 0.95
+    source_type: government
+    region: india
+    domain: mixed
+    ticker_availability: never
+    license_note: PIB public RSS
+    enabled: false
+    disabled_reason: "PIB's RSS (RssMain.aspx?ModId=6&Lang=1&Regid=3, the only variant found; Lang=2 returns the same) has no pubDate on any item and returns Hindi titles. Without a date every item would be rejected as missing_required, and the guide forbids substituting now(). Verified 2026-10-20."
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    options: {url: "https://www.pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3"}
+  fed_press:
+    display_name: Federal Reserve - Press releases
+    tier: A
+    reliability: 1.00
+    source_type: regulator
+    region: global
+    domain: financial
+    ticker_availability: never
+    license_note: Federal Reserve public RSS (US government work)
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: rss
+    default_category: central_bank_monetary_policy
+    options: {url: "https://www.federalreserve.gov/feeds/press_all.xml"}
+
+  # ── Publishers (RSS; title + summary + link only) ──────────────────────────
+  et_markets:
+    display_name: Economic Times - Markets
+    tier: B
+    reliability: 0.85
+    source_type: publisher
+    region: india
+    domain: financial
+    ticker_availability: never
+    license_note: Publisher RSS; title/summary/link only
+    enabled: true
+    min_interval_minutes: 30
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    options: {url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"}
+  et_economy:
+    display_name: Economic Times - Economy
+    tier: B
+    reliability: 0.85
+    source_type: publisher
+    region: india
+    domain: financial
+    ticker_availability: never
+    license_note: Publisher RSS; title/summary/link only
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    options: {url: "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms"}
+  moneycontrol:
+    display_name: Moneycontrol - Market reports
+    tier: B
+    reliability: 0.85
+    source_type: publisher
+    region: india
+    domain: financial
+    ticker_availability: never
+    license_note: Publisher RSS; title/summary/link only
+    enabled: false
+    disabled_reason: "Every public Moneycontrol RSS feed is frozen: marketreports.xml, latestnews.xml, business.xml, results.xml and buzzingstocks.xml all end in April 2024 (MCtopnews.xml in 2016). No current official feed exists. Verified 2026-10-20."
+    min_interval_minutes: 30
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    options: {url: "https://www.moneycontrol.com/rss/marketreports.xml"}
+  livemint_markets:
+    display_name: Livemint - Markets
+    tier: B
+    reliability: 0.85
+    source_type: publisher
+    region: india
+    domain: financial
+    ticker_availability: never
+    license_note: Publisher RSS; title/summary/link only
+    enabled: true
+    min_interval_minutes: 30
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    options: {url: "https://www.livemint.com/rss/markets"}
+  business_standard:
+    display_name: Business Standard - Markets
+    tier: B
+    reliability: 0.85
+    source_type: publisher
+    region: india
+    domain: financial
+    ticker_availability: never
+    license_note: Publisher RSS; title/summary/link only
+    enabled: true
+    min_interval_minutes: 30
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    options: {url: "https://www.business-standard.com/rss/markets-106.rss"}
+  the_hindu_national:
+    display_name: The Hindu - National
+    tier: B
+    reliability: 0.80
+    source_type: publisher
+    region: india
+    domain: non_financial
+    ticker_availability: never
+    license_note: Publisher RSS; title/summary/link only
+    enabled: true
+    min_interval_minutes: 60
+    daily_request_budget: null
+    adapter: rss
+    naive_tz: Asia/Kolkata
+    options: {url: "https://www.thehindu.com/news/national/feeder/default.rss"}
+
+  # ── Aggregators (APIs, free tiers) ─────────────────────────────────────────
+  marketaux:
+    display_name: Marketaux
+    tier: B
+    reliability: 0.80
+    source_type: aggregator
+    region: global
+    domain: financial
+    ticker_availability: sometimes
+    license_note: Marketaux free plan (3 articles per request)
+    enabled: true
+    min_interval_minutes: 30
+    daily_request_budget: 96
+    adapter: marketaux
+    options:
+      limit: 3
+      calls:
+        - {name: india, params: {countries: in}}
+        - {name: global, params: {}}
+  finnhub:
+    display_name: Finnhub
+    tier: B
+    reliability: 0.75
+    source_type: aggregator
+    region: global
+    domain: financial
+    ticker_availability: sometimes
+    license_note: Finnhub free plan
+    enabled: true
+    min_interval_minutes: 30
+    daily_request_budget: null
+    adapter: finnhub
+    options: {categories: [general, merger]}
+  alpha_vantage:
+    display_name: Alpha Vantage NEWS_SENTIMENT
+    tier: B
+    reliability: 0.75
+    source_type: aggregator
+    region: global
+    domain: financial
+    ticker_availability: sometimes
+    license_note: Alpha Vantage free key (25 requests/day, 20 used)
+    enabled: false
+    disabled_reason: "NEWS_SENTIMENT answers 'This is a premium endpoint' on this account's free key (verified 2026-10-20, with and without optional parameters)."
+    min_interval_minutes: 60
+    daily_request_budget: 20
+    adapter: alpha_vantage
+    options:
+      limit: 50
+      topics: [economy_macro, economy_monetary, energy_transportation, financial_markets, technology, mergers_and_acquisitions, earnings]
+  newsdata:
+    display_name: NewsData.io
+    tier: C
+    reliability: 0.65
+    source_type: aggregator
+    region: global
+    domain: mixed
+    ticker_availability: never
+    license_note: NewsData free plan (content and AI fields are paid-only and are discarded)
+    enabled: true
+    min_interval_minutes: 30
+    daily_request_budget: 144
+    adapter: newsdata
+    options:
+      calls:
+        - {name: india_business, params: {country: in, category: business}}
+        - {name: india_politics_environment_top, params: {country: in, category: "politics,environment,top"}}
+        - {name: global_business_world, params: {category: "business,world"}}
+  gdelt:
+    display_name: GDELT DOC 2.0
+    tier: C
+    reliability: 0.60
+    source_type: event_database
+    region: global
+    domain: non_financial
+    ticker_availability: never
+    license_note: GDELT public API (one request per 5 seconds at most; 8 s used)
+    enabled: true
+    min_interval_minutes: 120
+    daily_request_budget: 144
+    adapter: gdelt
+    options:
+      maxrecords: 15
+      sort: hybridrel
+      inter_query_delay_seconds: 8
+      queries:
+        - {name: india_policy, scope: india, query: '(RBI OR SEBI OR budget OR GST OR "finance ministry")'}
+        - {name: india_macro, scope: india, query: '(inflation OR GDP OR monsoon OR rupee OR "fuel price")'}
+        - {name: india_trade, scope: india, query: '(tariff OR export OR import OR "trade deal" OR PLI)'}
+        - {name: india_disasters, scope: india, query: '(flood OR cyclone OR earthquake OR drought OR heatwave)'}
+        - {name: india_politics, scope: india, query: '(election OR "Lok Sabha" OR cabinet OR "Supreme Court")'}
+        - {name: india_commodities, scope: india, query: '(coal OR power OR "crude oil" OR gold OR steel)'}
+        - {name: global_conflict, scope: global, query: '(war OR missile OR airstrike OR ceasefire OR invasion)'}
+        - {name: global_sanctions, scope: global, query: '(sanctions OR tariff OR embargo OR "trade war")'}
+        - {name: global_oil, scope: global, query: '(OPEC OR "oil price" OR Brent OR "crude output")'}
+        - {name: global_central_banks, scope: global, query: '("Federal Reserve" OR ECB OR "rate hike" OR "rate cut")'}
+        - {name: global_disasters_supply, scope: global, query: '(hurricane OR earthquake OR "supply chain" OR "port strike" OR "chip shortage")'}
+        - {name: global_politics, scope: global, query: '(election OR coup OR "trade talks" OR summit)'}

@@ -117,3 +117,60 @@ def to_utc(value: Any, source_hint: str = "") -> datetime.datetime | None:
         type(value).__name__, str(value)[:40], source_hint,
     )
     return None
+
+
+# ── Source-aware parsing (Phase 3) ───────────────────────────────────────────
+from email.utils import parsedate_to_datetime  # noqa: E402
+from zoneinfo import ZoneInfo  # noqa: E402
+
+_TZ_FORMATS = (
+    "%d-%b-%Y %H:%M:%S",        # NSE RSS: 20-Oct-2026 12:59:04 (IST, no offset)
+    "%d %b, %Y %z",             # SEBI: 19 Oct, 2026 +0530 (date only)
+    "%d %b %Y %H:%M:%S",
+    "%Y-%m-%d %H:%M:%S",        # NewsData pubDate (pubDateTZ says UTC)
+    "%Y%m%dT%H%M%SZ",           # GDELT seendate
+    "%Y%m%dT%H%M%S",            # Alpha Vantage time_published
+    "%Y-%m-%d",
+)
+
+
+def parse_datetime(value: Any, naive_tz: str = "UTC") -> datetime.datetime | None:
+    """Parse any provider timestamp to aware UTC. Values with no offset are read in `naive_tz` (e.g. Asia/Kolkata).
+
+    Returns None when `value` is empty OR cannot be parsed; the caller tells the two apart. Never returns 'now'.
+    """
+    if value is None:
+        return None
+    zone = ZoneInfo(naive_tz)
+
+    def localize(dt: datetime.datetime) -> datetime.datetime:
+        return dt.replace(tzinfo=zone).astimezone(UTC) if dt.tzinfo is None else dt.astimezone(UTC)
+
+    if isinstance(value, datetime.datetime):
+        return localize(value)
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        try:
+            return datetime.datetime.fromtimestamp(value, tz=UTC)
+        except (OverflowError, OSError, ValueError):
+            return None
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:  # RFC 2822 (RSS): returns a naive datetime when the string has no offset
+        return localize(parsedate_to_datetime(text))
+    except (TypeError, ValueError, IndexError):
+        pass
+    try:
+        return localize(datetime.datetime.fromisoformat(text.replace("Z", "+00:00")))
+    except ValueError:
+        pass
+    for fmt in _TZ_FORMATS:
+        try:
+            return localize(datetime.datetime.strptime(text, fmt))
+        except ValueError:
+            continue
+    return None
