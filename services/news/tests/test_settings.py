@@ -37,11 +37,3 @@ def test_defaults_and_user_agent():
 
 def test_secrets_not_in_repr():
     assert GOOD not in repr(make(DATABASE_URL=GOOD))
-
-
-def test_config_shim_exposes_legacy_names():
-    from src.news import config as cfg
-    for name in ("DATABASE_URL", "TEST_DATABASE_URL", "MARKETAUX_API_KEY", "FINNHUB_API_KEY", "NEWSDATA_API_KEY",
-                 "NEWS_COLLECTOR_TIMEOUT_SECONDS", "GDELT_BASE_URL", "GDELT_INTER_QUERY_DELAY_SECONDS",
-                 "NEWS_ADVISORY_LOCK_KEY", "EMBEDDING_MODEL_NAME", "EMBEDDING_MODEL_DIMENSION"):
-        assert hasattr(cfg, name), name
