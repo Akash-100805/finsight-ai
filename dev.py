@@ -159,6 +159,32 @@ def cmd_securities_refresh():
     return run_in_venv(["-m", "src.news.security_master.refresh", "--target", target, *passthrough])
 
 
+def _target_args(args):
+    """Parses '--target main|test' out of args; returns (target, remaining)."""
+    target, rest, i = "main", [], 0
+    while i < len(args):
+        if args[i] == "--target" and i + 1 < len(args) and args[i + 1] in ("main", "test"):
+            target = args[i + 1]
+            i += 2
+        else:
+            rest.append(args[i])
+            i += 1
+    return target, rest
+
+
+def cmd_sources_sync():
+    target, rest = _target_args(sys.argv[2:])
+    if rest:
+        print("Usage: python dev.py sources-sync [--target main|test]")
+        return 2
+    return run_in_venv(["-m", "src.news.pipeline.sync_cli", "--target", target])
+
+
+def cmd_fetch():
+    target, rest = _target_args(sys.argv[2:])
+    return run_in_venv(["-m", "src.news.pipeline.dryrun", "--target", target, *rest])
+
+
 def cmd_report():
     print("Available from Phase 7")
     return 1
@@ -171,6 +197,8 @@ COMMANDS = {
     "migrate": (cmd_migrate, "run alembic upgrade head (--target main|test, default main)"),
     "ingest": (cmd_ingest, "disabled until Phase 5"),
     "securities-refresh": (cmd_securities_refresh, "load NSE/BSE/US securities, sectors and aliases (--target main|test, --offline, --refresh-bse-industry)"),
+    "sources-sync": (cmd_sources_sync, "upsert config/sources.yaml into news.sources (--target main|test)"),
+    "fetch": (cmd_fetch, "fetch --dry-run [--target main|test] [--sources a,b] [--ignore-interval]; storage arrives in Phase 5"),
     "report": (cmd_report, "print the latest run report (available from Phase 7)"),
 }
 
