@@ -121,12 +121,15 @@ class Requester:
         self.last_request = last_request if last_request is not None else {}
         self.requests_made = 0
 
-    async def get(self, url: str, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> httpx.Response:
+    async def get(self, url: str, params: dict[str, Any] | None = None, headers: dict[str, str] | None = None, *,
+                  retries: int | None = None, retry_delay: float | None = None) -> httpx.Response:
+        """`retries` / `retry_delay` override the defaults (2 retries, 3 s doubling) for one call."""
         host = urlparse(url).hostname or ""
         lock = self.locks.setdefault(host, asyncio.Lock())
+        max_retries = self.max_retries if retries is None else retries
         async with lock:
             response: httpx.Response | None = None
-            for attempt in range(self.max_retries + 1):
+            for attempt in range(max_retries + 1):
                 gap = self.host_gaps.get(host, 0.3)
                 wait = self.last_request.get(host, 0.0) + gap - time.monotonic()
                 if wait > 0:
@@ -135,9 +138,9 @@ class Requester:
                 self.requests_made += 1
                 self.last_request[host] = time.monotonic()
                 response = await self.client.get(url, params=params, headers=headers, timeout=REQUEST_TIMEOUT_SECONDS)
-                if response.status_code not in (429, 500, 502, 503, 504) or attempt == self.max_retries:
+                if response.status_code not in (429, 500, 502, 503, 504) or attempt == max_retries:
                     return response
-                await self.sleep(3 * 2 ** attempt)     # exponential backoff
+                await self.sleep(retry_delay if retry_delay is not None else 3 * 2 ** attempt)   # backoff before the retry
             assert response is not None
             return response
 

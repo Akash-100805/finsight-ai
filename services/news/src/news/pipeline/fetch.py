@@ -35,6 +35,7 @@ class SourceRun:
     error: str | None = None
     counters: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    since: datetime | None = None             # start of the fetch window used (None when skipped)
 
 
 def secrets_from_settings() -> dict[str, str]:
@@ -110,7 +111,8 @@ async def run_fetch(engine: Engine, registry: dict[str, SourceConfig], *, only: 
         await asyncio.to_thread(st.finish_run, engine, cfg, started=started, now=now, status=result.status, error=result.error,
                                 cursor=result.cursor)
         return SourceRun(cfg.source_id, result.status, requests_used=result.requests_made or http.requests_made,
-                         candidates=result.candidates, error=result.error, counters=result.counters, warnings=result.warnings)
+                         candidates=result.candidates, error=result.error, counters=result.counters, warnings=result.warnings,
+                         since=ctx.since)
 
     try:
         for run in await asyncio.gather(*(run_one(c) for c in due)):

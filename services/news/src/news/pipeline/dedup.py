@@ -2,7 +2,8 @@
 
   a. canonical_url              - within the batch, then in news.articles
   b. (source_id, source_article_id) - within the batch, then in news.articles
-  c. title_fingerprint, any source, published within +-3 days - batch, then DB.
+  c. title_fingerprint, published within +-3 days - batch, then DB. Only between DIFFERENT source_ids, and never when either
+     source's source_type is exchange_filing or regulator (those publish many items with the same generic title).
      SKIPPED when the normalized title has fewer than 5 tokens, so short generic titles are not wrongly merged.
 
 The batch is processed best-source-first (higher reliability, then earlier published_at), so the copy that survives is the
@@ -22,6 +23,7 @@ from src.news.canonical import CanonicalArticle
 from src.news.pipeline.normalize import title_token_count
 
 FINGERPRINT_WINDOW = timedelta(days=3)
+NO_FINGERPRINT_TYPES = frozenset({"exchange_filing", "regulator"})
 MIN_TOKENS_FOR_FINGERPRINT = 5
 
 
@@ -36,8 +38,14 @@ def _near(a, b) -> bool:
     return abs(a - b) <= FINGERPRINT_WINDOW
 
 
-def dedup_batch(articles: Iterable[CanonicalArticle], reliability: dict[str, float], engine: Engine | None = None
-                ) -> tuple[list[CanonicalArticle], list[Duplicate]]:
+def _fingerprint_pair_ok(a_source: str, b_source: str, source_types: dict[str, str]) -> bool:
+    return (a_source != b_source and source_types.get(a_source) not in NO_FINGERPRINT_TYPES
+            and source_types.get(b_source) not in NO_FINGERPRINT_TYPES)
+
+
+def dedup_batch(articles: Iterable[CanonicalArticle], reliability: dict[str, float], engine: Engine | None = None,
+                source_types: dict[str, str] | None = None) -> tuple[list[CanonicalArticle], list[Duplicate]]:
+    source_types = source_types or {}
     ordered = sorted(articles, key=lambda a: (-reliability.get(a.source_id, 0.0), a.published_at))
     db = _DbIndex(engine, ordered) if engine is not None else None
     urls: set[str] = set()
@@ -56,9 +64,11 @@ def dedup_batch(articles: Iterable[CanonicalArticle], reliability: dict[str, flo
         elif db and art.source_article_id and (art.source_id, art.source_article_id) in db.ids:
             hit = Duplicate(art, "source_article_id", "db")
         elif title_token_count(art.title) >= MIN_TOKENS_FOR_FINGERPRINT:
-            if any(_near(art.published_at, t) for t in fingerprints.get(art.title_fingerprint, [])):
+            if any(_near(art.published_at, t) and _fingerprint_pair_ok(art.source_id, src, source_types)
+                   for t, src in fingerprints.get(art.title_fingerprint, [])):
                 hit = Duplicate(art, "title_fingerprint", "batch")
-            elif db and any(_near(art.published_at, t) for t in db.fingerprints.get(art.title_fingerprint, [])):
+            elif db and any(_near(art.published_at, t) and _fingerprint_pair_ok(art.source_id, src, source_types)
+                            for t, src in db.fingerprints.get(art.title_fingerprint, [])):
                 hit = Duplicate(art, "title_fingerprint", "db")
         if hit:
             dupes.append(hit)
@@ -68,7 +78,7 @@ def dedup_batch(articles: Iterable[CanonicalArticle], reliability: dict[str, flo
         if art.source_article_id:
             ids.add((art.source_id, art.source_article_id))
         if title_token_count(art.title) >= MIN_TOKENS_FOR_FINGERPRINT:
-            fingerprints[art.title_fingerprint].append(art.published_at)
+            fingerprints[art.title_fingerprint].append((art.published_at, art.source_id))
     return kept, dupes
 
 
@@ -91,5 +101,5 @@ class _DbIndex:
                          "(source_id, source_article_id) IN (SELECT * FROM unnest(CAST(:s AS text[]), CAST(:i AS text[])))"),
                     {"s": [p[0] for p in pairs], "i": [p[1] for p in pairs]})}
             if fps:
-                for fp, published in conn.execute(text("SELECT title_fingerprint, published_at FROM news.articles WHERE title_fingerprint = ANY(:f)"), {"f": fps}):
-                    self.fingerprints[fp].append(published)
+                for fp, published, src in conn.execute(text("SELECT title_fingerprint, published_at, source_id FROM news.articles WHERE title_fingerprint = ANY(:f)"), {"f": fps}):
+                    self.fingerprints[fp].append((published, src))

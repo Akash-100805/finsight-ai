@@ -1,8 +1,11 @@
-"""GDELT DOC 2.0 ArtList - 12 theme queries per run (6 India-scoped with sourcecountry:india, 6 global).
+"""GDELT DOC 2.0 ArtList - 6 merged theme queries per run (3 India-scoped with sourcecountry:india, 3 global).
 
 Request: mode=artlist, format=json, maxrecords=15, sort=hybridrel, sourcelang:english, timespan derived from the fetch window.
-GDELT asks for at most one request every 5 seconds (it answers HTTP 429 otherwise); in the first live run a 6 s gap still drew
-429s for 6 of 12 queries, so the gap is the `inter_query_delay_seconds` option (8 s; 6, 8 and 12 s all still drew 429s on part of a run, see docs/review/phase3_sources.md). The guide originally allowed 1 s.
+GDELT asks for at most one request every 5 seconds and answers HTTP 429 otherwise. In the first live runs even 6, 8 and 12 s
+spacing still drew 429s, so: 10 s between queries (`inter_query_delay_seconds`), ONE retry after 30 s on a 429
+(`retry_after_429_seconds`), and a query that is still refused is SKIPPED: the run is still a success and the number of
+skipped queries is recorded in `counters["skipped_queries"]`. A run where no query returns data is a failure.
+Items a skipped query would have returned for that window are not recovered later (the next window only overlaps by 30 min).
 
 Response shape: {"articles": [{"url", "url_mobile", "title", "seendate" "20261019T131500Z", "socialimage", "domain",
 "language" "English", "sourcecountry" "India"}]}. There is NO tone field and none is ever written.
@@ -46,22 +49,25 @@ class GdeltAdapter(Adapter):
         opts = ctx.options
         timespan = timespan_for(ctx.since, ctx.now)
         succeeded = 0
+        retry_after = float(opts.get("retry_after_429_seconds", 30))
         for q in opts["queries"]:
             query = f"{q['query']} sourcelang:english" + (" sourcecountry:india" if q.get("scope") == "india" else "")
             params = {"query": query, "mode": "artlist", "format": "json", "maxrecords": int(opts.get("maxrecords", 15)),
                       "sort": opts.get("sort", "hybridrel"), "timespan": timespan}
             try:
-                response = await safe_get(ctx, result, URL, params=params)
+                response = await safe_get(ctx, result, URL, params=params, retries=1, retry_delay=retry_after)
             except BudgetExhausted:
                 result.status = "budget_exhausted" if not succeeded else "success"
                 result.error = None if succeeded else "daily request budget used up"
                 return result
             if response is None:
+                result.bump("skipped_queries")
                 continue
             try:
                 body = response.json()
             except ValueError:
                 result.warnings.append(f"{q['name']}: non-JSON reply")
+                result.bump("skipped_queries")
                 continue
             succeeded += 1
             result.candidates += [item_to_candidate(a, q["name"], result) for a in body.get("articles", [])]

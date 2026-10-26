@@ -19,6 +19,7 @@ from src.news.canonical import CanonicalArticle
 from src.news.db.engine import get_engine
 from src.news.pipeline import state as st
 from src.news.pipeline.dedup import Duplicate, dedup_batch
+from src.news.normalizers.datetime_utils import parse_datetime
 from src.news.pipeline.fetch import SourceRun, run_fetch
 from src.news.pipeline.normalize import Rejection, normalize_candidate
 from src.news.sources.base import SourceConfig, load_registry
@@ -42,6 +43,9 @@ class SourceReport:
     error: str | None = None
     counters: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+    window_start: datetime | None = None
+    oldest_item: datetime | None = None
+    skipped_reason: str | None = None
 
 
 @dataclass
@@ -60,8 +64,14 @@ def process_runs(runs: list[SourceRun], registry: dict[str, SourceConfig], engin
     for run in runs:
         rep = SourceReport(run.source_id, run.skipped_reason and f"skipped ({run.skipped_reason})" or run.status,
                            requests=run.requests_used, fetched=len(run.candidates), error=run.error, counters=run.counters,
-                           warnings=run.warnings)
+                           warnings=list(run.warnings), window_start=run.since, skipped_reason=run.skipped_reason)
         reports[run.source_id] = rep
+        # gap detector: a successful fetch whose OLDEST item is newer than the window start may have missed items
+        times = [t for t in (parse_datetime(c.published, registry[run.source_id].naive_tz) for c in run.candidates) if t]
+        if times:
+            rep.oldest_item = min(times)
+            if run.status == "success" and run.since and rep.oldest_item > run.since:
+                rep.warnings.append("possible_gap")
         for cand in run.candidates:
             outcome = normalize_candidate(cand, registry[run.source_id], fetched_at, now)
             if isinstance(outcome, Rejection):
@@ -71,7 +81,8 @@ def process_runs(runs: list[SourceRun], registry: dict[str, SourceConfig], engin
                 valid.append(outcome)
                 rep.valid += 1
     reliability = {sid: cfg.reliability for sid, cfg in registry.items()}
-    kept, dupes = dedup_batch(valid, reliability, engine)
+    source_types = {sid: cfg.source_type for sid, cfg in registry.items()}
+    kept, dupes = dedup_batch(valid, reliability, engine, source_types)
     for d in dupes:
         reports[d.article.source_id].dupes[f"{d.level}/{d.where}"] += 1
     for art in kept:
@@ -86,6 +97,13 @@ def process_runs(runs: list[SourceRun], registry: dict[str, SourceConfig], engin
 def write_jsonl(path: Path, result: DryRunResult) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="\n") as fh:
+        for rep in result.reports:  # one run record per source: counters, window and warnings (incl. possible_gap)
+            fh.write(json.dumps({"type": "run", "source_id": rep.source_id, "status": rep.status, "requests": rep.requests,
+                                 "fetched": rep.fetched, "valid": rep.valid, "rejected": dict(rep.rejected), "dupes": dict(rep.dupes),
+                                 "window_start": rep.window_start and rep.window_start.isoformat(),
+                                 "oldest_item": rep.oldest_item and rep.oldest_item.isoformat(),
+                                 "warnings": list(dict.fromkeys(rep.warnings)), "counters": rep.counters, "error": rep.error},
+                                ensure_ascii=False) + "\n")
         for art in result.articles:
             fh.write(json.dumps({"type": "article", **art.model_dump(mode="json")}, ensure_ascii=False) + "\n")
         for d in result.duplicates:
@@ -111,6 +129,8 @@ def format_reports(reports: list[SourceReport]) -> str:
             lines.append(f"{'':<22} ! {r.error}")
         for w in dict.fromkeys(r.warnings):
             lines.append(f"{'':<22} ~ {w}")
+        if r.window_start and r.oldest_item:
+            lines.append(f"{'':<22} window starts {r.window_start:%Y-%m-%d %H:%M}, oldest item {r.oldest_item:%Y-%m-%d %H:%M} UTC")
         if r.counters:
             lines.append(f"{'':<22} counters: {r.counters}")
     return "\n".join(lines)

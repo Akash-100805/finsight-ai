@@ -96,7 +96,7 @@ sources:
     region: india
     domain: financial
     ticker_availability: always
-    license_note: BSE unofficial JSON endpoint
+    license_note: "BSE unofficial JSON endpoint. DISABLED: HTTP 403 (Akamai) to scripts, verified 2026-10-20."
     enabled: false
     disabled_reason: "BSE's API answers HTTP 403 (Akamai Access Denied) to scripts; verified 2026-10-20. Adapter kept dormant."
     min_interval_minutes: 30
@@ -164,7 +164,7 @@ sources:
     ticker_availability: never
     license_note: PIB public RSS
     enabled: false
-    disabled_reason: "PIB's RSS (RssMain.aspx?ModId=6&Lang=1&Regid=3, the only variant found; Lang=2 returns the same) has no pubDate on any item and returns Hindi titles. Without a date every item would be rejected as missing_required, and the guide forbids substituting now(). Verified 2026-10-20."
+    disabled_reason: "PIB's RSS (RssMain.aspx?ModId=6&Lang=1&Regid=3) has no pubDate on any item and returns Hindi titles; retried with Lang=1 on 2026-10-26 (and Lang=2 earlier): same result. Without a date every item would be rejected as missing_required, and the guide forbids substituting now()."
     min_interval_minutes: 60
     daily_request_budget: null
     adapter: rss
@@ -217,8 +217,8 @@ sources:
     adapter: rss
     naive_tz: Asia/Kolkata
     options: {url: "https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms"}
-  moneycontrol:
-    display_name: Moneycontrol - Market reports
+  businessline:
+    display_name: The Hindu BusinessLine - Markets
     tier: B
     reliability: 0.85
     source_type: publisher
@@ -226,13 +226,12 @@ sources:
     domain: financial
     ticker_availability: never
     license_note: Publisher RSS; title/summary/link only
-    enabled: false
-    disabled_reason: "Every public Moneycontrol RSS feed is frozen: marketreports.xml, latestnews.xml, business.xml, results.xml and buzzingstocks.xml all end in April 2024 (MCtopnews.xml in 2016). No current official feed exists. Verified 2026-10-20."
+    enabled: true
     min_interval_minutes: 30
     daily_request_budget: null
     adapter: rss
     naive_tz: Asia/Kolkata
-    options: {url: "https://www.moneycontrol.com/rss/marketreports.xml"}
+    options: {url: "https://www.thehindubusinessline.com/markets/feeder/default.rss"}
   livemint_markets:
     display_name: Livemint - Markets
     tier: B
@@ -320,7 +319,7 @@ sources:
     region: global
     domain: financial
     ticker_availability: sometimes
-    license_note: Alpha Vantage free key (25 requests/day, 20 used)
+    license_note: "Alpha Vantage free key. DISABLED: NEWS_SENTIMENT answers premium-endpoint on the free key, verified 2026-10-20."
     enabled: false
     disabled_reason: "NEWS_SENTIMENT answers 'This is a premium endpoint' on this account's free key (verified 2026-10-20, with and without optional parameters)."
     min_interval_minutes: 60
@@ -355,25 +354,20 @@ sources:
     region: global
     domain: non_financial
     ticker_availability: never
-    license_note: GDELT public API (one request per 5 seconds at most; 8 s used)
+    license_note: GDELT public API (one request per 5 seconds at most; 10 s used)
     enabled: true
     min_interval_minutes: 120
-    daily_request_budget: 144
+    daily_request_budget: 80
     adapter: gdelt
     options:
       maxrecords: 15
       sort: hybridrel
-      inter_query_delay_seconds: 8
+      inter_query_delay_seconds: 10
+      retry_after_429_seconds: 30
       queries:
-        - {name: india_policy, scope: india, query: '(RBI OR SEBI OR budget OR GST OR "finance ministry")'}
-        - {name: india_macro, scope: india, query: '(inflation OR GDP OR monsoon OR rupee OR "fuel price")'}
-        - {name: india_trade, scope: india, query: '(tariff OR export OR import OR "trade deal" OR PLI)'}
-        - {name: india_disasters, scope: india, query: '(flood OR cyclone OR earthquake OR drought OR heatwave)'}
-        - {name: india_politics, scope: india, query: '(election OR "Lok Sabha" OR cabinet OR "Supreme Court")'}
-        - {name: india_commodities, scope: india, query: '(coal OR power OR "crude oil" OR gold OR steel)'}
-        - {name: global_conflict, scope: global, query: '(war OR missile OR airstrike OR ceasefire OR invasion)'}
-        - {name: global_sanctions, scope: global, query: '(sanctions OR tariff OR embargo OR "trade war")'}
-        - {name: global_oil, scope: global, query: '(OPEC OR "oil price" OR Brent OR "crude output")'}
-        - {name: global_central_banks, scope: global, query: '("Federal Reserve" OR ECB OR "rate hike" OR "rate cut")'}
-        - {name: global_disasters_supply, scope: global, query: '(hurricane OR earthquake OR "supply chain" OR "port strike" OR "chip shortage")'}
-        - {name: global_politics, scope: global, query: '(election OR coup OR "trade talks" OR summit)'}
+        - {name: india_policy_macro, scope: india, query: '(RBI OR SEBI OR budget OR GST OR "finance ministry" OR inflation OR GDP OR rupee OR monsoon)'}
+        - {name: india_trade_commodities, scope: india, query: '(tariff OR export OR import OR "trade deal" OR coal OR power OR "crude oil" OR steel OR gold)'}
+        - {name: india_disasters_politics, scope: india, query: '(flood OR cyclone OR earthquake OR drought OR heatwave OR election OR "Lok Sabha" OR "Supreme Court")'}
+        - {name: global_conflict, scope: global, query: '(war OR missile OR airstrike OR ceasefire OR invasion OR coup OR sanctions OR embargo)'}
+        - {name: global_oil_trade_central_banks, scope: global, query: '(OPEC OR "oil price" OR Brent OR tariff OR "trade war" OR "Federal Reserve" OR ECB OR "rate hike" OR "rate cut")'}
+        - {name: global_disasters_supply_politics, scope: global, query: '(hurricane OR earthquake OR "supply chain" OR "port strike" OR "chip shortage" OR election OR summit)'}

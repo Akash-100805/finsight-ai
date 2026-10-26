@@ -99,7 +99,7 @@ def test_sync_registry_is_idempotent_and_creates_state(db):
     assert st.sync_registry(db, reg) == (22, 22)
     assert st.sync_registry(db, reg) == (22, 0)
     with db.connect() as c:
-        assert c.execute(text("SELECT count(*) FROM news.sources WHERE enabled")).scalar() == 18
+        assert c.execute(text("SELECT count(*) FROM news.sources WHERE enabled")).scalar() == 19
         assert c.execute(text("SELECT cursor FROM news.source_state LIMIT 1")).scalar() is None
 
 
@@ -235,12 +235,13 @@ def art(source="et_markets", url="https://example.com/new", title="A brand new s
 
 
 RELIABILITY = {sid: cfg.reliability for sid, cfg in registry().items()}
+SOURCE_TYPES = {sid: cfg.source_type for sid, cfg in registry().items()}
 
 
 def test_db_dedup_level_a_canonical_url(db):
     st.sync_registry(db, registry())
     insert_article(db, url="example.com/existing")
-    kept, dupes = dedup_batch([art(url="https://www.example.com/existing"), art(url="https://example.com/existing?utm_source=x")], RELIABILITY, db)
+    kept, dupes = dedup_batch([art(url="https://www.example.com/existing"), art(url="https://example.com/existing?utm_source=x")], RELIABILITY, db, SOURCE_TYPES)
     assert [(d.level, d.where) for d in dupes] == [("canonical_url", "db")] and len(kept) == 1   # www. is a different host, utm is stripped
 
 
@@ -249,7 +250,7 @@ def test_db_dedup_level_b_source_article_id(db):
     insert_article(db, source_id="marketaux", url="example.com/m1", sid="uuid-9", title="Marketaux stored story with a long enough title here")
     kept, dupes = dedup_batch([art("marketaux", "https://example.com/other", "Different title for a different url altogether here", sid="uuid-9"),
                                art("finnhub", "https://example.com/other2", "Another title entirely unrelated to the rest of them", sid="uuid-9")],
-                              RELIABILITY, db)
+                              RELIABILITY, db, SOURCE_TYPES)
     assert [(d.level, d.where, d.article.source_id) for d in dupes] == [("source_article_id", "db", "marketaux")] and len(kept) == 1
 
 
@@ -261,6 +262,21 @@ def test_db_dedup_level_c_fingerprint_window_and_short_titles(db):
     near = art("livemint_markets", "https://example.com/n1", long_title.upper(), NOW - timedelta(days=5) + timedelta(days=2, hours=23))
     far = art("business_standard", "https://example.com/n2", long_title, NOW - timedelta(days=5) + timedelta(days=3, hours=1))
     short = art("et_economy", "https://example.com/n3", "Short generic title", NOW - timedelta(days=5))
-    kept, dupes = dedup_batch([near, far, short], RELIABILITY, db)
+    kept, dupes = dedup_batch([near, far, short], RELIABILITY, db, SOURCE_TYPES)
     assert [(d.level, d.where, d.article.source_id) for d in dupes] == [("title_fingerprint", "db", "livemint_markets")]
     assert {k.source_id for k in kept} == {"business_standard", "et_economy"}
+
+
+def test_db_fingerprint_dedup_ignores_same_source_filings_and_regulators(db):
+    st.sync_registry(db, registry())
+    t = "Reliance Industries shares surge after strong quarterly results announcement"
+    insert_article(db, title=t, url="example.com/a", published=NOW - timedelta(days=1), source_id="et_markets")
+    insert_article(db, title="Risk Management and Inter Bank Dealings amendment directions issued", url="example.com/b",
+                   published=NOW - timedelta(days=1), source_id="rbi_notifications")
+    same_source = art("et_markets", "https://example.com/c", t, NOW - timedelta(hours=2))
+    other_source = art("livemint_markets", "https://example.com/d", t, NOW - timedelta(hours=2))
+    vs_regulator = art("et_economy", "https://example.com/e", "Risk Management and Inter Bank Dealings amendment directions issued", NOW - timedelta(hours=2))
+    kept, dupes = dedup_batch([same_source, vs_regulator], RELIABILITY, db, SOURCE_TYPES)       # same source / regulator: never merged
+    assert dupes == [] and {k.source_id for k in kept} == {"et_markets", "et_economy"}
+    kept, dupes = dedup_batch([other_source], RELIABILITY, db, SOURCE_TYPES)                    # a different publisher: merged with the DB row
+    assert [(d.article.source_id, d.level, d.where) for d in dupes] == [("livemint_markets", "title_fingerprint", "db")] and kept == []

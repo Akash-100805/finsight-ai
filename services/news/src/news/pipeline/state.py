@@ -31,6 +31,8 @@ def sync_registry(engine: Engine, registry: dict[str, SourceConfig]) -> tuple[in
     updates = ", ".join(f"{c} = EXCLUDED.{c}" for c in REGISTRY_COLUMNS)
     with engine.begin() as conn:
         conn.execute(text(f"INSERT INTO news.sources ({cols}) VALUES ({marks}) ON CONFLICT (source_id) DO UPDATE SET {updates}"), rows)
+        # a source removed from the registry is switched off (never deleted: articles may reference it)
+        conn.execute(text("UPDATE news.sources SET enabled = false WHERE enabled AND source_id <> ALL(:ids)"), {"ids": [r["source_id"] for r in rows]})
         created = conn.execute(text(
             "INSERT INTO news.source_state (source_id) SELECT source_id FROM news.sources "
             "ON CONFLICT (source_id) DO NOTHING")).rowcount

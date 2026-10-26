@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -12,7 +12,7 @@ from src.news.pipeline.dryrun import CONFIG_PATH
 from src.news.sources.base import FetchContext, Requester, SourceConfig, load_registry
 
 FIXTURES = Path(__file__).parent / "fixtures" / "sources"
-NOW = datetime(2026, 10, 20, 8, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 10, 27, 8, 0, tzinfo=timezone.utc)
 
 
 def fixture_bytes(name: str) -> bytes:
@@ -46,7 +46,7 @@ def make_ctx(source_id: str, handler: Callable[[httpx.Request], httpx.Response],
     client = httpx.AsyncClient(transport=httpx.MockTransport(recording))
     http = Requester(client, gate, sleep=_no_sleep)
     cfg = source or registry()[source_id]
-    ctx = FetchContext(source=cfg, since=since or datetime(2026, 10, 19, 8, 0, tzinfo=timezone.utc), now=NOW, cursor=cursor,
+    ctx = FetchContext(source=cfg, since=since or NOW - timedelta(days=1), now=NOW, cursor=cursor,
                        http=http, secrets=secrets or {})
     return ctx, seen
 

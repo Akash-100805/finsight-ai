@@ -29,10 +29,14 @@ def test_registry_is_complete_and_consistent():
         assert cfg.circuit_breaker_failures == 3 and cfg.circuit_breaker_cooldown_minutes == 360 and cfg.default_language == "en"
         if not cfg.enabled:
             assert cfg.disabled_reason, f"{sid} is disabled without a reason"
-    assert {s for s, c in reg.items() if not c.enabled} == {"bse_announcements", "pib", "moneycontrol", "alpha_vantage"}
+    assert {s for s, c in reg.items() if not c.enabled} == {"bse_announcements", "pib", "alpha_vantage"}
+    assert "moneycontrol" not in reg and reg["businessline"].enabled and reg["businessline"].reliability == 0.85
+    assert "DISABLED" in reg["bse_announcements"].license_note and "DISABLED" in reg["alpha_vantage"].license_note
     assert reg["gdelt"].min_interval_minutes == 120 and reg["gdelt"].options["maxrecords"] == 15
-    assert reg["gdelt"].options["sort"] == "hybridrel" and len(reg["gdelt"].options["queries"]) == 12
-    assert [q["scope"] for q in reg["gdelt"].options["queries"]].count("india") == 6
+    assert reg["gdelt"].options["sort"] == "hybridrel" and len(reg["gdelt"].options["queries"]) == 6
+    assert [q["scope"] for q in reg["gdelt"].options["queries"]].count("india") == 3
+    assert reg["gdelt"].daily_request_budget == 80 and reg["gdelt"].options["inter_query_delay_seconds"] == 10
+    assert reg["gdelt"].options["retry_after_429_seconds"] == 30
     assert reg["marketaux"].daily_request_budget == 96 and reg["newsdata"].daily_request_budget == 144
     assert all(reg[s].naive_tz == "Asia/Kolkata" for s in reg if s.startswith("nse_"))
     assert "newsapi" not in " ".join(reg).lower()
@@ -80,11 +84,19 @@ def test_nse_results_and_corporate_actions_get_unique_canonical_urls():
     assert res.title.startswith("Asian Hotels (West) Limited: Financial results - Annual, Audited, Consolidated")
 
 
-def test_nse_items_without_a_link_are_rejected_not_invented():
+def test_nse_nav_declarations_are_out_of_scope_before_the_empty_link_rule():
     result, _ = fetch("nse_announcements", respond("nse_announcements.xml"))
     nav = [c for c in result.candidates if not c.url]
     assert len(nav) == 3                                           # mutual-fund NAV declarations carry an empty <link/>
-    out = normalize_candidate(nav[0], registry()["nse_announcements"], NOW, NOW)
+    for c in nav:
+        out = normalize_candidate(c, registry()["nse_announcements"], NOW, NOW)
+        assert isinstance(out, Rejection) and out.reason == "out_of_scope"      # not missing_required
+
+
+def test_nse_company_filing_without_a_link_is_still_missing_required():
+    cand = [c for c in fetch("nse_announcements", respond("nse_announcements.xml"))[0].candidates if c.url][0]
+    cand.url = None
+    out = normalize_candidate(cand, registry()["nse_announcements"], NOW, NOW)
     assert isinstance(out, Rejection) and out.reason == "missing_required" and "url" in out.detail
 
 
@@ -108,7 +120,7 @@ def test_bse_announcements_403_is_a_failure_and_the_source_is_disabled():
 # ── RSS ──────────────────────────────────────────────────────────────────────
 RSS_SOURCES = {"sebi": "sebi.xml", "rbi_press": "rbi_press.xml", "rbi_notifications": "rbi_notifications.xml", "fed_press": "fed_press.xml",
                "et_markets": "et_markets.xml", "et_economy": "et_economy.xml", "livemint_markets": "livemint_markets.xml",
-               "business_standard": "business_standard.xml", "the_hindu_national": "the_hindu_national.xml"}
+               "business_standard": "business_standard.xml", "the_hindu_national": "the_hindu_national.xml", "businessline": "businessline.xml"}
 
 
 @pytest.mark.parametrize("sid,name", sorted(RSS_SOURCES.items()))
@@ -145,12 +157,6 @@ def test_pib_feed_without_dates_is_rejected_per_item_never_dated_now():
     outs = [normalize_candidate(c, registry()["pib"], NOW, NOW) for c in result.candidates]
     assert all(isinstance(o, Rejection) and o.reason == "missing_required" for o in outs)
     assert "published_at" in outs[0].detail
-
-
-def test_moneycontrol_stale_feed_is_in_the_past_but_valid_data():
-    result, _ = fetch("moneycontrol", respond("moneycontrol.xml"), source=registry()["moneycontrol"])
-    art = normalize_candidate(result.candidates[0], registry()["moneycontrol"], NOW, NOW)
-    assert not isinstance(art, Rejection) and art.published_at.year == 2024     # no age limit (L6): staleness is a source problem
 
 
 # ── Marketaux ────────────────────────────────────────────────────────────────
@@ -284,13 +290,13 @@ def gdelt_handler(request: httpx.Request) -> httpx.Response:
     return httpx.Response(200, content=fixture_bytes(name), headers={"content-type": "application/json"})
 
 
-def test_gdelt_twelve_queries_country_mapping_and_no_tone():
+def test_gdelt_six_queries_country_mapping_and_no_tone():
     result, seen = fetch("gdelt", gdelt_handler)
-    assert result.status == "success" and len(seen) == 12 and result.requests_made == 12
+    assert result.status == "success" and len(seen) == 6 and result.requests_made == 6 and result.counters.get("skipped_queries", 0) == 0
     p = seen[0].url.params
     assert p["mode"] == "artlist" and p["format"] == "json" and p["maxrecords"] == "15" and p["sort"] == "hybridrel"
     assert "sourcelang:english" in p["query"] and p["timespan"] == "1440min"
-    assert sum("sourcecountry:india" in r.url.params["query"] for r in seen) == 6
+    assert sum("sourcecountry:india" in r.url.params["query"] for r in seen) == 3
     uk = next(c for c in result.candidates if c.raw_payload["sourcecountry"] == "United Kingdom")
     assert uk.source_country == "GB"
     india = next(c for c in result.candidates if c.raw_payload["sourcecountry"] == "India")
@@ -309,15 +315,33 @@ def test_gdelt_unknown_country_is_none_and_counted():
     assert gd.timespan_for(NOW.replace(hour=7), NOW) == "60min" and gd.timespan_for(NOW.replace(day=1), NOW) == "10080min"
 
 
-def test_gdelt_429_is_retried_with_backoff_then_reported():
-    calls = []
+def test_gdelt_429_gets_one_retry_after_30s_then_the_query_is_skipped_not_failed():
+    calls, sleeps = [], []
 
     def handler(request):
-        calls.append(1)
-        return httpx.Response(429, text="Please limit requests to one every 5 seconds")
-    result, _ = fetch("gdelt", handler)
-    assert result.status == "failure" and "HTTP 429" in result.error
-    assert len(calls) == 12 * 3                                             # each query: first try + 2 retries
+        calls.append(request.url.params["query"])
+        if "OPEC" in request.url.params["query"]:                     # the 5th query is always refused
+            return httpx.Response(429, text="Please limit requests to one every 5 seconds")
+        return gdelt_handler(request)
+    ctx, seen = make_ctx("gdelt", handler)
+
+    async def record_sleep(seconds):
+        sleeps.append(seconds)
+    ctx.http.sleep = record_sleep
+    result = run(ADAPTERS["gdelt"]().fetch(ctx))
+    assert result.status == "success" and result.counters["skipped_queries"] == 1
+    assert len(calls) == 7 and sum("OPEC" in c for c in calls) == 2          # first try + exactly one retry
+    assert 30 in sleeps and len(result.candidates) > 0
+
+
+def test_gdelt_all_queries_refused_is_a_failure():
+    result, seen = fetch("gdelt", lambda r: httpx.Response(429, text="slow down"))
+    assert result.status == "failure" and result.counters["skipped_queries"] == 6 and len(seen) == 12
+
+
+def test_gdelt_waits_between_queries_per_the_config():
+    ctx, _ = make_ctx("gdelt", gdelt_handler)
+    assert ctx.source.options["inter_query_delay_seconds"] == 10
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────

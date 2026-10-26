@@ -1,11 +1,12 @@
 """Normalize + validate: Candidate -> CanonicalArticle, or a Rejection with one of the exact reason codes.
 
-Reject only for: missing_required, invalid_url, future_date, unparseable_date, unsupported_language.
+Reject only for: out_of_scope, missing_required, invalid_url, future_date, unparseable_date, unsupported_language.
 There is no age limit, and a missing date is never replaced by 'now'.
 """
 from __future__ import annotations
 
 import hashlib
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -17,10 +18,12 @@ from src.news.normalizers.text import clean_text, non_latin_letter_share, normal
 from src.news.normalizers.url import normalize_url
 from src.news.sources.base import Candidate, SourceConfig
 
-REASONS = ("missing_required", "invalid_url", "future_date", "unparseable_date", "unsupported_language")
+REASONS = ("out_of_scope", "missing_required", "invalid_url", "future_date", "unparseable_date", "unsupported_language")
 MAX_FUTURE = timedelta(hours=24)
 MAX_NON_LATIN_SHARE = 0.30
 MAX_TITLE_CHARS = 500
+# NSE announcements also carry mutual-fund / ETF NAV declarations, which are not news about a listed company.
+OUT_OF_SCOPE = re.compile(r"\b(?:mutual\s+fund|nav|net\s+asset\s+value|scheme)\b", re.IGNORECASE)
 
 
 @dataclass
@@ -52,6 +55,12 @@ def normalize_candidate(c: Candidate, source: SourceConfig, fetched_at: datetime
     def reject(reason: str, detail: str) -> Rejection:
         return Rejection(source.source_id, reason, detail, shown[0], shown[1])
 
+    # 0. out of scope: NSE mutual-fund / NAV declarations (checked BEFORE the empty-link rule, so they are not mislabelled)
+    if source.source_type == "exchange_filing":
+        scope_text = " ".join(x for x in (c.filing.company_name if c.filing else None, title) if x)
+        found = OUT_OF_SCOPE.search(scope_text)
+        if found:
+            return reject("out_of_scope", f"mutual-fund / NAV declaration (matched {found.group(0)!r})")
     # 1. required fields (a missing date is a rejection, never now())
     missing = [name for name, value in (("url", c.url), ("title", title), ("published_at", c.published)) if _blank(value)]
     if missing:
