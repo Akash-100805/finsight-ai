@@ -169,3 +169,77 @@ def language_from_provider(value: str | None) -> str | None:
         return None
     key = value.strip().casefold()
     return LANGUAGE_NAME_TO_ISO.get(key) or normalize_language(key)
+
+
+# ── Countries mentioned in text (Phase 4): names, demonyms and major capitals ─────────────────────────────────────
+import re as _re  # noqa: E402
+
+# Names that are also common words or places elsewhere: never matched on their own.
+_AMBIGUOUS_COUNTRY_NAMES = frozenset({"georgia", "jersey", "chad", "jordan", "guinea", "niger", "mali", "togo", "holland", "america",
+                                      "korea", "samoa", "dominica", "congo", "macau", "britain", "england", "scotland", "wales",
+                                      "northern ireland", "great britain", "turkey"})
+
+# adjective / demonym -> ISO
+DEMONYMS: dict[str, str] = {
+    "indian": "IN", "indians": "IN", "american": "US", "americans": "US", "british": "GB", "chinese": "CN", "russian": "RU", "russians": "RU",
+    "japanese": "JP", "german": "DE", "germans": "DE", "french": "FR", "italian": "IT", "spanish": "ES", "canadian": "CA", "australian": "AU",
+    "south korean": "KR", "north korean": "KP", "iranian": "IR", "iraqi": "IQ", "israeli": "IL", "saudi": "SA", "emirati": "AE",
+    "egyptian": "EG", "pakistani": "PK", "bangladeshi": "BD", "sri lankan": "LK", "nepalese": "NP", "nepali": "NP", "afghan": "AF",
+    "ukrainian": "UA", "turkish": "TR", "indonesian": "ID", "thai": "TH", "vietnamese": "VN", "filipino": "PH", "singaporean": "SG",
+    "malaysian": "MY", "brazilian": "BR", "argentine": "AR", "argentinian": "AR", "mexican": "MX", "south african": "ZA", "nigerian": "NG",
+    "kenyan": "KE", "taiwanese": "TW", "swiss": "CH", "dutch": "NL", "swedish": "SE", "norwegian": "NO", "polish": "PL", "greek": "GR",
+    "irish": "IE", "palestinian": "PS", "lebanese": "LB", "syrian": "SY", "yemeni": "YE", "qatari": "QA", "kuwaiti": "KW", "omani": "OM",
+    "bhutanese": "BT", "burmese": "MM", "new zealander": "NZ", "kiwi": "NZ", "venezuelan": "VE", "colombian": "CO", "chilean": "CL",
+    "peruvian": "PE", "cuban": "CU", "hungarian": "HU", "czech": "CZ", "austrian": "AT", "belgian": "BE", "danish": "DK", "finnish": "FI",
+    "portuguese": "PT", "romanian": "RO", "serbian": "RS", "croatian": "HR", "ethiopian": "ET", "ghanaian": "GH", "moroccan": "MA",
+    "algerian": "DZ", "libyan": "LY", "sudanese": "SD", "tunisian": "TN", "zimbabwean": "ZW", "kazakh": "KZ", "uzbek": "UZ",
+}
+
+CAPITALS: dict[str, str] = {
+    "new delhi": "IN", "delhi": "IN", "washington": "US", "london": "GB", "beijing": "CN", "moscow": "RU", "tokyo": "JP", "paris": "FR",
+    "berlin": "DE", "rome": "IT", "madrid": "ES", "ottawa": "CA", "canberra": "AU", "seoul": "KR", "pyongyang": "KP", "tehran": "IR",
+    "baghdad": "IQ", "riyadh": "SA", "abu dhabi": "AE", "doha": "QA", "cairo": "EG", "islamabad": "PK", "dhaka": "BD", "colombo": "LK",
+    "kathmandu": "NP", "kabul": "AF", "kyiv": "UA", "kiev": "UA", "jerusalem": "IL", "tel aviv": "IL", "ankara": "TR", "jakarta": "ID",
+    "bangkok": "TH", "hanoi": "VN", "manila": "PH", "kuala lumpur": "MY", "brasilia": "BR", "buenos aires": "AR", "mexico city": "MX",
+    "pretoria": "ZA", "nairobi": "KE", "abuja": "NG", "wellington": "NZ", "taipei": "TW", "thimphu": "BT", "naypyidaw": "MM",
+    "muscat": "OM", "kuwait city": "KW", "manama": "BH", "amman": "JO", "beirut": "LB", "damascus": "SY", "warsaw": "PL", "prague": "CZ",
+    "vienna": "AT", "bern": "CH", "oslo": "NO", "stockholm": "SE", "helsinki": "FI", "copenhagen": "DK", "dublin": "IE", "lisbon": "PT",
+    "athens": "GR", "budapest": "HU", "havana": "CU", "caracas": "VE", "bogota": "CO", "lima": "PE", "santiago": "CL", "addis ababa": "ET",
+}
+
+# short forms that must be written in capitals to count
+_UPPERCASE_ONLY = {"US": "US", "U.S.": "US", "U.S": "US", "USA": "US", "UK": "GB", "U.K.": "GB", "UAE": "AE"}
+
+
+def _build_country_regex() -> tuple[_re.Pattern, dict[str, str]]:
+    table: dict[str, str] = {}
+    for name, code in COUNTRY_NAME_TO_ISO.items():
+        if len(name) >= 4 and name not in _AMBIGUOUS_COUNTRY_NAMES and "," not in name and name not in ("uae", "uk"):
+            table[name] = code
+    table.update({k: v for k, v in DEMONYMS.items() if k not in _AMBIGUOUS_COUNTRY_NAMES})
+    table.update(CAPITALS)
+    alternatives = sorted(table, key=len, reverse=True)
+    return _re.compile(r"\b(?:" + "|".join(_re.escape(a) for a in alternatives) + r")\b", _re.IGNORECASE), table
+
+
+_COUNTRY_RE, _COUNTRY_TABLE = _build_country_regex()
+_UPPER_RE = _re.compile(r"(?<![A-Za-z.])(?:U\.S\.A?\.?|USA|US|U\.K\.|UK|UAE)(?![A-Za-z])")
+
+
+def find_countries(text: str | None) -> list[str]:
+    """ISO alpha-2 codes of countries named in `text` (names, demonyms, major capitals), in order of first appearance."""
+    if not text:
+        return []
+    found: list[tuple[int, str]] = []
+    for m in _COUNTRY_RE.finditer(text):
+        found.append((m.start(), _COUNTRY_TABLE[m.group(0).casefold()]))
+    for m in _UPPER_RE.finditer(text):
+        key = m.group(0).rstrip(".")
+        code = _UPPERCASE_ONLY.get(m.group(0)) or _UPPERCASE_ONLY.get(key) or ("US" if key.startswith("U.S") or key == "USA" else "GB" if key.startswith("U.K") else None)
+        if code:
+            found.append((m.start(), code))
+    ordered: list[str] = []
+    for _, code in sorted(found):
+        if code not in ordered:
+            ordered.append(code)
+    return ordered

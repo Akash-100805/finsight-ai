@@ -1,0 +1,259 @@
+# Event-type rules (guide section 7). DRAFT for owner review.
+#
+# How it works: rules are tried IN ORDER and the first match wins. Every rule is tried against the TITLE first; only if no rule
+# matches the title are the rules tried again against the DESCRIPTION. A source's own default (for example NSE results ->
+# earnings) is applied before these rules; the provider's category hint and the fallback come after them.
+# Each pattern is a case-insensitive regular expression (write \b for word boundaries). `category` is the category implied by
+# the event when no source default sets one.
+#
+# Order matters: specific events come before general ones (policy rates before earnings, because "Result of the Variable Rate
+# Repo auction" contains the word "result"; insider trades before M&A, because "promoter sells stake" is both).
+rules:
+  - id: policy_rate
+    event_type: policy_rate_decision
+    category: central_bank_monetary_policy
+    patterns:
+      - '\b(?:repo|reverse repo|policy|benchmark|key|lending) rate'
+      - '\bvariable rate (?:repo|reverse repo)\b'
+      - '\b(?:vrr|vrrr)\b'
+      - '\bmonetary policy\b'
+      - '\b(?:mpc|fomc)\b'
+      - '\brate (?:cut|hike|decision)s?\b'
+      - '\b(?:fed|federal reserve|ecb|bank of england|boj|rbi) (?:holds|cuts|raises|lowers|keeps|hikes|leaves)\b'
+      - '\bfed chair\b'
+      - '\bliquidity (?:adjustment|operations?|infusion)\b'
+      - '\bmoney market operations\b'
+
+  - id: board_meeting_intimation
+    event_type: board_meeting
+    category: company
+    patterns:
+      - '\bboard meeting (?:to be held|intimation|scheduled|on)\b'
+
+  - id: earnings
+    event_type: earnings
+    category: company
+    patterns:
+      - '\bq[1-4](?:\s*fy\s?\d{2,4})?\s+(?:results?|earnings|profit|numbers|update)\b'
+      - '\b(?:quarterly|half[- ]yearly|annual|september quarter|december quarter|march quarter|june quarter) (?:results?|earnings|profit)\b'
+      - '\b(?:net|consolidated|standalone) (?:profit|loss)\b'
+      - '\bfinancial results\b'
+      - '\bearnings (?:call|report|beat|miss|per share|preview)\b'
+      - '\b(?:profit|revenue|ebitda|pat) (?:rises|falls|jumps|surges|slumps|declines|grows|drops|up|down|beats|misses)\b'
+      - '\bpat\s+(?:rises|falls|jumps|surges|slumps|declines|grows|drops)\b'
+      - '\b(?:beats|misses) (?:estimates|expectations)\b'
+      - '\bresults? (?:today|preview|calendar)\b'
+
+  - id: guidance
+    event_type: guidance
+    category: company
+    patterns:
+      - '\b(?:weak|strong|cautious|upbeat|lowered|raised|revenue|earnings|profit|sales|margin|growth|full[- ]year|annual|quarterly|fy\d*)\s+guidance\b'
+      - '\bguidance\b.{0,25}\b(?:raised|cut|lowered|trimmed|maintained|reiterated|disappoints?)\b'
+      - '\b(?:raises|cuts|lowers|trims|maintains|reiterates) (?:its |fy\d* )?(?:forecast|outlook|target|growth)\b'
+      - '\b(?:fy\s?\d{2}|full[- ]year) (?:outlook|forecast|guidance)\b'
+      - '\bexpects? (?:revenue|sales|profit|margin|growth)\b'
+
+  - id: ipo
+    event_type: ipo_listing
+    category: markets
+    patterns:
+      - '\bipo\b'
+      - '\b(?:initial|public) (?:public )?(?:offer|offering|issue)\b'
+      - '\b(?:drhp|rhp)\b'
+      - '\banchor investors?\b'
+      - '\b(?:grey market premium|gmp)\b'
+      - '\b(?:lists|listing|debut|delisting)\b'
+      - '\bsubscription status\b'
+
+  - id: dividend_buyback_split
+    event_type: dividend_buyback_split
+    category: company
+    patterns:
+      - '\bdividend\b'
+      - '\bbonus (?:issue|shares?)\b'
+      - '\bstock split\b'
+      - '\b(?:share )?buy[- ]?back\b'
+      - '\brights issue\b'
+      - '\bex[- ]?(?:date|dividend|bonus|split)\b'
+      - '\brecord date\b'
+      - '\bsub-?division of (?:equity )?shares\b'
+
+  - id: rating_change
+    event_type: rating_change
+    category: company
+    patterns:
+      - '\bcredit rating\b'
+      - '\b(?:upgrades?|downgrades?|upgraded|downgraded) (?:to |the |its )?(?:buy|sell|hold|outperform|underperform|rating|credit)\b'
+      - '\b(?:moody\W?s|fitch|crisil|icra|care ratings|india ratings|s&p global ratings)\b'
+      - '\bprice target\b|\btarget price\b'
+      - '\binitiates? coverage\b'
+      - '\brating (?:upgrade|downgrade|action|outlook|reaffirmed)\b'
+
+  - id: management_change
+    event_type: management_change
+    category: company
+    patterns:
+      - '\b(?:appoints?|appointed|appointment of|names?|named|elevates?) (?:\w+ ){0,4}(?:ceo|cfo|coo|cto|md|chairman|chairperson|director|president|head)\b'
+      - '\b(?:ceo|cfo|coo|managing director|chairman|key managerial personnel|kmp|director)\b.{0,40}\b(?:resigns?|resignation|steps? down|quits|exit|cessation)\b'
+      - '\b(?:resigns?|resignation of|steps? down as|quits as)\b'
+      - '\bnew (?:ceo|cfo|chairman|md)\b'
+      - '\bchange in (?:director(?:\(s\)|s)?|management|kmp)\b'
+      - '\bsuccession plan\b'
+
+  - id: order_contract
+    event_type: order_contract_win
+    category: company
+    patterns:
+      - '\b(?:bags?|wins?|secures?|bagged|won|receives?|clinches|lands?|gets) (?:[\w,.₹$%-]+ ){0,5}(?:orders?|contracts?|deals?|tender|project)\b'
+      - '\border (?:win|book|inflow|worth)\b'
+      - '\b(?:letter of award|letter of intent|loa|loi)\b'
+      - '\bbagging(?:/receiving)? of orders?\b'
+      - '\bawarded (?:a |the )?(?:contract|order|project)\b'
+      - '\bwork order\b'
+
+  - id: capex_expansion
+    event_type: capex_expansion
+    category: company
+    patterns:
+      - '\bcapex\b|\bcapital expenditure\b'
+      - '\b(?:expansion|expands?|capacity addition|capacity expansion)\b'
+      - '\b(?:new|greenfield|brownfield) (?:plant|factory|facility|unit|refinery|project)\b'
+      - '\b(?:to )?(?:set up|commissions?|inaugurates?) (?:\w+ ){0,3}(?:plant|facility|factory|unit)\b'
+      - '\binvests? (?:rs|₹|\$)\s?[\d,.]+\s?(?:crore|cr|lakh|million|billion|bn|mn)\b'
+
+  - id: insider_trade
+    event_type: insider_trade
+    category: company
+    patterns:
+      - '\binsider (?:trading|trades?|selling|buying)\b'
+      - '\bpromoters?\b.{0,30}\b(?:sells?|buys?|pledge|raises? stake|offloads?|dilutes?)\b'
+      - '\b(?:bulk|block) deals?\b'
+      - '\bpledge of shares\b|\bshare pledge\b'
+      - '\bsast\b|\bregulation 29\b'
+      - '\b(?:acquisition|disposal|sale) of shares by\b'
+
+  - id: mna
+    event_type: mna
+    category: company
+    patterns:
+      - '\b(?:acquires?|acquired|acquisition|acquiring|takeover|takes over|buys?|buying|to buy|to acquire|snaps up)\b.{0,60}\b(?:stake|company|firm|business|unit|arm|brand|assets?|rival|%)'
+      - '\b(?:merger|merges?|merged|demerger|amalgamation|scheme of arrangement|joint venture|jv)\b'
+      - '\bopen offer\b'
+      - '\bacquisitions?\b'
+      - '\b(?:stake sale|sells? (?:\w+ )?stake|buys? (?:\w+ )?stake|picks up (?:\w+ )?stake|divest(?:s|ment|iture)?)\b'
+      - '\bdeal talks\b|\bin talks to (?:buy|acquire|merge)\b'
+
+  - id: board_meeting
+    event_type: board_meeting
+    category: company
+    patterns:
+      - '\bboard meeting\b'
+      - '\bboard (?:approves|clears|okays|to consider|meets)\b'
+      - '\bagm\b|\begm\b|\bannual general meeting\b'
+      - '\boutcome of (?:the )?board\b'
+
+  - id: default_insolvency
+    event_type: default_insolvency
+    category: company
+    patterns:
+      - '\b(?:insolvency|bankruptcy|bankrupt|nclt|ibc|winding up|liquidation|resolution professional|committee of creditors|cirp)\b'
+      - '\b(?:defaults?|defaulted|default on)\b'
+      - '\b(?:debt restructuring|loan restructuring|chapter 11)\b'
+
+  - id: litigation
+    event_type: legal_litigation
+    category: company
+    patterns:
+      - '\b(?:lawsuit|sues?|sued|litigation|class action|writ petition|plea|verdict|acquits?|convicted)\b'
+      - '\b(?:high court|supreme court|district court|tribunal|nclat|sat|itat)\b'
+      - '\b(?:court (?:orders?|directs?|rules?|dismisses?|upholds?)|moves court)\b'
+      - '\b(?:cbi|enforcement directorate|ed) (?:raids?|searches?|arrests?|summons?|attaches?)\b'
+      - '\b(?:sentenced|jailed|convicted|defamation|acquitted)\b'
+      - '\b(?:delhi|bombay|madras|calcutta|karnataka|kerala|gujarat|punjab|allahabad|telangana) hc\b'
+
+  - id: regulatory_action
+    event_type: regulatory_action
+    category: government_regulation
+    patterns:
+      - '\b(?:sebi|rbi|irdai|cci|trai|fda|sec|ftc|doj)\b.{0,40}\b(?:penalty|penalises|fines?|bans?|bars?|orders?|notice|probe|norms|rules|directions?|regulations?)\b'
+      - '\b(?:penalty|penalised|fined|show[- ]cause notice|cease and desist|barred from|banned from)\b'
+      - '\b(?:regulator|regulatory) (?:action|approval|probe|crackdown|scrutiny)\b'
+      - '\b(?:recovery certificate|attachment of|adjudication order|settlement order|investigation)\b'
+      - '\b(?:amendment|master) directions?\b|\bprudential norms\b'
+      - '\benforcement actions?\b'
+      - '\b(?:confirmatory|final|interim|adjudication|settlement|release|recovery) orders?\b|\bnotice of demand\b|\brelease of attachment\b'
+      - '\bamendment\)? regulations\b|\bregulations, 20\d\d\b'
+      - '\bapproval of (?:the |an )?(?:application|proposal|merger)\b'
+
+  - id: macro_data
+    event_type: macro_data_release
+    category: economy_macro
+    patterns:
+      - '\b(?:cpi|wpi|iip|pmi|gdp|gva)\b'
+      - '\b(?:retail|consumer|wholesale) inflation\b|\binflation (?:data|rate|eases|rises|cools|hits)\b'
+      - '\b(?:trade deficit|current account|fiscal deficit|forex reserves|fx reserves|unemployment rate|jobs report|payrolls|nonfarm)\b'
+      - '\bindustrial (?:production|output)\b'
+      - '\bgst collections?\b'
+      - '\b(?:core sector|factory output|services activity|manufacturing activity)\b'
+
+  - id: gov_policy_budget
+    event_type: government_policy_budget
+    category: government_regulation
+    patterns:
+      - '\b(?:union )?budget\b'
+      - '\bgst council\b'
+      - '\b(?:cabinet|centre|government|govt|finance ministry) (?:approves|clears|okays|announces|notifies|extends|plans|proposes|hikes|cuts)\b'
+      - '\b(?:subsidy|subsidies|pli scheme|disinvestment|economic survey|tax (?:cut|relief|reform)|fdi (?:norms|limit|policy)|customs duty)\b'
+      - '\b(?:finance minister|sitharaman|treasury secretary)\b'
+
+  - id: trade_tariff_sanction
+    event_type: trade_tariff_sanction
+    category: geopolitical
+    patterns:
+      - '\btariffs?\b'
+      - '\bsanctions?\b|\bembargo\b'
+      - '\b(?:trade deal|trade pact|trade talks|trade war|free trade agreement|fta|trade barriers?)\b'
+      - '\b(?:export|import) (?:ban|curbs?|restrictions?|duty|duties)\b'
+      - '\banti-dumping\b'
+
+  - id: conflict_security
+    event_type: conflict_security
+    category: geopolitical
+    patterns:
+      - '\b(?:war|missiles?|airstrikes?|air strikes?|ceasefire|invasion|invades|shelling|drone attack|bombing|blockade)\b'
+      - '\b(?:attack|attacked|attacks|killed|clashes|troops|military|army|terror(?:ist|ism)?|militants?|hostages?|blast)\b'
+      - '\b(?:nato|hamas|hezbollah|houthi|idf|pentagon)\b'
+      - '\b(?:naval|defence|defense) (?:deal|pact|exercise|ties)\b'
+
+  - id: election_politics
+    event_type: election_politics
+    category: geopolitical
+    patterns:
+      - '\b(?:elections?|polls?|voting|votes?|ballot|lok sabha|rajya sabha|assembly polls?|by-?election|exit poll)\b'
+      - '\b(?:coup|impeachment|coalition|prime minister|president|parliament|summit|chief minister|opposition|bjp|congress party)\b'
+
+  - id: natural_disaster
+    event_type: natural_disaster_weather
+    category: geopolitical
+    patterns:
+      - '\b(?:cyclone|hurricane|typhoon|earthquake|tsunami|flood(?:s|ing)?|drought|heatwave|heat wave|landslides?|landslips?|wildfire|cloudburst)\b'
+      - '\b(?:monsoon|rainfall|el nino|la nina|cold wave|snowfall|storm)\b'
+
+  - id: commodity_price
+    event_type: commodity_price_move
+    category: commodities_energy
+    patterns:
+      - '\b(?:brent|wti|crude(?: oil)?|oil prices?|opec\+?|natural gas|lng|gold (?:price|rate|rates|prices)|silver (?:price|rate)|copper|steel prices?|coal)\b'
+      - "\\btoday.s (?:gold|silver) rate\\b"
+      - '\b(?:gold|silver|crude|oil) (?:rallies|hits|slips|surges|falls|jumps|holds|extends|ticks)\b'
+
+  - id: market_move
+    event_type: market_move
+    category: markets
+    patterns:
+      - '\b(?:sensex|nifty(?: ?50| bank| midcap| smallcap)?|bank nifty|bse|nse)\b'
+      - '\b(?:wall street|dow jones|dow|nasdaq|s&p 500|stock markets?|equity markets?|share markets?|stocks? to watch|market close|market wrap)\b'
+      - '\b(?:fpis?|fiis?|dii|foreign investors) (?:buy|sell|outflows?|inflows?|net)\b'
+      - '\b(?:rupee|dollar|euro|yen|yuan|bond yields?)\b.{0,30}\b(?:falls?|rises?|slips?|gains?|weakens?|strengthens?|closes?|opens?)\b'
+      - '\b(?:shares?|stocks?) (?:fall|rise|jump|surge|slump|tumble|rally|gain|slide|climb|plunge|sink|hit)\b'
