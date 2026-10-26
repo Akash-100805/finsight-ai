@@ -40,6 +40,16 @@ Downloads are cached in `services/news/data_cache/` (git-ignored). BSE blocks sc
 saved as `services/news/data_cache/bse/<YYYY-MM-DD>.csv`, and BSE industries are fetched through a browser session (see
 `services/news/tools/bse_industry_browser.md`). The reviewed data files live in `shared/data/`; see `docs/review/phase2_owner_review.md`.
 
+## News pipeline commands
+
+- `python dev.py sources-sync` copies `services/news/config/sources.yaml` into `news.sources`.
+- `python dev.py fetch --dry-run` fetches every due source, normalizes, validates and de-duplicates, and writes a JSONL file under
+  `services/news/data_cache/dryrun/` (nothing is written to `news.articles`).
+- `python dev.py enrich --from-jsonl all` runs security resolution, FinBERT sentiment and classification over the saved dry-run
+  articles and writes `services/news/data_cache/enriched/all.jsonl`. The NER and FinBERT models are downloaded on first use to the
+  default Hugging Face cache.
+- `python dev.py test -m models` runs the sanity checks that use the real models (skipped in the normal test run).
+
 ## Build guide
 
 The specification for the news revamp is in [docs/NEWS_REVAMP_GUIDE.md](docs/NEWS_REVAMP_GUIDE.md).

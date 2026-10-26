@@ -82,7 +82,8 @@ The scheduler runs every 30 minutes. Each source has its own minimum interval an
 ```
 1. FETCH          all due adapters concurrently; one adapter failing never stops others
 2. NORMALIZE      provider item → CanonicalArticle (strict Pydantic, extra fields forbidden)
-3. VALIDATE       reject only: missing required field, invalid URL, bad/future date, non-English
+3. VALIDATE       reject only: out_of_scope (NSE mutual-fund / NAV declarations, checked first), missing required field,
+                  invalid URL, bad/future date, non-English
 4. EXACT DEDUP    canonical_url | (source_id, source_article_id) | title_fingerprint (±3 days, any source)
 5. ENRICH         a) security resolution + extraction  → article_securities
                   b) per-security FinBERT (needs 5a)   → article_securities.finbert_*
@@ -159,11 +160,11 @@ Configured in `services/news/config/sources.yaml`. Before writing each adapter, 
 | `sebi` | `https://www.sebi.gov.in/sebirss.xml` | A / 1.00 | regulator | india / financial | sometimes (orders name companies) | 60 min |
 | `rbi_press` | `https://rbi.org.in/pressreleases_rss.xml` | A / 1.00 | regulator | india / financial | never | 60 min |
 | `rbi_notifications` | `https://rbi.org.in/notifications_rss.xml` | A / 1.00 | regulator | india / financial | never | 60 min |
-| `pib` | PIB RSS `https://www.pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3`. **Disabled:** the feed has no dates and Hindi titles (verified 2026-10-20). | A / 0.95 | government | india / mixed | never | 60 min |
+| `pib` | PIB RSS `https://www.pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3`. **Disabled:** the feed has no dates and Hindi titles (verified 2026-10-20 and again 2026-10-26 with Lang=1). | A / 0.95 | government | india / mixed | never | 60 min |
 | `fed_press` | `https://www.federalreserve.gov/feeds/press_all.xml` | A / 1.00 | regulator | global / financial | never | 60 min |
 | `et_markets` | Economic Times Markets RSS `https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms` | B / 0.85 | publisher | india / financial | never | 30 min |
 | `et_economy` | Economic Times Economy RSS `https://economictimes.indiatimes.com/news/economy/rssfeeds/1373380680.cms` | B / 0.85 | publisher | india / financial | never | 60 min |
-| `moneycontrol` | Moneycontrol markets RSS `https://www.moneycontrol.com/rss/marketreports.xml`. **Disabled:** every public Moneycontrol feed stopped updating in April 2024 (verified 2026-10-20). | B / 0.85 | publisher | india / financial | never | 30 min |
+| `businessline` | The Hindu BusinessLine markets RSS `https://www.thehindubusinessline.com/markets/feeder/default.rss` (listed on the publisher's own RSS page; replaces Moneycontrol, whose public feeds stopped updating in April 2024) | B / 0.85 | publisher | india / financial | never | 30 min |
 | `livemint_markets` | Livemint markets RSS `https://www.livemint.com/rss/markets` | B / 0.85 | publisher | india / financial | never | 30 min |
 | `business_standard` | Business Standard markets RSS `https://www.business-standard.com/rss/markets-106.rss` | B / 0.85 | publisher | india / financial | never | 30 min |
 | `the_hindu_national` | The Hindu national RSS `https://www.thehindu.com/news/national/feeder/default.rss` | B / 0.80 | publisher | india / non_financial | never | 60 min |
@@ -171,7 +172,7 @@ Configured in `services/news/config/sources.yaml`. Before writing each adapter, 
 | `finnhub` | Finnhub `/news?category=general` and `category=merger` | B / 0.75 | aggregator | global / financial | sometimes (`related`) | 30 min |
 | `alpha_vantage` | `NEWS_SENTIMENT` with topic rotation (economy_macro, economy_monetary, energy_transportation, financial_markets, technology, mergers_and_acquisitions, earnings), one call per run. **Disabled:** the endpoint answers "premium endpoint" on the free key (verified 2026-10-20). | B / 0.75 | aggregator | global / financial | sometimes (ticker_sentiment) | budget 20/day, spread evenly |
 | `newsdata` | NewsData `/api/1/latest`, three calls per run: India business; India politics+environment+top; global business+world | C / 0.65 | aggregator | both / mixed | never | 30 min; budget 144/day |
-| `gdelt` | GDELT DOC 2.0 `ArtList`, 12 theme queries (6 India-scoped via `sourcecountry:india` or India terms; 6 global: conflict, sanctions/tariffs, oil/OPEC, central banks, disasters/supply chain, elections) | C / 0.60 | event_database | both / non_financial | never | 120 min; 15 records per query, `sort=hybridrel`; 8 s between queries (GDELT answered 429 even at 6 s spacing); budget 144/day |
+| `gdelt` | GDELT DOC 2.0 `ArtList`, 6 merged theme queries (3 India-scoped with `sourcecountry:india`: policy/macro, trade/commodities, disasters/politics; 3 global: conflict/sanctions, oil/trade/central banks, disasters/supply chain/politics), `sourcelang:english` | C / 0.60 | event_database | both / non_financial | never | 120 min; 15 records per query, `sort=hybridrel`; 10 s between queries; one retry after 30 s on a 429, then the query is skipped (the run stays a success and records `skipped_queries`); budget 80/day |
 
 Rules for all sources:
 - **Fetch window:** `since = last_success_at - 30 min`; the first-ever run of a source looks back 7 days (as far as its API allows).
@@ -231,16 +232,17 @@ An alias is marked `is_ambiguous` if any of these is true:
 - it appears in `shared/data/ambiguous_terms.csv` (Indian business-group and surname terms such as Tata, Birla, Adani, Bajaj, Mahindra and Reliance used alone; country, state and city names).
 
 ### 6.3 Resolution flow (every article)
-1. **Exchange filings** (NSE/BSE sources): the company in the filing is resolved by exact symbol, scrip code or registered name → `method='exchange_filing'`, `confidence=1.00`, `role='primary'`.
-2. **Provider tags** (Marketaux symbols, Finnhub `related`, Alpha Vantage `ticker_sentiment`): normalize the format (`RELIANCE.NS`→`NSE:RELIANCE`, `.BO`→BSE, bare US tickers→US exchange via the master), then look the result up in the master.
+1. **Exchange filings** (NSE/BSE sources): the company in the filing is resolved by exact symbol, scrip code or, for NSE feeds (which carry only a name), by the exact normalized company name against the official/short names of primary NSE securities; no unique match → `unresolved_mentions` (`no_master_match`) and a `filing_unresolved` count, never a guess → `method='exchange_filing'`, `confidence=1.00`, `role='primary'`.
+2. **Provider tags** (Marketaux symbols, Finnhub `related`, Alpha Vantage `ticker_sentiment`): normalize the format (`RELIANCE.NS`→`NSE:RELIANCE`, `.BO`→BSE by scrip id or code, bare US tickers→the unique active US security with that symbol, `BRK.B`→`BRK-B`; Marketaux's exchange field is used when present; other exchange suffixes such as `.L` or `.T` are `unsupported_exchange`), then look the result up in the master.
    - If an alias of that security appears in the article text → `provider_confirmed`, 0.95.
    - If it is not in the text → `provider_only`, 0.60, `role='mentioned'`.
    - If it is not in the master → `unresolved_mentions` (`unsupported_exchange` or `no_master_match`).
 3. **Own extraction** (always runs, on title + description + content):
-   - Find candidate alias matches with Aho-Corasick over `alias_norm`, word boundaries only.
+   - Tokenize the text into word tokens with character spans in the original text, normalized token by token exactly like `alias_norm` (casefold, `&` -> `and`, dots and apostrophes dropped). Find alias matches with Aho-Corasick over token sequences (`pyahocorasick`, one code point per distinct token), so a match always starts and ends on a token boundary (`ITC` never matches inside `SWITCH`). Case-sensitive aliases (symbols, acronyms such as `RIL`, `L&T`) are matched on the original-case tokens. When matches overlap, the longest (in tokens) wins: `State Bank of India` beats `Bank of India`.
    - Run the NER model `dslim/bert-base-NER` once per article and get its ORG spans.
    - Non-ambiguous alias overlapping an ORG span → `dictionary_ner`, 0.90.
    - Non-ambiguous alias with no ORG overlap → `dictionary_context`, 0.70.
+   - Two listings of the same company (for example Infosys on NSE and as a NYSE ADR) count as one company. When one alias belongs to several DIFFERENT companies, the generic cues are not enough: the sentence must also name one market (NSE/BSE/Nifty/Sensex/₹/crore for India, NYSE/Nasdaq for the US) or contain the security's own ticker in uppercase elsewhere in the sentence.
    - Ambiguous alias → accepted only if a context cue appears in the same sentence ("shares", "stock", "Ltd", "Limited", "Q1–Q4", "results", "BSE", "NSE", "₹", "crore", "Nifty", "Sensex", the symbol in uppercase). If accepted → `dictionary_context`, 0.75. If not → `unresolved_mentions` (`ambiguous_no_context`).
 4. **Merge:** one row per security, keeping the highest-confidence method and the union of matched texts. For dual-listed companies, collapse BSE onto the NSE primary listing.
 5. **Role:** `primary` if the security is matched in the title or is the filing subject; otherwise `mentioned`.
@@ -295,7 +297,7 @@ How the fields are assigned:
 - **Exact (step 4):**
   1. `canonical_url` (existing URL normalizer: lowercase host, strip tracking params and trailing slash).
   2. `(source_id, source_article_id)`.
-  3. `title_fingerprint` = sha256 of the normalized title (lowercase, strip punctuation, collapse whitespace), matched against articles from **any source** published within ±3 days. Source is deliberately **not** part of the hash, so syndicated copies across outlets are caught.
+  3. `title_fingerprint` = sha256 of the normalized title (lowercase, strip punctuation, collapse whitespace), matched against articles published within ±3 days. Source is deliberately **not** part of the hash, so syndicated copies across outlets are caught, but the check applies **only between two different `source_id`s** and **never when either source's `source_type` is `exchange_filing` or `regulator`** (those publish many items with the same generic title). It is skipped when the normalized title has fewer than 5 tokens.
 - **Near-duplicate (step 8b):**
   - Candidates: articles within ±72h whose embedding cosine similarity is ≥ 0.92, **and** that either share at least one primary security or have title-token Jaccard ≥ 0.40.
   - The canonical article of a cluster is the one from the highest-reliability source; ties go to the earliest `published_at`.
