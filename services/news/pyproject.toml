@@ -37,5 +37,9 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-markers = ["db: tests that need the Neon TEST database (TEST_DATABASE_URL only)"]
+markers = [
+    "db: tests that need the Neon TEST database (TEST_DATABASE_URL only)",
+    "models: sanity checks with the real NER and FinBERT models (run with: python dev.py test -m models)",
+]
+addopts = "-m 'not models'"
 filterwarnings = ["ignore::DeprecationWarning"]

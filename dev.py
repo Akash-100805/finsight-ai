@@ -185,6 +185,10 @@ def cmd_fetch():
     return run_in_venv(["-m", "src.news.pipeline.dryrun", "--target", target, *rest])
 
 
+def cmd_enrich():
+    return run_in_venv(["-m", "src.news.enrich.cli", *sys.argv[2:]])
+
+
 def cmd_report():
     print("Available from Phase 7")
     return 1
@@ -199,6 +203,7 @@ COMMANDS = {
     "securities-refresh": (cmd_securities_refresh, "load NSE/BSE/US securities, sectors and aliases (--target main|test, --offline, --refresh-bse-industry)"),
     "sources-sync": (cmd_sources_sync, "upsert config/sources.yaml into news.sources (--target main|test)"),
     "fetch": (cmd_fetch, "fetch --dry-run [--target main|test] [--sources a,b] [--ignore-interval]; storage arrives in Phase 5"),
+    "enrich": (cmd_enrich, "enrich --from-jsonl <file|all> [--target main|test] [--limit N]: securities, FinBERT, classification on saved dry-run articles"),
     "report": (cmd_report, "print the latest run report (available from Phase 7)"),
 }
 
