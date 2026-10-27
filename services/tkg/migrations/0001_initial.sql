@@ -1,7 +1,5 @@
 -- Migration 0001: Initial TKG Schema
--- Creates schema tkg, all tables, indexes, views, and functions
-
-CREATE SCHEMA IF NOT EXISTS tkg;
+-- Schema tkg already created and owned by tkg_writer (Section 0)
 
 -- 0. Migration tracking table (idempotency)
 CREATE TABLE IF NOT EXISTS tkg.schema_migrations (

@@ -124,7 +124,7 @@ class GeminiClient(LLMClient):
         }
 
         try:
-            with httpx.Client(timeout=60.0) as http_client:
+            with httpx.Client(timeout=30.0) as http_client:
                 response = http_client.post(url, json=payload)
                 self._last_call_time = time.time()
                 metadata["latency_ms"] = int((time.time() - start) * 1000)

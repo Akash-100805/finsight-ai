@@ -21,6 +21,7 @@ import subprocess
 # Ensure services/tkg/src and shared are in python path
 repo_root = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(repo_root, "services", "tkg", "src"))
+sys.path.insert(0, os.path.join(repo_root, "services", "tkg", "tests"))
 sys.path.insert(0, os.path.join(repo_root, "shared"))
 
 from sqlalchemy import text
@@ -144,12 +145,22 @@ def cmd_priors_load(args):
     url = get_target_url(target)
 
     print(f"=== Loading Vocab & Priors on {target} DB ===")
+    if target == "test":
+        os.environ["TKG_NEWS_SCHEMA"] = "news_stub"
+    else:
+        os.environ["TKG_NEWS_SCHEMA"] = "news"
+
     engine = get_engine(url)
     factory = get_session_factory(engine)
     session = factory()
     try:
+        if target == "test":
+            from fixtures.news_stub import setup_stub_news_schema
+            setup_stub_news_schema(session)
+
         data_dir = os.path.join(repo_root, "shared", "data")
-        stats = load_priors_from_csv(session, data_dir=data_dir)
+        news_schema = "news_stub" if target == "test" else "news"
+        stats = load_priors_from_csv(session, data_dir=data_dir, news_schema=news_schema)
         print("Priors loaded successfully!")
         print(f"  Drivers: {stats['drivers']}")
         print(f"  Actors: {stats['actors']}")
@@ -174,6 +185,11 @@ def cmd_process(args):
     max_requests = getattr(args, "max_requests", None)
 
     url = get_target_url(target)
+    if target == "main":
+        os.environ["TKG_NEWS_SCHEMA"] = "news"
+    else:
+        os.environ["TKG_NEWS_SCHEMA"] = "news_stub"
+
     print(f"=== Executing TKG Processing Run on {target} DB (dry_run={dry_run}, max_requests={max_requests}) ===")
 
     engine = get_engine(url)

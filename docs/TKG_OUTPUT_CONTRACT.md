@@ -8,20 +8,52 @@ This document specifies the read-only database views, functions, and endpoints e
 
 ## 1. Access and Roles
 
-- **Database Role**: `tkg_reader` (NOLOGIN role granted SELECT on views and EXECUTE on functions).
+- **Database Role**: `tkg_reader` (NOLOGIN role granted `SELECT` on views and `EXECUTE` on functions).
 - **Access Rule**: The multi-agent system reads strictly via `tkg_reader`. It has no write permissions on `tkg.*` and does not call LLMs for graph scores.
 - **Determinism**: Snapshots are deterministic. Identical events and priors yield identical scores.
 
 ---
 
-## 2. Views and Functions
+## 2. Sector Vocabulary
 
-### 2.1 `tkg.v_sector_impacts_latest`
+All sector impacts use the unified 23 sector IDs defined in `finsight_shared.sectors.ALL_SECTOR_IDS` (22 NSE sectors + `macro_cross_sector`):
+
+```
+automobile_and_auto_components
+capital_goods
+chemicals
+construction
+construction_materials
+consumer_durables
+consumer_services
+fast_moving_consumer_goods
+financial_services
+forest_materials
+healthcare
+information_technology
+media_entertainment_and_publication
+metals_and_mining
+oil_gas_and_consumable_fuels
+power
+real_estate
+services
+telecommunication
+textiles
+utilities
+diversified
+macro_cross_sector
+```
+
+---
+
+## 3. Views and Functions
+
+### 3.1 `tkg.v_sector_impacts_latest`
 Contains the latest computed impact snapshot per sector and lookback window.
 
 | Column | Type | Range / Format | Description |
 |---|---|---|---|
-| `sector_id` | `VARCHAR` | Slug (e.g. `oil_gas`) | NSE sector identifier from shared vocabulary |
+| `sector_id` | `VARCHAR` | Slug from official vocabulary | NSE sector identifier (e.g. `information_technology`, `oil_gas_and_consumable_fuels`) |
 | `window_days` | `INTEGER` | 7, 30 | Lookback window in days |
 | `as_of` | `TIMESTAMPTZ` | ISO timestamp | Timestamp when the score was computed |
 | `score` | `FLOAT` | `[-1.0, +1.0]` | Causal impact score (-1.0 strongly negative to +1.0 strongly positive) |
@@ -32,50 +64,60 @@ Contains the latest computed impact snapshot per sector and lookback window.
 | `top_paths` | `JSONB` | Array of path objects | Top 5 structured causal paths explaining the score |
 | `uses_unreviewed_prior` | `BOOLEAN` | `true` / `false` | True if any contributing path used an unreviewed prior |
 
-#### Structure of `top_paths` JSONB:
+#### Structure of `top_paths` JSONB (Live Production Output):
 ```json
 [
+  {
+    "type": "second_hop",
+    "link": "supplier_of",
+    "weight": -0.4,
+    "contrib": -0.3048,
+    "reviewed": false,
+    "from_sector": "oil_gas_and_consumable_fuels",
+    "to_sector": "textiles",
+    "explanation": "oil_gas_and_consumable_fuels (supplier_of) → textiles = -0.3048"
+  },
   {
     "type": "driver",
     "driver_id": "drv:crude_oil_price",
     "relation": "MOVES_UP",
     "magnitude": "high",
-    "sensitivity": -0.70,
-    "contrib": -0.42,
-    "event_id": "8b51d65a-...",
-    "article_id": "9f32c510-...",
-    "summary": "OPEC+ agreed to deepen voluntary crude oil output cuts through Q3",
-    "published_at": "2026-10-25T14:30:00Z",
-    "explanation": "[OPEC+ agreed to deepen voluntary crude oil output cuts through Q3] → Crude Oil Price ↑ (high) → sensitivity -0.70 = -0.4200",
-    "reviewed": true
+    "sensitivity": -0.35,
+    "contrib": -0.2818,
+    "event_id": "fa41c650-b369-4a86-9694-4526c47deb07",
+    "article_id": "838a08ac-318e-42f0-8307-51831cda279f",
+    "summary": "India's crude basket price tops $120 a barrel amid West Asia war and rising freight rates.",
+    "published_at": "2026-10-27T17:13:02+00:00",
+    "explanation": "[India's crude basket price tops $120 a barrel amid West Asia war and rising freight rates.] → drv:crude_oil_price (MOVES_UP) → sensitivity -0.35 = -0.2818",
+    "reviewed": false
   }
 ]
 ```
 
 ---
 
-### 2.2 `tkg.sector_impacts(p_sectors TEXT[], p_window_days INT DEFAULT 30)`
+### 3.2 `tkg.sector_impacts(p_sectors TEXT[], p_window_days INT DEFAULT 30)`
 A SQL function that filters the latest sector impacts for a user's held sectors. **This is what the Sector TKG Agent invokes.**
 
 #### Parameters:
-- `p_sectors`: Array of sector IDs (e.g. `ARRAY['it_services', 'banking']`), or `NULL` for all sectors.
+- `p_sectors`: Array of sector IDs (e.g. `ARRAY['information_technology', 'financial_services']`), or `NULL` for all sectors.
 - `p_window_days`: Window lookback in days (default: `30`).
 
 ---
 
-### 2.3 `tkg.v_security_impacts_latest`
+### 3.3 `tkg.v_security_impacts_latest`
 Contains the latest computed impact snapshot per security and lookback window.
 
 | Column | Type | Range / Format | Description |
 |---|---|---|---|
-| `security_id` | `VARCHAR` | `EXCHANGE:SYMBOL` (e.g. `NSE:RELIANCE`) | Security identifier |
+| `security_id` | `VARCHAR` | `EXCHANGE:SYMBOL` (e.g. `NSE:HINDPETRO`, `BSE:500285`) | Active security identifier |
 | `window_days` | `INTEGER` | 7, 30 | Lookback window in days |
 | `as_of` | `TIMESTAMPTZ` | ISO timestamp | Calculation timestamp |
 | `via_sector_score` | `FLOAT` | `[-1.0, +1.0]` | Inherited sector score |
 | `direct_score` | `FLOAT` | `[-1.0, +1.0]` | Direct company score (from company-specific events & overrides) |
 | `direct_confidence`| `FLOAT` | `[0.0, 1.0]` | Confidence of the direct score |
 | `n_direct_events` | `INTEGER` | `≥ 0` | Count of direct company events |
-| `top_paths` | `JSONB` | Array of path objects | Top 5 contributing paths for the company |
+| `top_paths` | `JSONB` | Array of path objects | Top contributing paths for the company |
 | `uses_unreviewed_prior` | `BOOLEAN` | `true` / `false` | True if an unreviewed override was used |
 
 > [!IMPORTANT]
@@ -83,14 +125,14 @@ Contains the latest computed impact snapshot per security and lookback window.
 
 ---
 
-### 2.4 `tkg.v_events`
+### 3.4 `tkg.v_events`
 View providing granular drilldown into causal events and their structured paths.
 
 | Column | Type | Description |
 |---|---|---|
 | `event_id` | `UUID` | Unique event identifier |
-| `article_id` | `UUID` | Source article ID in `news.*` |
-| `occurred_at` | `TIMESTAMPTZ` | Event timestamp (= article published_at) |
+| `article_id` | `UUID` | Source article ID in `news.v_articles` |
+| `occurred_at` | `TIMESTAMPTZ` | Event timestamp (= article `published_at`) |
 | `category` | `VARCHAR` | Macro, commodities, company, etc. |
 | `event_type` | `VARCHAR` | Earnings, policy_rate_decision, mna, etc. |
 | `summary` | `TEXT` | Factual summary (≤ 25 words, no advice) |
@@ -101,17 +143,17 @@ View providing granular drilldown into causal events and their structured paths.
 
 ---
 
-## 3. Example Queries for the Multi-Agent System
+## 4. Production Query Examples for Multi-Agent System
 
 ### Query 1: Fetch impact for a user's portfolio sectors
-Used by the Sector TKG Agent when a user holds IT, Banking, and Auto:
+Used by the Sector TKG Agent when a user holds IT, Financial Services, and Auto:
 ```sql
-SELECT sector_id, score, confidence, status, top_paths
-FROM tkg.sector_impacts(ARRAY['it_services', 'banking', 'auto'], 30);
+SELECT sector_id, score, confidence, attention, status, top_paths
+FROM tkg.sector_impacts(ARRAY['information_technology', 'financial_services', 'automobile_and_auto_components'], 30);
 ```
 
-### Query 2: Fetch company override vs sector impact
-Used when inspecting a specific holding (e.g. IOC vs Oil & Gas):
+### Query 2: Inspect company override vs sector impact
+Used when inspecting a specific holding (e.g. HPCL vs Oil & Gas):
 ```sql
 SELECT 
     security_id, 
@@ -120,7 +162,7 @@ SELECT
     direct_confidence, 
     top_paths
 FROM tkg.v_security_impacts_latest
-WHERE security_id = 'NSE:IOC' AND window_days = 30;
+WHERE security_id = 'NSE:HINDPETRO' AND window_days = 30;
 ```
 
 ### Query 3: Trace top drivers and evidence for a sector hit
@@ -135,5 +177,5 @@ SELECT
     path->>'contrib' AS contribution
 FROM tkg.v_sector_impacts_latest,
      jsonb_array_elements(top_paths) AS path
-WHERE sector_id = 'realty' AND window_days = 30;
+WHERE sector_id = 'textiles' AND window_days = 30;
 ```

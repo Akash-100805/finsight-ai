@@ -6,7 +6,7 @@ import os
 import csv
 import sys
 import logging
-from typing import Dict, Any, Tuple, List, Set
+from typing import Dict, Any, Tuple, List, Set, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
@@ -54,6 +54,7 @@ def validate_priors_against_db(
     sector_sens_rows: List[Dict[str, str]],
     sec_sens_rows: List[Dict[str, str]],
     links_rows: List[Dict[str, str]],
+    news_schema: Optional[str] = None,
 ) -> None:
     """
     Section 5 validation:
@@ -63,22 +64,22 @@ def validate_priors_against_db(
       - any sensitivity/weight is in [-1, 1]
     Fails with clear message listing all bad rows if invalid.
     """
-    news_schema = settings.TKG_NEWS_SCHEMA
-    logger.info(f"Validating priors against live DB schema '{news_schema}'...")
+    schema = news_schema or os.environ.get("TKG_NEWS_SCHEMA") or settings.TKG_NEWS_SCHEMA
+    logger.info(f"Validating priors against live DB schema '{schema}'...")
 
     try:
-        sec_rows = session.execute(text(f"SELECT sector_id FROM {news_schema}.sectors")).fetchall()
+        sec_rows = session.execute(text(f"SELECT sector_id FROM {schema}.sectors")).fetchall()
         db_sectors: Set[str] = {r[0] for r in sec_rows}
     except Exception as e:
-        logger.error(f"Failed to query {news_schema}.sectors from database: {e}")
-        raise RuntimeError(f"Cannot validate sector IDs: {news_schema}.sectors is not accessible: {e}") from e
+        logger.error(f"Failed to query {schema}.sectors from database: {e}")
+        raise RuntimeError(f"Cannot validate sector IDs: {schema}.sectors is not accessible: {e}") from e
 
     try:
-        secur_rows = session.execute(text(f"SELECT security_id FROM {news_schema}.securities WHERE is_active = true")).fetchall()
+        secur_rows = session.execute(text(f"SELECT security_id FROM {schema}.securities WHERE is_active = true")).fetchall()
         db_active_securities: Set[str] = {r[0] for r in secur_rows}
     except Exception as e:
-        logger.error(f"Failed to query {news_schema}.securities from database: {e}")
-        raise RuntimeError(f"Cannot validate securities: {news_schema}.securities is not accessible: {e}") from e
+        logger.error(f"Failed to query {schema}.securities from database: {e}")
+        raise RuntimeError(f"Cannot validate securities: {schema}.securities is not accessible: {e}") from e
 
     bad_rows: List[str] = []
 
@@ -95,7 +96,7 @@ def validate_priors_against_db(
         if did not in DRIVERS:
             bad_rows.append(f"tkg_sector_sensitivity.csv line {i}: driver '{did}' not in vocab")
         if sid not in db_sectors:
-            bad_rows.append(f"tkg_sector_sensitivity.csv line {i}: sector '{sid}' not in {news_schema}.sectors (DB)")
+            bad_rows.append(f"tkg_sector_sensitivity.csv line {i}: sector '{sid}' not in {schema}.sectors (DB)")
         if not (-1.0 <= sens <= 1.0):
             bad_rows.append(f"tkg_sector_sensitivity.csv line {i}: sensitivity {sens} outside [-1, 1]")
 
@@ -112,7 +113,7 @@ def validate_priors_against_db(
         if did not in DRIVERS:
             bad_rows.append(f"tkg_security_sensitivity.csv line {i}: driver '{did}' not in vocab")
         if sec_id not in db_active_securities:
-            bad_rows.append(f"tkg_security_sensitivity.csv line {i}: security '{sec_id}' is not an ACTIVE row in {news_schema}.securities")
+            bad_rows.append(f"tkg_security_sensitivity.csv line {i}: security '{sec_id}' is not an ACTIVE row in {schema}.securities")
         if not (-1.0 <= sens <= 1.0):
             bad_rows.append(f"tkg_security_sensitivity.csv line {i}: sensitivity {sens} outside [-1, 1]")
 
@@ -127,9 +128,9 @@ def validate_priors_against_db(
             continue
 
         if fs not in db_sectors:
-            bad_rows.append(f"tkg_sector_links.csv line {i}: from_sector '{fs}' not in {news_schema}.sectors (DB)")
+            bad_rows.append(f"tkg_sector_links.csv line {i}: from_sector '{fs}' not in {schema}.sectors (DB)")
         if ts not in db_sectors:
-            bad_rows.append(f"tkg_sector_links.csv line {i}: to_sector '{ts}' not in {news_schema}.sectors (DB)")
+            bad_rows.append(f"tkg_sector_links.csv line {i}: to_sector '{ts}' not in {schema}.sectors (DB)")
         if not (-1.0 <= weight <= 1.0):
             bad_rows.append(f"tkg_sector_links.csv line {i}: weight {weight} outside [-1, 1]")
 
@@ -140,10 +141,10 @@ def validate_priors_against_db(
         for err in bad_rows:
             print(f"  [ERROR] {err}")
         print("=" * 60 + "\n")
-        raise ValueError(f"Priors validation failed: {len(bad_rows)} bad rows detected against database {news_schema}")
+        raise ValueError(f"Priors validation failed: {len(bad_rows)} bad rows detected against database {schema}")
 
 
-def load_priors_from_csv(session: Session, data_dir: str = None) -> Dict[str, Any]:
+def load_priors_from_csv(session: Session, data_dir: str = None, news_schema: Optional[str] = None) -> Dict[str, Any]:
     """
     Load sensitivity and link priors from CSV files into tkg schema.
     Runs Section 5 validation against live DB before writing.
@@ -179,7 +180,7 @@ def load_priors_from_csv(session: Session, data_dir: str = None) -> Dict[str, An
         links_rows = list(csv.DictReader(f))
 
     # 2. Section 5 Validation against DB
-    validate_priors_against_db(session, sec_sens_rows, sec_rows, links_rows)
+    validate_priors_against_db(session, sec_sens_rows, sec_rows, links_rows, news_schema=news_schema)
 
     # 3. Seed vocab
     d_count, a_count = load_vocab_tables(session)

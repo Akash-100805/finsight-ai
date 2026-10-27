@@ -60,6 +60,29 @@ class CompatArray(TypeDecorator):
         return list(value)
 
 
+class CompatUUIDArray(TypeDecorator):
+    """PostgreSQL native UUID[] in Postgres; JSON in SQLite."""
+    impl = JSON
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(ARRAY(PG_UUID(as_uuid=True)))
+        return dialect.type_descriptor(JSON)
+
+    def process_bind_param(self, value, dialect):
+        if value is None:
+            return None
+        if dialect.name == "postgresql":
+            return [v if isinstance(v, uuid.UUID) else uuid.UUID(str(v)) for v in value]
+        return [str(v) for v in value]
+
+    def process_result_value(self, value, dialect):
+        if value is None:
+            return None
+        return [v if isinstance(v, uuid.UUID) else uuid.UUID(str(v)) for v in value]
+
+
 # Use 'tkg' schema for all tables
 SCHEMA = "tkg"
 
@@ -273,12 +296,12 @@ class LLMCall(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     run_id = Column(CompatUUID, ForeignKey(f"{SCHEMA}.runs.run_id"), nullable=True)
-    article_ids = Column(CompatArray, nullable=True)
+    article_ids = Column(CompatUUIDArray, nullable=True)
     model = Column(String, nullable=True)
     prompt_version = Column(String, nullable=True)
     tokens_in = Column(Integer, default=0)
     tokens_out = Column(Integer, default=0)
     latency_ms = Column(Integer, nullable=True)
     status = Column(String, nullable=False, default="ok")
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
 

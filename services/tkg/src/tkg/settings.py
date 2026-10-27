@@ -24,7 +24,7 @@ class TKGSettings(BaseSettings):
     TKG_LLM_RPM: int = 30    # requests per minute
     TKG_LLM_SAFETY_FRACTION: float = 0.8
     TKG_LLM_BATCH_SIZE: int = 8
-    TKG_LLM_MAX_OUTPUT_TOKENS: int = 800
+    TKG_LLM_MAX_OUTPUT_TOKENS: int = 4096
     TKG_PROMPT_VERSION: str = "v1"
 
     # ---------- Run schedule ----------

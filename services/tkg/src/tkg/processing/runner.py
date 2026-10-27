@@ -205,25 +205,44 @@ def run_processing(
 
         # 4. Filter for eligibility
         eligible_articles = []
+        ineligible_to_add = []
         for article in all_candidate_articles:
             aid = article["article_id"]
             if not is_eligible(article):
                 stats["skipped_ineligible"] += 1
                 if not dry_run:
-                    pa = session.query(ProcessedArticle).filter_by(article_id=aid).first()
-                    if not pa:
-                        pa = ProcessedArticle(
+                    ineligible_to_add.append(
+                        ProcessedArticle(
                             article_id=aid,
                             status="skipped_ineligible",
                             last_error=get_skip_reason(article),
                             processed_at=datetime.now(timezone.utc)
                         )
-                        session.add(pa)
+                    )
             else:
                 eligible_articles.append(article)
 
-        if not dry_run:
-            session.commit()
+        if not dry_run and ineligible_to_add:
+            try:
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+                vals = [
+                    {
+                        "article_id": pa.article_id,
+                        "status": pa.status,
+                        "attempts": 0,
+                        "last_error": pa.last_error,
+                        "processed_at": pa.processed_at,
+                    }
+                    for pa in ineligible_to_add
+                ]
+                stmt = pg_insert(ProcessedArticle).values(vals).on_conflict_do_nothing(index_elements=["article_id"])
+                session.execute(stmt)
+                session.commit()
+            except Exception:
+                session.rollback()
+                for pa in ineligible_to_add:
+                    session.merge(pa)
+                session.commit()
 
         # Slice to what we can actually process in this run's budget
         articles_to_process = eligible_articles[:max_articles]
@@ -237,26 +256,11 @@ def run_processing(
             batch = articles_to_process[i:i + batch_size]
             batch_aids = [b["article_id"] for b in batch]
 
-            # Mark as pending
+            # Pre-fetch linked securities & sectors in batch for all articles in this batch
+            linked_securities_map = reader.get_batch_linked_securities(batch_aids)
+            linked_sectors_map = reader.get_batch_linked_sectors(batch_aids)
             if not dry_run:
-                for b in batch:
-                    aid = b["article_id"]
-                    pa = session.query(ProcessedArticle).filter_by(article_id=aid).first()
-                    if not pa:
-                        pa = ProcessedArticle(article_id=aid, status="pending", attempts=1)
-                        session.add(pa)
-                    else:
-                        pa.attempts += 1
-                        pa.status = "pending"
-                session.commit()
-
-            # Pre-fetch linked securities for this batch
-            linked_securities_map: Dict[uuid.UUID, List[Dict[str, Any]]] = {}
-            linked_sectors_map: Dict[uuid.UUID, List[Dict[str, Any]]] = {}
-            for b in batch:
-                aid = b["article_id"]
-                linked_securities_map[aid] = reader.get_linked_securities(aid)
-                linked_sectors_map[aid] = reader.get_linked_sectors(aid)
+                session.commit()  # Close read transaction before external HTTP call
 
             # Call LLM
             start_llm = datetime.now(timezone.utc)
@@ -288,21 +292,25 @@ def run_processing(
 
             for article in batch:
                 aid = article["article_id"]
-                pa = session.query(ProcessedArticle).filter_by(article_id=aid).first() if not dry_run else None
 
                 ext = results_by_aid.get(str(aid))
                 if not ext:
                     # Failed extraction
-                    if pa:
-                        pa.status = "failed"
-                        pa.last_error = error or "Missing from LLM batch output"
+                    if not dry_run:
+                        session.merge(ProcessedArticle(
+                            article_id=aid, status="failed", attempts=1,
+                            last_error=error or "Missing from LLM batch output",
+                            processed_at=datetime.now(timezone.utc)
+                        ))
                     stats["failed"] += 1
                     continue
 
                 if not ext.is_market_relevant:
-                    if pa:
-                        pa.status = "not_relevant"
-                        pa.processed_at = datetime.now(timezone.utc)
+                    if not dry_run:
+                        session.merge(ProcessedArticle(
+                            article_id=aid, status="not_relevant", attempts=1,
+                            processed_at=datetime.now(timezone.utc)
+                        ))
                     stats["not_relevant"] += 1
                     continue
 
@@ -315,16 +323,20 @@ def run_processing(
 
                 # If no valid moves or direct effects remain
                 if not cleaned_ext.driver_moves and not cleaned_ext.direct_effects:
-                    if pa:
-                        pa.status = "not_relevant"
-                        pa.processed_at = datetime.now(timezone.utc)
+                    if not dry_run:
+                        session.merge(ProcessedArticle(
+                            article_id=aid, status="not_relevant", attempts=1,
+                            processed_at=datetime.now(timezone.utc)
+                        ))
                     stats["not_relevant"] += 1
                     continue
 
                 # Valid market-relevant event
-                if pa:
-                    pa.status = "done"
-                    pa.processed_at = datetime.now(timezone.utc)
+                if not dry_run:
+                    session.merge(ProcessedArticle(
+                        article_id=aid, status="done", attempts=1,
+                        processed_at=datetime.now(timezone.utc)
+                    ))
                 stats["processed"] += 1
 
                 # Parse date with Bug 6.2 rule
@@ -332,9 +344,12 @@ def run_processing(
                     pub_at = parse_dt(article.get("published_at"))
                 except ValueError as e:
                     logger.warning(f"Skipping article {aid}: unparseable published_at: {e}")
-                    if pa:
-                        pa.status = "failed"
-                        pa.last_error = f"unparseable published_at: {e}"
+                    if not dry_run:
+                        session.merge(ProcessedArticle(
+                            article_id=aid, status="failed", attempts=1,
+                            last_error=f"unparseable published_at: {e}",
+                            processed_at=datetime.now(timezone.utc)
+                        ))
                     stats["failed"] += 1
                     continue
 
@@ -441,6 +456,7 @@ def run_processing(
         # 9. Finalize run stats
         finished_at = datetime.now(timezone.utc)
         stats["finished_at"] = finished_at.isoformat()
+        stats["duration_s"] = round((finished_at - started_at).total_seconds(), 2)
         stats["status"] = "completed"
         stats["db_size_mb"] = get_database_size_mb(session)
 

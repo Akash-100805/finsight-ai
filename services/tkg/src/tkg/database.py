@@ -20,14 +20,24 @@ def get_engine(url: str | None = None):
         raise RuntimeError(
             "TKG_DATABASE_URL is not set. Configure it in .env"
         )
+    if db_url.startswith("postgresql://"):
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
     connect_args = {}
     if "sslmode" not in db_url and "postgresql" in db_url:
         # Neon requires SSL
         db_url += "?sslmode=require" if "?" not in db_url else "&sslmode=require"
+    if "postgresql" in db_url:
+        connect_args.update({
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+        })
     return create_engine(
         db_url,
         connect_args=connect_args,
         pool_pre_ping=True,
+        pool_recycle=300,
         echo=False,
     )
 

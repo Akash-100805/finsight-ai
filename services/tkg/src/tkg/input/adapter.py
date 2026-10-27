@@ -40,7 +40,7 @@ class NewsReader:
             FROM {self.news_schema}.v_articles a
             LEFT JOIN tkg.processed_articles pa ON a.article_id = pa.article_id
             WHERE pa.article_id IS NULL
-            ORDER BY a.published_at ASC
+            ORDER BY a.published_at DESC
             LIMIT :limit
         """)
         try:
@@ -107,6 +107,55 @@ class NewsReader:
         except Exception as e:
             logger.warning(f"Could not read {self.news_schema}.v_sector_news for {article_id}: {e}")
             return []
+
+    def get_batch_linked_securities(self, article_ids: List[UUID]) -> Dict[UUID, List[Dict[str, Any]]]:
+        """Fetch linked securities for multiple articles in a single query."""
+        if not article_ids:
+            return {}
+        res = {aid: [] for aid in article_ids}
+        try:
+            # Handle string or UUID types
+            str_aids = tuple(str(a) for a in article_ids)
+            query = text(f"""
+                SELECT article_id, security_id, symbol, sector, role, confidence, finbert_score
+                FROM {self.news_schema}.v_security_news
+                WHERE article_id IN :aids AND confidence >= 0.70
+            """).bindparams(aids=str_aids)
+            for r in self.session.execute(query).mappings():
+                aid = r["article_id"]
+                if aid in res:
+                    res[aid].append(dict(r))
+                elif str(aid) in [str(k) for k in res]:
+                    for k in res:
+                        if str(k) == str(aid):
+                            res[k].append(dict(r))
+        except Exception as e:
+            logger.warning(f"Could not read {self.news_schema}.v_security_news in batch: {e}")
+        return res
+
+    def get_batch_linked_sectors(self, article_ids: List[UUID]) -> Dict[UUID, List[Dict[str, Any]]]:
+        """Fetch linked sectors for multiple articles in a single query."""
+        if not article_ids:
+            return {}
+        res = {aid: [] for aid in article_ids}
+        try:
+            str_aids = tuple(str(a) for a in article_ids)
+            query = text(f"""
+                SELECT article_id, sector, method, confidence
+                FROM {self.news_schema}.v_sector_news
+                WHERE article_id IN :aids
+            """).bindparams(aids=str_aids)
+            for r in self.session.execute(query).mappings():
+                aid = r["article_id"]
+                if aid in res:
+                    res[aid].append(dict(r))
+                elif str(aid) in [str(k) for k in res]:
+                    for k in res:
+                        if str(k) == str(aid):
+                            res[k].append(dict(r))
+        except Exception as e:
+            logger.warning(f"Could not read {self.news_schema}.v_sector_news in batch: {e}")
+        return res
 
     def get_security_details(self, security_id: str) -> Optional[Dict[str, Any]]:
         """Lookup company details from news.securities."""

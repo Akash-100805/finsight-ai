@@ -2,6 +2,7 @@
 News Stub Fixtures — provides realistic simulated news data matching the upstream news contract.
 Used for testing the TKG end-to-end without live external dependencies.
 """
+import os
 import uuid
 import json
 from datetime import datetime, timedelta, timezone
@@ -260,11 +261,11 @@ STUB_SECTOR_NEWS = [
 ACTIVE_SECURITIES = [
     ("NSE:IOC", "NSE", "IOC", "Indian Oil Corporation", "oil_gas_and_consumable_fuels"),
     ("NSE:BPCL", "NSE", "BPCL", "Bharat Petroleum Corporation", "oil_gas_and_consumable_fuels"),
-    ("NSE:HPCL", "NSE", "HPCL", "Hindustan Petroleum Corporation", "oil_gas_and_consumable_fuels"),
+    ("NSE:HINDPETRO", "NSE", "HINDPETRO", "Hindustan Petroleum Corporation Limited", "oil_gas_and_consumable_fuels"),
     ("NSE:ONGC", "NSE", "ONGC", "Oil and Natural Gas Corporation", "oil_gas_and_consumable_fuels"),
     ("NSE:OIL", "NSE", "OIL", "Oil India Limited", "oil_gas_and_consumable_fuels"),
     ("NSE:INDIGO", "NSE", "INDIGO", "InterGlobe Aviation", "services"),
-    ("NSE:SPICEJET", "NSE", "SPICEJET", "SpiceJet Limited", "services"),
+    ("BSE:500285", "BSE", "500285", "Spicejet Ltd", "services"),
     ("NSE:ASIANPAINT", "NSE", "ASIANPAINT", "Asian Paints Limited", "consumer_durables"),
     ("NSE:BERGEPAINT", "NSE", "BERGEPAINT", "Berger Paints India", "consumer_durables"),
     ("NSE:KANSAINER", "NSE", "KANSAINER", "Kansai Nerolac Paints", "consumer_durables"),
@@ -301,10 +302,7 @@ def setup_stub_news_schema(session: Session):
         if main_url and db_url == main_url:
             raise RuntimeError("CRITICAL: Refusing to create stub tables on main/production database!")
 
-    schema_name = getattr(settings, "TKG_NEWS_SCHEMA", "news_stub" if not is_sqlite else "news")
-
-    if not is_sqlite:
-        session.execute(text(f"CREATE SCHEMA IF NOT EXISTS {schema_name};"))
+    schema_name = os.getenv("TKG_NEWS_SCHEMA", "news_stub" if not is_sqlite else "news")
 
     id_col = "id INTEGER PRIMARY KEY AUTOINCREMENT" if is_sqlite else "id SERIAL PRIMARY KEY"
     uuid_type = "TEXT" if is_sqlite else "UUID"

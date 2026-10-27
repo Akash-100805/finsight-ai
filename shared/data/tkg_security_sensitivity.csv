@@ -1,11 +1,11 @@
 driver_id,security_id,sensitivity,rationale,reviewed
 drv:crude_oil_price,NSE:IOC,-0.65,Oil Marketing Company: marketing margins on petrol/diesel shrink when crude surges without retail hike,False
 drv:crude_oil_price,NSE:BPCL,-0.65,Oil Marketing Company: retail fuel price freezes compress marketing margins during crude rallies,False
-drv:crude_oil_price,NSE:HPCL,-0.7,Pure-play refining and marketing company highly vulnerable to crude feedstock spikes,False
+drv:crude_oil_price,NSE:HINDPETRO,-0.7,Pure-play refining and marketing company highly vulnerable to crude feedstock spikes,False
 drv:crude_oil_price,NSE:ONGC,0.75,Upstream exploration: crude price rise directly inflates net crude realization per barrel,False
 drv:crude_oil_price,NSE:OIL,0.75,Upstream explorer: higher crude and domestic gas benchmark prices expand upstream EBITDA,False
 drv:crude_oil_price,NSE:INDIGO,-0.8,InterGlobe Aviation: jet fuel is >40% of cash expenses; crude surges severely dent margins,False
-drv:crude_oil_price,NSE:SPICEJET,-0.85,Weak balance sheet leaves airline unable to absorb fuel inflation or hedge effectively,False
+drv:crude_oil_price,BSE:500285,-0.85,Weak balance sheet leaves airline unable to absorb fuel inflation or hedge effectively,False
 drv:crude_oil_price,NSE:ASIANPAINT,-0.75,"Titanium dioxide, solvents and monomer resins track crude; gross margins contract",False
 drv:crude_oil_price,NSE:BERGEPAINT,-0.7,Crude-derived solvent and binder costs compress operating EBITDA margins,False
 drv:inr_strength,NSE:TCS,-0.65,Over 90% revenue in USD/EUR/GBP; rupee appreciation shrinks converted rupee EBITDA,False

@@ -73,12 +73,14 @@ def build_user_prompt(articles: List[Dict[str, Any]]) -> str:
         sectors = article.get("linked_sectors", [])
 
         sec_str = ", ".join(
-            f"{s.get('security_id', '')} ({s.get('name', s.get('symbol', ''))} - {s.get('sector', '')})"
+            (f"{s.get('security_id', '')} ({s.get('name', s.get('symbol', ''))} - {s.get('sector', '')})"
+             if isinstance(s, dict) else str(s))
             for s in securities
         ) if securities else "none"
 
         sect_str = ", ".join(
-            s.get("sector", "") for s in sectors
+            (s.get("sector", "") if isinstance(s, dict) else str(s))
+            for s in sectors
         ) if sectors else "none"
 
         parts.append(f"""--- ARTICLE {i} ---

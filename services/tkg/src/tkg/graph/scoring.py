@@ -477,6 +477,50 @@ def compute_security_impacts(
         except Exception as e:
             logger.warning(f"Failed to compute direct effects for {security_id}: {e}")
 
+        # Evaluate driver moves matching company sensitivity overrides
+        sec_driver_ids = [did for (did, sid) in tkg_graph._security_sensitivities.keys() if sid == security_id]
+        if sec_driver_ids:
+            try:
+                dm_result = session.execute(
+                    text("""
+                        SELECT edm.driver_id, edm.relation, edm.magnitude, edm.confidence, edm.evidence,
+                               e.event_id, e.article_id, e.summary, e.category, e.occurred_at
+                        FROM tkg.event_driver_moves edm
+                        JOIN tkg.events e ON edm.event_id = e.event_id
+                        WHERE edm.driver_id IN :dids
+                          AND e.occurred_at >= :cutoff AND e.occurred_at <= :as_of
+                    """).bindparams(dids=tuple(sec_driver_ids)),
+                    {"cutoff": cutoff, "as_of": as_of}
+                )
+                for dm in dm_result.mappings():
+                    aid = str(dm["article_id"])
+                    rel = article_reliability.get(aid)
+                    if rel is None:
+                        continue
+                    try:
+                        recency = compute_recency_weight(dm["occurred_at"], dm.get("category", ""), as_of)
+                    except ValueError:
+                        continue
+                    w_e = compute_event_weight(recency, rel)
+                    sign = 1.0 if dm["relation"] == "MOVES_UP" else (-1.0 if dm["relation"] == "MOVES_DOWN" else 0.0)
+                    sens = tkg_graph._security_sensitivities.get((dm["driver_id"], security_id), 0.0)
+                    contrib = compute_driver_contribution(sign, dm["magnitude"], sens, w_e, dm["confidence"])
+                    if dm["relation"] != "MIXED":
+                        direct_contribs.append(contrib)
+                    direct_confs.append(w_e * dm["confidence"])
+                    n_direct += 1
+                    top_paths.append({
+                        "type": "driver_override",
+                        "driver_id": dm["driver_id"],
+                        "relation": dm["relation"],
+                        "magnitude": dm["magnitude"],
+                        "sensitivity": sens,
+                        "contrib": round(contrib, 4),
+                        "summary": dm.get("summary", ""),
+                    })
+            except Exception as e:
+                logger.warning(f"Failed to compute driver overrides for {security_id}: {e}")
+
         # Check driver overrides for unreviewed flag
         for (driver_id, sid), _ in tkg_graph._security_sensitivities.items():
             if sid == security_id and not tkg_graph._reviewed_flags.get((driver_id, sid), False):
