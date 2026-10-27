@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Database (Neon direct, non-pooled, sslmode=require)
     DATABASE_URL: SecretStr = SecretStr("")
     TEST_DATABASE_URL: SecretStr = SecretStr("")
+    # Read-only login for the consumers (agents / TKG): member of news_reader, cannot read news.articles
+    AGENTS_DATABASE_URL: SecretStr = SecretStr("")
+    AGENTS_TEST_DATABASE_URL: SecretStr = SecretStr("")
 
     # Provider keys
     MARKETAUX_API_KEY: SecretStr = SecretStr("")
@@ -44,7 +47,7 @@ class Settings(BaseSettings):
     # Text sector classifier: cosine threshold, calibrated against the from_security sectors (see embed/sectors.py; phase5_storage.md)
     SECTOR_TEXT_THRESHOLD: float = 0.80   # NO threshold on the 0.40-0.80 grid reached precision 0.80 (best ~0.46): fail closed. See phase5_storage.md
 
-    @field_validator("DATABASE_URL", "TEST_DATABASE_URL")
+    @field_validator("DATABASE_URL", "TEST_DATABASE_URL", "AGENTS_DATABASE_URL", "AGENTS_TEST_DATABASE_URL")
     @classmethod
     def _direct_ssl_url(cls, value: SecretStr, info) -> SecretStr:
         url = value.get_secret_value().strip()

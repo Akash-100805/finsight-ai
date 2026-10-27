@@ -198,6 +198,18 @@ def cmd_owner_check_score():
     return run_in_venv(["-m", "src.news.enrich.owner_check", "score", *sys.argv[2:]])
 
 
+def cmd_run_loop():
+    target, rest = _target_args(sys.argv[2:])
+    try:
+        return run_in_venv(["-m", "src.news.pipeline.run_loop", "--target", target, *rest])
+    except KeyboardInterrupt:
+        return 0
+
+
+def cmd_agents_role():
+    return run_in_venv(["-m", "src.news.db.agents_role"])
+
+
 def cmd_report():
     target, rest = _target_args(sys.argv[2:])
     return run_in_venv(["-m", "src.news.pipeline.cli_ops", "report", "--target", target, *rest])
@@ -209,6 +221,8 @@ COMMANDS = {
     "test": (cmd_test, "run pytest in services/news"),
     "migrate": (cmd_migrate, "run alembic upgrade head (--target main|test, default main)"),
     "ingest": (cmd_ingest, "ingest [--target main|test] [--sources a,b] [--ignore-interval] | --from-jsonl <file|all>: fetch, enrich, store, embed, post-embed, report"),
+    "run-loop": (cmd_run_loop, "run-loop [--interval 30] [--target main|test]: run ingest every N minutes in the foreground (logs/ingest.log); Ctrl+C stops it"),
+    "agents-role": (cmd_agents_role, "create/rotate the read-only login finsight_agents on both Neon projects and write AGENTS_DATABASE_URL / AGENTS_TEST_DATABASE_URL to .env (values never printed)"),
     "purge": (cmd_purge, "purge [--target main|test]: set raw_payload to NULL on articles older than RAW_PAYLOAD_RETENTION_DAYS"),
     "securities-refresh": (cmd_securities_refresh, "load NSE/BSE/US securities, sectors and aliases (--target main|test, --offline, --refresh-bse-industry)"),
     "sources-sync": (cmd_sources_sync, "upsert config/sources.yaml into news.sources (--target main|test)"),
