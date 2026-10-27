@@ -156,11 +156,17 @@ def test_sentiment_neutral_threshold_and_confidence():
 def test_sector_neutral_threshold_confidence_cap_and_source_in_the_evidence():
     lite = {"information_technology": {"score": 0.05, "confidence": 1.0, "n": 140, "source": "tkg_lite", "evidence_article_ids": ["x"]}}
     neutral = stage1.sector_verdict("information_technology", lite, "tkg_lite")
-    assert neutral["signal"] == 0.0 and "neutral sector news" in neutral["rationale"] and neutral["confidence"] == 0.6 and neutral["evidence"]["source"] == "tkg_lite"
+    assert neutral["unavailable"] and neutral["reason"] == "neutral_sector" and neutral["rationale"] == "sector news neutral"      # kept, but not a signal
+    assert neutral["evidence"]["source"] == "tkg_lite" and neutral["evidence"]["raw_score"] == 0.05
+    edge = stage1.sector_verdict("power", {"power": {"score": -0.10, "confidence": 1.0, "n": 9, "source": "tkg_lite"}}, "tkg_lite")
+    assert not edge.get("unavailable") and edge["signal"] == pytest.approx(-0.10)                                                   # |score| >= 0.10 is a signal
     strong = stage1.sector_verdict("power", {"power": {"score": -0.4, "confidence": 0.9, "n": 30, "source": "tkg_lite"}}, "tkg_lite")
     assert strong["signal"] == pytest.approx(-0.4) and strong["confidence"] == 0.6
     tkg = stage1.sector_verdict("power", {"power": {"score": -0.4, "confidence": 0.9, "n": 30, "source": "tkg"}}, "tkg")
-    assert tkg["confidence"] == 0.9 and tkg["evidence"]["source"] == "tkg"
+    assert tkg["confidence"] == 0.9 and tkg["evidence"]["source"] == "tkg"                                                          # no 0.6 cap outside tkg_lite
+    tkg_small = stage1.sector_verdict("power", {"power": {"score": 0.04, "confidence": 0.9, "n": 30, "source": "tkg"}}, "tkg")
+    assert tkg_small["reason"] == "neutral_sector"
+    assert stage1.sector_verdict("power", {"power": Unavailable("neutral_sector", "tkg status no_signal")}, "tkg")["reason"] == "neutral_sector"
     assert stage1.sector_verdict(None, {}, "tkg_lite")["reason"] == "no_sector"
     assert stage1.sector_verdict("realty", {"realty": Unavailable("insufficient_news", "x")}, "tkg_lite")["reason"] == "insufficient_news"
 
@@ -190,6 +196,25 @@ def test_the_shortlist_is_capped_at_five_by_absolute_fused_value():
     assert [s.ticker for s in out["shortlist"]] == ["T7", "T6", "T5", "T4", "T3"]                  # the strongest |fused| first
     assert [d["ticker"] for d in out["not_deep_dived"]] == ["T2", "T1", "T0"] and all(d["reason"] == "not deep-dived, cap" for d in out["not_deep_dived"])
     assert out["fused_values"]["T7"] == pytest.approx(-0.65)
+
+
+def test_a_neutral_sector_is_excluded_from_the_fused_average_but_a_neutral_sentiment_still_counts_as_zero():
+    s = fusion_state(1)
+    neutral_sector = {"unavailable": True, "reason": "neutral_sector", "detail": "sector news neutral", "rationale": "sector news neutral", "evidence": {}}
+    ok = lambda x: {"signal": x, "confidence": 0.8, "rationale": "r", "evidence": {}}
+    s = s.model_copy(update={"stage1_structural": {"T0": ok(-0.6)}, "stage1_sentiment": {"T0": ok(0.0)}, "stage1_sector": {"T0": neutral_sector}})
+    out = stage1.fusion(s, None)
+    assert out["fused_values"]["T0"] == pytest.approx(-0.3)                                  # (-0.6 + 0.0) / 2: the sector is NOT averaged in as a 0
+    assert [x.ticker for x in out["shortlist"]] == ["T0"]                                    # -0.3 reaches the (unchanged) threshold; with a 0 sector it would be -0.2
+    with_zero = s.model_copy(update={"stage1_sector": {"T0": ok(0.0)}})
+    assert stage1.fusion(with_zero, None)["fused_values"]["T0"] == pytest.approx(-0.2) and stage1.fusion(with_zero, None)["shortlist"] == []
+
+
+def test_a_real_sector_signal_still_enters_the_average():
+    s = fusion_state(1)
+    ok = lambda x: {"signal": x, "confidence": 0.8, "rationale": "r", "evidence": {}}
+    s = s.model_copy(update={"stage1_structural": {"T0": ok(-0.6)}, "stage1_sentiment": {"T0": ok(-0.3)}, "stage1_sector": {"T0": ok(-0.3)}})
+    assert stage1.fusion(s, None)["fused_values"]["T0"] == pytest.approx(-0.4)
 
 
 def test_a_small_shortlist_is_not_padded_and_an_empty_one_is_valid():

@@ -44,7 +44,9 @@ def recheck_prompt(rows: list[dict]) -> tuple[str, dict[str, dict]]:
     arts = [{"article_id": r["article_id"], "title": r["title"], "description": (r["description"] or "")[:300], "date": r["published_at"].date().isoformat(),
              "source": r["source_id"], "finbert_score": None if r["finbert_score"] is None else round(float(r["finbert_score"]), 3),
              "sentiment_method": r["sentiment_method"]} for r in rows]
-    return json.dumps({"articles": arts}, ensure_ascii=False), {a["article_id"]: {"title": a["title"], "source": a["source"], "date": a["date"]} for a in arts}
+    urls = {r["article_id"]: r.get("url") for r in rows}
+    return json.dumps({"articles": arts}, ensure_ascii=False), {a["article_id"]: {"title": a["title"], "source": a["source"], "date": a["date"],
+                                                                                 "url": urls.get(a["article_id"])} for a in arts}
 
 
 def validate_recheck(out: RecheckOutput, known_ids: set[str]) -> list[dict]:
@@ -113,7 +115,7 @@ def stage2(state: AnalysisState, deps: Deps) -> dict:
             errors.append(f"stage2 {s.ticker}: {type(exc).__name__}: {str(exc)[:160]}")
             bundle, arts = Stage2StockVerdict(ticker=s.ticker, unavailable={"stage2": f"{type(exc).__name__}"}, status="no_voters"), {}
         verdicts.append(bundle)
-        index.update({a: {"title": m["title"], "source_id": m["source"], "published_at": m["date"]} for a, m in arts.items()})
+        index.update({a: {"title": m["title"], "source_id": m["source"], "published_at": m["date"], "url": m.get("url")} for a, m in arts.items()})
     out: dict = {"stage2_verdicts": verdicts, "article_index": index}
     if errors:
         out["errors"] = errors

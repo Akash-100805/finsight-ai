@@ -342,3 +342,13 @@ def test_logs_model_tokens_latency_but_never_the_key(caplog):
     text = caplog.text
     assert "stock-model" in text and "input_tokens=11" in text and "output_tokens=7" in text and "latency=" in text
     assert "SECRET-KEY-VALUE" not in text
+
+
+def test_tkg_status_no_signal_is_neutral_sector_not_an_error():
+    class Ok:
+        @staticmethod
+        def sector_impacts(sectors, days):
+            return {"power": {"status": "no_signal"}, "realty": {"score": 0.5, "confidence": 0.9, "n_events": 4, "top_paths": []}}
+    out = TkgProvider(module=Ok, settings=make_settings(SECTOR_PROVIDER="tkg")).sector_signals(["power", "realty"])
+    assert isinstance(out["power"], Unavailable) and out["power"].reason == "neutral_sector"
+    assert out["realty"]["confidence"] == 0.9                                                    # the TKG's own confidence is passed through untouched

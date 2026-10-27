@@ -58,7 +58,8 @@ def build_input(state: AnalysisState) -> dict:
             d = src.get(t)
             if t in state.excluded_holdings:
                 continue
-            row[name] = ({"unavailable": d.get("reason")} if is_unavailable(d) and d is not None else None if d is None else
+            row[name] = (({"unavailable": d.get("reason"), "note": "sector news neutral, not used in the fusion average"} if d.get("reason") == "neutral_sector"
+                          else {"unavailable": d.get("reason")}) if is_unavailable(d) and d is not None else None if d is None else
                          {"signal": round(d["signal"], 3), "confidence": round(d["confidence"], 2), "rationale": d["rationale"]})
         stage1[info["security_id"]] = row
     stage2 = []

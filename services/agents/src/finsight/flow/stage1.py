@@ -84,10 +84,13 @@ def sector_verdict(sector: str | None, signals: dict, source: str) -> dict:
     if isinstance(sig, Unavailable):
         return unavailable_dict(sig)
     signal, neutral = sc.neutralize(sig["score"])
-    rationale = ("neutral sector news" if neutral else f"{'positive' if signal > 0 else 'negative'} sector news") + f" ({sector}, n={sig['n']}, source {sig['source']})"
+    if neutral:                    # |raw score| < 0.10: shown as "sector news neutral" but NOT passed into fusion (it would only dilute the average)
+        return {**unavailable_dict(Unavailable("neutral_sector", "sector news neutral")), "rationale": "sector news neutral",
+                "evidence": {"source": sig["source"], "sector": sector, "n": sig["n"], "raw_score": sig["score"]}}
+    rationale = f"{'positive' if signal > 0 else 'negative'} sector news ({sector}, n={sig['n']}, source {sig['source']})"
     return verdict(signal, sc.sector_confidence(sig["confidence"], sig["source"]), sc.limit_words(rationale, 25),
                    {"source": sig["source"], "sector": sector, "n": sig["n"], "raw_score": sig["score"], "provider_confidence": sig["confidence"],
-                    "evidence_article_ids": sig.get("evidence_article_ids", []), "neutral": neutral})
+                    "evidence_article_ids": sig.get("evidence_article_ids", []), "neutral": False})
 
 
 def stage1_sector(state: AnalysisState, deps: Deps) -> dict:

@@ -102,6 +102,9 @@ class TkgProvider:
             if item is None:
                 out[sid] = Unavailable("no_tkg_result", f"tkg returned nothing for {sid}")
                 continue
+            if isinstance(item, dict) and item.get("status") == "no_signal":
+                out[sid] = Unavailable("neutral_sector", "tkg status no_signal")
+                continue
             try:
                 score, confidence = float(item["score"]), float(item["confidence"])
             except (KeyError, TypeError, ValueError) as exc:
