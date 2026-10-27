@@ -107,6 +107,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--target", choices=("main", "test"), default="main")
     parser.add_argument("--skip-llm", action="store_true")
     args = parser.parse_args(argv)
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(encoding="utf-8", errors="replace")
     s = get_settings()
     print(f"news window {s.NEWS_WINDOW_DAYS} days; sentiment min {s.SENTIMENT_MIN_ARTICLES}; sector min {s.SECTOR_MIN_ARTICLES}; "
           f"shared_clause weight {s.SHARED_CLAUSE_WEIGHT}; sector provider {s.SECTOR_PROVIDER}; database {args.target}")

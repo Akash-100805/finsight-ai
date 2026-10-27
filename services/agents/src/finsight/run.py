@@ -41,6 +41,8 @@ def render_report(state: AnalysisState) -> str:
     w("STAGE 1 SIGNALS (-1..1, confidence)  [structural | news sentiment | sector]")
 
     def cell(d):
+        if d is not None and d.get("reason") == "neutral_sector":
+            return "neutral (excluded)"
         return "n/a (" + str(d.get("reason")) + ")" if d is None or d.get("unavailable") else f"{d['signal']:+.2f} ({d['confidence']:.2f})"
     for t, info in state.holding_info.items():
         if t in state.excluded_holdings:
@@ -96,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
     src.add_argument("--file")
     parser.add_argument("--target", choices=("main", "test"), default="main")
     args = parser.parse_args(argv)
+    for stream in (sys.stdout, sys.stderr):       # Windows consoles/pipes default to cp1252; the report contains the rupee sign
+        stream.reconfigure(encoding="utf-8", errors="replace")
     path = SAMPLES / f"portfolio_{args.sample}.json" if args.sample else Path(args.file)
     if not path.exists():
         print(f"no such portfolio file: {path}")
