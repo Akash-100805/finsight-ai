@@ -1,0 +1,56 @@
+{
+  "user_id": "sample_mixed_us",
+  "description": "6 NSE holdings and 2 US holdings (exchange-qualified tickers, since a bare symbol is only ever tried as NSE:<SYMBOL>). Sample data, illustrative; US average costs are in USD.",
+  "news_articles_30d_checked_2026_10_28": {
+    "NSE:RELIANCE": 13,
+    "NSE:INFY": 10,
+    "NSE:HDFCBANK": 12,
+    "NSE:BHARTIARTL": 7,
+    "NSE:MARUTI": 11,
+    "NSE:LT": 12,
+    "NASDAQ:NVDA": 5,
+    "NYSE:MS": 3
+  },
+  "holdings": [
+    {
+      "ticker": "RELIANCE",
+      "quantity": 40,
+      "average_cost": 1250.0
+    },
+    {
+      "ticker": "INFY",
+      "quantity": 60,
+      "average_cost": 1500.0
+    },
+    {
+      "ticker": "HDFCBANK",
+      "quantity": 80,
+      "average_cost": 950.0
+    },
+    {
+      "ticker": "BHARTIARTL",
+      "quantity": 50,
+      "average_cost": 1450.0
+    },
+    {
+      "ticker": "MARUTI",
+      "quantity": 8,
+      "average_cost": 11500.0
+    },
+    {
+      "ticker": "LT",
+      "quantity": 25,
+      "average_cost": 3300.0
+    },
+    {
+      "ticker": "NASDAQ:NVDA",
+      "quantity": 15,
+      "average_cost": 120.0
+    },
+    {
+      "ticker": "NYSE:MS",
+      "quantity": 20,
+      "average_cost": 105.0
+    }
+  ]
+}

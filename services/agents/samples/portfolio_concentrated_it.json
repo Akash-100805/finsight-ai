@@ -1,0 +1,44 @@
+{
+  "user_id": "sample_concentrated_it",
+  "description": "6 NSE holdings with Information Technology above 50% of the portfolio value (triggers the concentration flags). Sample data, illustrative quantities.",
+  "news_articles_30d_checked_2026_10_28": {
+    "NSE:INFY": 10,
+    "NSE:HCLTECH": 5,
+    "NSE:WIPRO": 4,
+    "NSE:COFORGE": 5,
+    "NSE:HDFCBANK": 12,
+    "NSE:RELIANCE": 13
+  },
+  "holdings": [
+    {
+      "ticker": "INFY",
+      "quantity": 300,
+      "average_cost": 1450.0
+    },
+    {
+      "ticker": "HCLTECH",
+      "quantity": 200,
+      "average_cost": 1400.0
+    },
+    {
+      "ticker": "WIPRO",
+      "quantity": 800,
+      "average_cost": 250.0
+    },
+    {
+      "ticker": "COFORGE",
+      "quantity": 100,
+      "average_cost": 1700.0
+    },
+    {
+      "ticker": "HDFCBANK",
+      "quantity": 100,
+      "average_cost": 980.0
+    },
+    {
+      "ticker": "RELIANCE",
+      "quantity": 50,
+      "average_cost": 1300.0
+    }
+  ]
+}
