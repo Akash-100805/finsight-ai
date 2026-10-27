@@ -278,6 +278,8 @@ def test_macro_fallback_only_for_macro_categories():
     assert sectors.assign({"power": 0.2}, "economy_macro", 0.5) == [("macro_cross_sector", 0.5, "text_classifier")]
     assert sectors.assign({"power": 0.2}, "central_bank_monetary_policy", 0.5)[0][0] == "macro_cross_sector"
     assert sectors.assign({"power": 0.2}, "geopolitical", 0.5)[0][0] == "macro_cross_sector"
+    assert sectors.assign({"power": 0.2}, "commodities_energy", 0.5)[0][0] == "macro_cross_sector"        # added for V1 (owner decision)
+    assert sectors.assign({"power": 0.2}, "government_regulation", 0.5)[0][0] == "macro_cross_sector"
     assert sectors.assign({"power": 0.2}, "company", 0.5) == [] and sectors.assign({"power": 0.2}, "markets", 0.5) == []
     assert sectors.assign({"power": 0.6}, "economy_macro", 0.5)[0][0] == "power"               # a real sector wins over the fallback
 

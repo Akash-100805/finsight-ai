@@ -2,7 +2,7 @@
 
 Score = cosine(article embedding, sector prototype); the prototype is the embedded description in shared/data/sector_descriptions.yaml.
 Every sector scoring >= the threshold is assigned, at most 3, method 'text_classifier', confidence = the score (2 decimals). When none
-qualifies and the category is economy_macro, central_bank_monetary_policy or geopolitical the article gets macro_cross_sector at 0.50.
+qualifies and the category is economy_macro, central_bank_monetary_policy, geopolitical, commodities_energy or government_regulation the article gets macro_cross_sector at 0.50.
 
 The threshold is CALIBRATED, not guessed: stored articles that already have from_security sectors are the answer key, thresholds 0.40 to 0.80
 in steps of 0.025 are evaluated, and the LOWEST one whose precision is >= 0.80 is chosen (settings.SECTOR_TEXT_THRESHOLD).
@@ -27,7 +27,8 @@ from src.news.settings import get_settings
 
 DESCRIPTIONS = Path(__file__).resolve().parents[5] / "shared" / "data" / "sector_descriptions.yaml"
 MAX_SECTORS = 3
-MACRO_CATEGORIES = frozenset({"economy_macro", "central_bank_monetary_policy", "geopolitical"})
+# categories whose articles are about the economy / policy / commodities rather than one company: macro_cross_sector when no sector applies
+MACRO_CATEGORIES = frozenset({"economy_macro", "central_bank_monetary_policy", "geopolitical", "commodities_energy", "government_regulation"})
 MACRO_CONFIDENCE = 0.50
 THRESHOLDS = [round(0.40 + 0.025 * i, 3) for i in range(17)]          # 0.40 .. 0.80
 MIN_PRECISION = 0.80

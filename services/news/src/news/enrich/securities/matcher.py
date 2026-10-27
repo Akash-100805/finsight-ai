@@ -106,6 +106,15 @@ class SecurityMatcher:
         self.securities: dict[str, SecRow] = {s.security_id: s for s in securities}
         self.aliases: dict[int, AliasRec] = {a.alias_id: a for a in aliases if a.security_id in self.securities}
         self.signature = signature
+        defaults = load_group_defaults() if group_defaults is None else group_defaults
+        # group word -> the primary security it defaults to (only when that security is in this master)
+        self.group_defaults: dict[str, str] = {t: self.securities[s].primary_id for t, s in defaults.items() if s in self.securities}
+        # the bare group word ("Reliance") is rarely an alias of its own: register it as an AMBIGUOUS name of the default, so a strong cue
+        # links it at 0.75 and, without one, the default rule in resolve decides
+        have = {(a.security_id, a.alias_norm) for a in self.aliases.values()}
+        for i, (term, sid) in enumerate(self.group_defaults.items(), 1):
+            if (sid, term) not in have:
+                self.aliases[-i] = AliasRec(-i, sid, term.title(), term, "curated", True, False)
         self._ci, self._cs = _TokenAutomaton(), _TokenAutomaton()
         for a in self.aliases.values():
             if a.case_sensitive:
@@ -118,9 +127,6 @@ class SecurityMatcher:
         for i, phrase in enumerate(load_non_company_phrases() if blockers is None else blockers):
             self._blk.add(norm_sequence(normalize(phrase)), i)
         self._blk.build()
-        defaults = load_group_defaults() if group_defaults is None else group_defaults
-        # group word -> the primary security it defaults to (only when that security is in this master)
-        self.group_defaults: dict[str, str] = {t: self.securities[s].primary_id for t, s in defaults.items() if s in self.securities}
         # owners: how many distinct PRIMARY securities share a normalized alias
         owners: dict[str, set[str]] = {}
         for a in self.aliases.values():
