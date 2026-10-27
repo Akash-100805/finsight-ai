@@ -1,0 +1,141 @@
+# Challenge set for security resolution (Phase 4.1). Written BEFORE any fix and frozen: expected values are never edited or
+# deleted after the baseline run (new cases may be appended, marked "added after baseline").
+#
+# text:  first line = title, optional rest = description (the runner splits on the first newline).
+# For source_type exchange_filing the title is "<Company>: <subject>" and the runner builds the filing record from the part before ':'.
+# expected_securities: security_ids that MUST be linked.  forbidden_securities: must NOT be linked.
+# allowed_extra: other security_ids that may appear without failing the case.  A case also fails on any link outside
+# expected + allowed_extra (a stray extra match is a false positive).
+# source_region: india | global | both  (both = an aggregator that covers both markets)
+cases:
+  # ───────────────────────────── C1 common words ─────────────────────────────
+  - {id: C1-01, category: C1, source_type: publisher, source_region: india, text: "Key takeaways from the Q2 earnings season: banks lead", expected_securities: [], forbidden_securities: ["BSE:507948"], note: "sentence-initial 'Key' is not a name"}
+  - {id: C1-02, category: C1, source_type: publisher, source_region: india, text: "People familiar with the matter said the deal results are due next week", expected_securities: [], forbidden_securities: ["NASDAQ:PPLI"], note: "sentence-initial 'People'"}
+  - {id: C1-03, category: C1, source_type: publisher, source_region: global, text: "Sea levels rise as monsoon results in floods; shares of insurers fall", expected_securities: [], forbidden_securities: ["NYSE:SE"], note: "ordinary noun 'sea'"}
+  - {id: C1-04, category: C1, source_type: publisher, source_region: global, text: "Delta variant fears hit shares across Asia", expected_securities: [], forbidden_securities: ["NSE:DELTACORP"], note: "'Delta' the variant"}
+  - {id: C1-05, category: C1, source_type: publisher, source_region: india, text: "Mega deal talks: shares of rivals jump on Monday", expected_securities: [], forbidden_securities: ["BSE:531417"], note: "adjective 'mega'"}
+  - {id: C1-06, category: C1, source_type: publisher, source_region: india, text: "Persistent inflation worries weigh on shares, results season in focus", expected_securities: [], forbidden_securities: ["NSE:PERSISTENT"], note: "adjective 'persistent'"}
+  - {id: C1-07, category: C1, source_type: publisher, source_region: global, text: "Strategy shift at the bank: shares rise after results", expected_securities: [], forbidden_securities: ["NASDAQ:MSTR"], note: "common noun"}
+  - {id: C1-08, category: C1, source_type: publisher, source_region: global, text: "Bullish bets on gold lift shares of miners", expected_securities: [], forbidden_securities: ["NYSE:BLSH"], note: "adjective 'bullish'"}
+  - {id: C1-09, category: C1, source_type: publisher, source_region: india, text: "A key reason for the strong results was lower input costs", expected_securities: [], forbidden_securities: ["BSE:507948"], note: "lower-case 'key'"}
+  - {id: C1-10, category: C1, source_type: publisher, source_region: india, text: "Persistent Systems shares rose 4% on strong Q2 results", expected_securities: ["NSE:PERSISTENT"], forbidden_securities: [], note: "genuine company use"}
+  - {id: C1-11, category: C1, source_type: publisher, source_region: india, text: "Delta Corp Ltd shares fall after GST notice", expected_securities: ["NSE:DELTACORP"], forbidden_securities: [], note: "genuine company use"}
+  - {id: C1-12, category: C1, source_type: publisher, source_region: global, text: "Sea Ltd shares jump as Shopee profit beats estimates", expected_securities: ["NYSE:SE"], forbidden_securities: [], note: "genuine company use"}
+  - {id: C1-13, category: C1, source_type: publisher, source_region: india, text: "Key Corporation Ltd to consider fund raise at board meeting", expected_securities: ["BSE:507948"], forbidden_securities: [], note: "genuine company use (BSE-only)"}
+  - {id: C1-14, category: C1, source_type: publisher, source_region: india, text: "Mega Corporation Ltd results: net profit up 20%", expected_securities: ["BSE:531417"], forbidden_securities: [], note: "genuine company use (BSE-only)"}
+  - {id: C1-15, category: C1, source_type: publisher, source_region: global, text: "Strategy Inc shares fall as bitcoin slips", expected_securities: ["NASDAQ:MSTR"], forbidden_securities: [], note: "genuine company use"}
+  - {id: C1-16, category: C1, source_type: publisher, source_region: global, text: "Bullish (NYSE: BLSH) shares jump on strong earnings", expected_securities: ["NYSE:BLSH"], forbidden_securities: [], note: "genuine, with an exchange-qualified ticker"}
+  - {id: C1-17, category: C1, source_type: publisher, source_region: global, text: "People Inc shares rise after Q3 results", expected_securities: ["NASDAQ:PPLI"], forbidden_securities: [], note: "genuine company use"}
+  - {id: C1-18, category: C1, source_type: publisher, source_region: india, text: "Key Managerial Personnel changes at lenders: shares in focus", expected_securities: [], forbidden_securities: ["BSE:507948"], note: "'Key' inside Key Managerial Personnel"}
+
+  # ───────────────────────────── C2 names inside institutions ─────────────────────────────
+  - {id: C2-01, category: C2, source_type: publisher, source_region: india, text: "Reserve Bank of India keeps repo rate unchanged at 5.5%", expected_securities: [], forbidden_securities: ["NSE:BANKINDIA"], note: "central bank"}
+  - {id: C2-02, category: C2, source_type: publisher, source_region: india, text: "World Bank cuts India's growth forecast for FY27", expected_securities: [], forbidden_securities: ["NSE:BANKINDIA"], note: "multilateral lender"}
+  - {id: C2-03, category: C2, source_type: publisher, source_region: global, text: "Bank of England holds rates; shares of lenders mixed", expected_securities: [], forbidden_securities: ["NSE:BANKINDIA"], note: "central bank"}
+  - {id: C2-04, category: C2, source_type: publisher, source_region: global, text: "Federal Reserve Bank of New York says liquidity remains ample", expected_securities: [], forbidden_securities: ["NSE:FEDERALBNK"], note: "regional Fed bank, not Federal Bank"}
+  - {id: C2-05, category: C2, source_type: publisher, source_region: india, text: "Export-Import Bank of India extends credit line to Ghana", expected_securities: [], forbidden_securities: ["NSE:BANKINDIA"], note: "development bank"}
+  - {id: C2-06, category: C2, source_type: publisher, source_region: india, text: "Small Industries Development Bank of India raises funds through bonds", expected_securities: [], forbidden_securities: ["NSE:BANKINDIA"], note: "SIDBI"}
+  - {id: C2-07, category: C2, source_type: regulator, source_region: india, text: "Reserve Bank of India imposes monetary penalty on a cooperative bank", expected_securities: [], forbidden_securities: ["NSE:BANKINDIA"], note: "regulator item"}
+  - {id: C2-08, category: C2, source_type: publisher, source_region: india, text: "State Bank of India Q2 profit rises 12% on lower provisions", expected_securities: ["NSE:SBIN"], forbidden_securities: ["NSE:BANKINDIA"], note: "correct use"}
+  - {id: C2-09, category: C2, source_type: publisher, source_region: india, text: "Bank of India shares jump after Q2 results beat estimates", expected_securities: ["NSE:BANKINDIA"], forbidden_securities: ["NSE:SBIN", "NSE:BANKBARODA"], note: "correct use"}
+  - {id: C2-10, category: C2, source_type: publisher, source_region: india, text: "Bank of Baroda net profit rises 15% in the September quarter", expected_securities: ["NSE:BANKBARODA"], forbidden_securities: ["NSE:BANKINDIA"], note: "correct use"}
+  - {id: C2-11, category: C2, source_type: publisher, source_region: india, text: "Reserve Bank of India approves Bank of Baroda's capital plan; shares rise", expected_securities: ["NSE:BANKBARODA"], forbidden_securities: ["NSE:BANKINDIA"], note: "both in one sentence; only the lender is a security"}
+  - {id: C2-12, category: C2, source_type: publisher, source_region: india, text: "State Bank of India and Bank of India both gain after the RBI policy", expected_securities: ["NSE:SBIN", "NSE:BANKINDIA"], forbidden_securities: [], note: "two correct uses"}
+
+  # ───────────────────────────── C3 exchange vs company ─────────────────────────────
+  - {id: C3-01, category: C3, source_type: publisher, source_region: india, text: "BSE Sensex fell 400 points as IT stocks dragged", expected_securities: [], forbidden_securities: ["NSE:BSE"], note: "index"}
+  - {id: C3-02, category: C3, source_type: publisher, source_region: india, text: "Shares listed on BSE jumped after the announcement", expected_securities: [], forbidden_securities: ["NSE:BSE"], note: "the exchange"}
+  - {id: C3-03, category: C3, source_type: publisher, source_region: india, text: "MCX gold futures climbed to a record high", expected_securities: [], forbidden_securities: ["NSE:MCX"], note: "the exchange's product"}
+  - {id: C3-04, category: C3, source_type: publisher, source_region: india, text: "NSE and BSE report record trading volumes on Muhurat day", expected_securities: [], forbidden_securities: ["NSE:BSE"], note: "the exchange"}
+  - {id: C3-05, category: C3, source_type: publisher, source_region: india, text: "BSE SmallCap index gains 1.2% as mid-cap shares rally", expected_securities: [], forbidden_securities: ["NSE:BSE"], note: "index"}
+  - {id: C3-06, category: C3, source_type: publisher, source_region: india, text: "MCX crude oil contracts rise 2% on supply worries", expected_securities: [], forbidden_securities: ["NSE:MCX"], note: "the exchange's product"}
+  - {id: C3-07, category: C3, source_type: publisher, source_region: india, text: "BSE Ltd shares surged 6% on record volumes", expected_securities: ["NSE:BSE"], forbidden_securities: [], note: "company"}
+  - {id: C3-08, category: C3, source_type: publisher, source_region: india, text: "MCX Ltd posts profit; shares gain", expected_securities: ["NSE:MCX"], forbidden_securities: [], note: "company"}
+  - {id: C3-09, category: C3, source_type: publisher, source_region: india, text: "Shares of BSE Limited hit a record high", expected_securities: ["NSE:BSE"], forbidden_securities: [], note: "company"}
+  - {id: C3-10, category: C3, source_type: publisher, source_region: india, text: "Multi Commodity Exchange of India Limited Q2 profit up 30%", expected_securities: ["NSE:MCX"], forbidden_securities: [], note: "full name"}
+  - {id: C3-11, category: C3, source_type: publisher, source_region: india, text: "BSE share price target raised to Rs 3,000 by brokerage", expected_securities: ["NSE:BSE"], forbidden_securities: [], note: "company via 'share price'"}
+  - {id: C3-12, category: C3, source_type: publisher, source_region: india, text: "The BSE and NSE extended trading hours on Diwali", expected_securities: [], forbidden_securities: ["NSE:BSE"], note: "the exchange"}
+
+  # ───────────────────────────── C4 filing jargon ─────────────────────────────
+  - {id: C4-01, category: C4, source_type: exchange_filing, source_region: india, text: "Crown Lifters Limited: Change in Directors/KMP/SMP/Auditor/RTA", expected_securities: [], forbidden_securities: ["NYSE:SMP"], note: "SMP = senior management personnel"}
+  - {id: C4-02, category: C4, source_type: exchange_filing, source_region: india, text: "Alpha Widgets Limited: Appointment of KMP and SMP under Regulation 30", expected_securities: [], forbidden_securities: ["NYSE:SMP"], note: "KMP/SMP"}
+  - {id: C4-03, category: C4, source_type: exchange_filing, source_region: india, text: "Beta Foods Limited: Grant of ESOP options to employees", expected_securities: [], forbidden_securities: [], note: "ESOP"}
+  - {id: C4-04, category: C4, source_type: exchange_filing, source_region: india, text: "Gamma Infra Limited: Allotment of NCD on private placement basis", expected_securities: [], forbidden_securities: [], note: "NCD"}
+  - {id: C4-05, category: C4, source_type: exchange_filing, source_region: india, text: "Delta Pharma Limited: Notice of AGM and remote e-voting", expected_securities: [], forbidden_securities: [], note: "AGM"}
+  - {id: C4-06, category: C4, source_type: exchange_filing, source_region: india, text: "Epsilon Textiles Limited: CSR committee meeting outcome", expected_securities: [], forbidden_securities: [], note: "CSR"}
+  - {id: C4-07, category: C4, source_type: exchange_filing, source_region: india, text: "Zeta Power Limited: Compliance under LODR Regulations for the quarter", expected_securities: [], forbidden_securities: [], note: "LODR"}
+  - {id: C4-08, category: C4, source_type: exchange_filing, source_region: india, text: "Tata Consultancy Services Limited: Change in Directors/KMP/SMP/Auditor/RTA", expected_securities: ["NSE:TCS"], forbidden_securities: ["NYSE:SMP"], note: "real filer; only the filer, not SMP"}
+  - {id: C4-09, category: C4, source_type: exchange_filing, source_region: india, text: "Infosys Limited: Grant of ESOP options under the 2019 plan", expected_securities: ["NSE:INFY"], forbidden_securities: ["NYSE:INFY"], note: "real filer, India listing only"}
+  - {id: C4-10, category: C4, source_type: exchange_filing, source_region: india, text: "Eta Chemicals Limited: Key Managerial Personnel list under Regulation 30(5)", expected_securities: [], forbidden_securities: ["BSE:507948"], note: "'Key' in KMP"}
+
+  # ───────────────────────────── C5 business groups and people ─────────────────────────────
+  - {id: C5-01, category: C5, source_type: publisher, source_region: india, text: "Tata group plans a new chip fab in Gujarat, says chairman", expected_securities: [], forbidden_securities: ["NSE:TCS", "NSE:TATASTEEL", "NSE:TMCV", "NSE:TATAPOWER"], note: "group, not a company"}
+  - {id: C5-02, category: C5, source_type: publisher, source_region: india, text: "Adani group seeks funds from overseas lenders", expected_securities: [], forbidden_securities: ["NSE:ADANIENT", "NSE:ADANIPORTS"], note: "group"}
+  - {id: C5-03, category: C5, source_type: publisher, source_region: india, text: "Anand Mahindra said electric vehicles will define the decade", expected_securities: [], forbidden_securities: ["NSE:M&M"], note: "a person"}
+  - {id: C5-04, category: C5, source_type: publisher, source_region: india, text: "Birla family backs a new venture in paints", expected_securities: [], forbidden_securities: ["NSE:ABCAPITAL", "NSE:GRASIM"], note: "family"}
+  - {id: C5-05, category: C5, source_type: publisher, source_region: india, text: "Bajaj family trust sells stake in a unit", expected_securities: [], forbidden_securities: ["NSE:BAJAJ-AUTO", "NSE:BAJFINANCE"], note: "family"}
+  - {id: C5-06, category: C5, source_type: publisher, source_region: india, text: "Ratan Tata remembered at a memorial lecture", expected_securities: [], forbidden_securities: ["NSE:TCS", "NSE:TATASTEEL"], note: "a person"}
+  - {id: C5-07, category: C5, source_type: publisher, source_region: india, text: "Tata Motors shares rise on strong festive demand", expected_securities: ["NSE:TMCV"], forbidden_securities: ["NSE:TCS"], note: "company"}
+  - {id: C5-08, category: C5, source_type: publisher, source_region: india, text: "Adani Ports shares jump after record cargo volumes", expected_securities: ["NSE:ADANIPORTS"], forbidden_securities: ["NSE:ADANIENT"], note: "company"}
+  - {id: C5-09, category: C5, source_type: publisher, source_region: india, text: "Mahindra & Mahindra posts record SUV sales in October", expected_securities: ["NSE:M&M"], forbidden_securities: ["NSE:M&MFIN"], note: "company"}
+  - {id: C5-10, category: C5, source_type: publisher, source_region: india, text: "Aditya Birla Capital Q2 profit rises 18%", expected_securities: ["NSE:ABCAPITAL"], forbidden_securities: [], note: "company"}
+  - {id: C5-11, category: C5, source_type: publisher, source_region: india, text: "Tata Power signs a 25-year power purchase agreement", expected_securities: ["NSE:TATAPOWER"], forbidden_securities: ["NSE:TMCV"], note: "company"}
+
+  # ───────────────────────────── C6 similar names ─────────────────────────────
+  - {id: C6-01, category: C6, source_type: publisher, source_region: india, text: "Bank of India reports a 20% rise in Q2 net profit", expected_securities: ["NSE:BANKINDIA"], forbidden_securities: ["NSE:BANKBARODA", "NSE:SBIN"], note: "exactly BoI"}
+  - {id: C6-02, category: C6, source_type: publisher, source_region: india, text: "Bank of Baroda shares rise as net interest margin improves", expected_securities: ["NSE:BANKBARODA"], forbidden_securities: ["NSE:BANKINDIA"], note: "exactly BoB"}
+  - {id: C6-03, category: C6, source_type: publisher, source_region: india, text: "Indian Bank posts record profit; shares gain", expected_securities: ["NSE:INDIANB"], forbidden_securities: ["NSE:IOB"], note: "exactly Indian Bank"}
+  - {id: C6-04, category: C6, source_type: publisher, source_region: india, text: "Indian Overseas Bank shares surge on profit growth", expected_securities: ["NSE:IOB"], forbidden_securities: ["NSE:INDIANB"], note: "exactly IOB"}
+  - {id: C6-05, category: C6, source_type: publisher, source_region: india, text: "Bajaj Auto shares rise after strong October sales", expected_securities: ["NSE:BAJAJ-AUTO"], forbidden_securities: ["NSE:BAJFINANCE", "NSE:BAJAJFINSV"], note: "exactly Bajaj Auto"}
+  - {id: C6-06, category: C6, source_type: publisher, source_region: india, text: "Bajaj Finance shares fall on weak loan growth", expected_securities: ["NSE:BAJFINANCE"], forbidden_securities: ["NSE:BAJAJ-AUTO", "NSE:BAJAJFINSV"], note: "exactly Bajaj Finance"}
+  - {id: C6-07, category: C6, source_type: publisher, source_region: india, text: "Bajaj Finserv shares jump as insurance units grow", expected_securities: ["NSE:BAJAJFINSV"], forbidden_securities: ["NSE:BAJAJ-AUTO", "NSE:BAJFINANCE"], note: "exactly Bajaj Finserv"}
+  - {id: C6-08, category: C6, source_type: publisher, source_region: india, text: "HDFC Bank shares slip after Q2 deposit growth", expected_securities: ["NSE:HDFCBANK"], forbidden_securities: ["NSE:HDFCLIFE", "NSE:HDFCAMC"], note: "exactly HDFC Bank"}
+  - {id: C6-09, category: C6, source_type: publisher, source_region: india, text: "HDFC Life shares rise on strong new business premium", expected_securities: ["NSE:HDFCLIFE"], forbidden_securities: ["NSE:HDFCBANK", "NSE:HDFCAMC"], note: "exactly HDFC Life"}
+  - {id: C6-10, category: C6, source_type: publisher, source_region: india, text: "HDFC AMC shares gain on record assets under management", expected_securities: ["NSE:HDFCAMC"], forbidden_securities: ["NSE:HDFCBANK", "NSE:HDFCLIFE"], note: "exactly HDFC AMC"}
+  - {id: C6-11, category: C6, source_type: publisher, source_region: india, text: "Tata Steel shares rise on higher steel prices", expected_securities: ["NSE:TATASTEEL"], forbidden_securities: ["NSE:TATAPOWER"], note: "exactly Tata Steel"}
+  - {id: C6-12, category: C6, source_type: publisher, source_region: india, text: "Tata Steel Long Products scheme of arrangement completed", expected_securities: [], forbidden_securities: ["NSE:TATASTEEL"], note: "subsidiary no longer separately listed; linking it to the parent would be a guess (arguably disputable)"}
+
+  # ───────────────────────────── C7 nicknames and casing ─────────────────────────────
+  - {id: C7-01, category: C7, source_type: publisher, source_region: india, text: "RIL to invest Rs 75,000 crore in green energy", expected_securities: ["NSE:RELIANCE"], forbidden_securities: [], note: "RIL"}
+  - {id: C7-02, category: C7, source_type: publisher, source_region: india, text: "SBI raises lending rates by 10 basis points", expected_securities: ["NSE:SBIN"], forbidden_securities: [], note: "SBI"}
+  - {id: C7-03, category: C7, source_type: publisher, source_region: india, text: "L&T bags a large order for a metro project", expected_securities: ["NSE:LT"], forbidden_securities: [], note: "L&T"}
+  - {id: C7-04, category: C7, source_type: publisher, source_region: india, text: "M&M launches a new SUV; shares rise 2%", expected_securities: ["NSE:M&M"], forbidden_securities: ["NSE:M&MFIN"], note: "M&M"}
+  - {id: C7-05, category: C7, source_type: publisher, source_region: india, text: "HUL volume growth disappoints, shares fall", expected_securities: ["NSE:HINDUNILVR"], forbidden_securities: [], note: "HUL"}
+  - {id: C7-06, category: C7, source_type: publisher, source_region: india, text: "TCS bags a multi-year deal from a European bank", expected_securities: ["NSE:TCS"], forbidden_securities: [], note: "TCS"}
+  - {id: C7-07, category: C7, source_type: publisher, source_region: india, text: "Infy cuts revenue guidance for FY27", expected_securities: ["NSE:INFY"], forbidden_securities: ["NYSE:INFY"], note: "Infy, India listing"}
+  - {id: C7-08, category: C7, source_type: publisher, source_region: india, text: "INFOSYS SHARES JUMP 5% ON STRONG DEAL WINS", expected_securities: ["NSE:INFY"], forbidden_securities: ["NYSE:INFY"], note: "all-caps headline"}
+  - {id: C7-09, category: C7, source_type: publisher, source_region: india, text: "Infosys (NSE: INFY) shares rise on deal wins", expected_securities: ["NSE:INFY"], forbidden_securities: ["NYSE:INFY"], note: "exchange-qualified ticker"}
+  - {id: C7-10, category: C7, source_type: aggregator, source_region: global, text: "Apple (NASDAQ: AAPL) unveils new chips; shares gain", expected_securities: ["NASDAQ:AAPL"], forbidden_securities: [], note: "exchange-qualified ticker"}
+  - {id: C7-11, category: C7, source_type: publisher, source_region: global, text: "Mars recalls M&M's candy over a packaging error", expected_securities: [], forbidden_securities: ["NSE:M&M"], note: "M&M's is not M&M"}
+  - {id: C7-12, category: C7, source_type: publisher, source_region: india, text: "The ril on the old gate was repainted by the municipality", expected_securities: [], forbidden_securities: ["NSE:RELIANCE"], note: "lower-case 'ril' is not RIL"}
+
+  # ───────────────────────────── C8 cross-listing ─────────────────────────────
+  - {id: C8-01, category: C8, source_type: publisher, source_region: india, text: "Infosys shares fall after weak guidance", expected_securities: ["NSE:INFY"], forbidden_securities: ["NYSE:INFY"], note: "india-region: Indian listing only"}
+  - {id: C8-02, category: C8, source_type: publisher, source_region: global, text: "Infosys shares fall after weak guidance", expected_securities: ["NYSE:INFY"], forbidden_securities: ["NSE:INFY"], note: "global-region: US listing only"}
+  - {id: C8-03, category: C8, source_type: aggregator, source_region: both, text: "Infosys shares fall after weak guidance", expected_securities: ["NSE:INFY", "NYSE:INFY"], forbidden_securities: [], note: "both regions: both listings"}
+  - {id: C8-04, category: C8, source_type: publisher, source_region: india, text: "Wipro shares rise as deal pipeline improves", expected_securities: ["NSE:WIPRO"], forbidden_securities: ["NYSE:WIT"], note: "india-region"}
+  - {id: C8-05, category: C8, source_type: publisher, source_region: global, text: "Wipro shares rise as deal pipeline improves", expected_securities: ["NYSE:WIT"], forbidden_securities: ["NSE:WIPRO"], note: "global-region"}
+  - {id: C8-06, category: C8, source_type: publisher, source_region: india, text: "HDFC Bank shares slip after Q2 deposit growth", expected_securities: ["NSE:HDFCBANK"], forbidden_securities: ["NYSE:HDB"], note: "india-region"}
+  - {id: C8-07, category: C8, source_type: publisher, source_region: global, text: "HDFC Bank shares slip after Q2 deposit growth", expected_securities: ["NYSE:HDB"], forbidden_securities: ["NSE:HDFCBANK"], note: "global-region"}
+  - {id: C8-08, category: C8, source_type: publisher, source_region: global, text: "Dr. Reddy's Laboratories shares rise after US launch approval", expected_securities: ["NYSE:RDY"], forbidden_securities: ["NSE:DRREDDY"], note: "global-region"}
+
+  # ───────────────────────────── C9 places ─────────────────────────────
+  - {id: C9-01, category: C9, source_type: publisher, source_region: india, text: "India's exports rise across geographies in the first half", expected_securities: [], forbidden_securities: ["NSE:INDIACEM"], note: "country"}
+  - {id: C9-02, category: C9, source_type: publisher, source_region: india, text: "Delhi air quality worsens; shares of mask makers rise", expected_securities: [], forbidden_securities: [], note: "city (any link is a false positive)"}
+  - {id: C9-03, category: C9, source_type: publisher, source_region: india, text: "Gujarat government announces a new semiconductor policy", expected_securities: [], forbidden_securities: ["NSE:GUJALKALI"], note: "state"}
+  - {id: C9-04, category: C9, source_type: publisher, source_region: india, text: "Mumbai rains disrupt trading; shares end lower", expected_securities: [], forbidden_securities: [], note: "city"}
+  - {id: C9-05, category: C9, source_type: publisher, source_region: global, text: "India and the United States close to a trade deal, says minister", expected_securities: [], forbidden_securities: [], note: "countries"}
+  - {id: C9-06, category: C9, source_type: publisher, source_region: india, text: "Maharashtra cabinet approves a new industrial policy", expected_securities: [], forbidden_securities: [], note: "state"}
+  - {id: C9-07, category: C9, source_type: publisher, source_region: india, text: "The India Cements Limited shares rise on a capacity expansion", expected_securities: ["NSE:INDIACEM"], forbidden_securities: [], note: "company containing a place"}
+  - {id: C9-08, category: C9, source_type: publisher, source_region: india, text: "Gujarat Alkalies and Chemicals Limited Q2 profit falls", expected_securities: ["NSE:GUJALKALI"], forbidden_securities: [], note: "company containing a place"}
+  - {id: C9-09, category: C9, source_type: publisher, source_region: india, text: "India Cements shares jump after UltraTech stake news", expected_securities: ["NSE:INDIACEM"], forbidden_securities: [], allowed_extra: ["NSE:ULTRACEMCO"], note: "short company name with a place"}
+
+  # ───────────────────────────── C10 generic official names ─────────────────────────────
+  - {id: C10-01, category: C10, source_type: publisher, source_region: global, text: "Peoples Bancorp Inc. reports third-quarter earnings", expected_securities: ["NASDAQ:PEBO"], forbidden_securities: ["NASDAQ:TBBK"], note: "correct company, never the generic Bancorp, Inc."}
+  - {id: C10-02, category: C10, source_type: publisher, source_region: global, text: "Peoples Bancorp of North Carolina shares rise after results", expected_securities: ["NASDAQ:PEBK"], forbidden_securities: ["NASDAQ:TBBK", "NASDAQ:PEBO"], note: "similar name, different company"}
+  - {id: C10-03, category: C10, source_type: publisher, source_region: global, text: "Heartland Bancorp Inc. announces a quarterly dividend", expected_securities: [], forbidden_securities: ["NASDAQ:TBBK"], note: "unlisted company with a generic suffix"}
+  - {id: C10-04, category: C10, source_type: regulator, source_region: global, text: "Federal Reserve Board announces approval of application by First Valley Bancorp Inc.", expected_securities: [], forbidden_securities: ["NASDAQ:TBBK"], note: "regulator item naming an unlisted holding company"}
+  - {id: C10-05, category: C10, source_type: publisher, source_region: global, text: "The Bancorp, Inc. shares rise after earnings beat", expected_securities: ["NASDAQ:TBBK"], forbidden_securities: ["NASDAQ:PEBO"], note: "the real 'Bancorp, Inc.' written in full, with a share cue"}
+  - {id: C10-06, category: C10, source_type: publisher, source_region: global, text: "Community Holdings Inc. completes acquisition of a regional lender", expected_securities: [], forbidden_securities: [], note: "generic words only, any link is a false positive"}
+  - {id: C10-07, category: C10, source_type: publisher, source_region: global, text: "Global Industries Group posts higher quarterly sales", expected_securities: [], forbidden_securities: [], note: "generic words only"}
+  - {id: C10-08, category: C10, source_type: publisher, source_region: global, text: "Peoples Bancorp Inc. shares gain after strong credit quality", expected_securities: ["NASDAQ:PEBO"], forbidden_securities: ["NASDAQ:TBBK"], note: "correct company, with a share cue"}

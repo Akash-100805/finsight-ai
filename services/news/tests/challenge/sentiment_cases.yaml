@@ -1,0 +1,224 @@
+# Challenge set for per-security sentiment (Phase 4.1). Frozen after the baseline run; new cases may be appended ("added after baseline").
+#
+# text: first line = title, optional rest = description.
+# securities: security_ids the case is run with (the real pipeline resolves them from the text; these must be linked).
+# expected: per security_id
+#     direction: positive | negative | neutral | null   (null = do not assert direction)
+#     method: the expected sentiment_method (omit to not assert)
+#     method_not: a method that must NOT be used
+cases:
+  # ───────────────────────────── S1 contrast in one sentence ─────────────────────────────
+  - id: S1-01
+    category: S1
+    text: "TCS beats estimates while Wipro misses"
+    securities: ["NSE:TCS", "NSE:WIPRO"]
+    expected: {"NSE:TCS": {direction: positive, method: clause_level}, "NSE:WIPRO": {direction: negative, method: clause_level}}
+    note: "while"
+  - id: S1-02
+    category: S1
+    text: "Infosys raises guidance, but HCL Technologies cuts its outlook"
+    securities: ["NSE:INFY", "NSE:HCLTECH"]
+    expected: {"NSE:INFY": {direction: positive, method: clause_level}, "NSE:HCLTECH": {direction: negative, method: clause_level}}
+    note: "but"
+  - id: S1-03
+    category: S1
+    text: "HDFC Bank profit jumps whereas ICICI Bank profit slumps"
+    securities: ["NSE:HDFCBANK", "NSE:ICICIBANK"]
+    expected: {"NSE:HDFCBANK": {direction: positive, method: clause_level}, "NSE:ICICIBANK": {direction: negative, method: clause_level}}
+    note: "whereas"
+  - id: S1-04
+    category: S1
+    text: "Tata Steel posts a surprise loss despite JSW Steel reporting record profit"
+    securities: ["NSE:TATASTEEL", "NSE:JSWSTEEL"]
+    expected: {"NSE:TATASTEEL": {direction: negative, method: clause_level}, "NSE:JSWSTEEL": {direction: positive, method: clause_level}}
+    note: "despite (the contrast marks the clause boundary)"
+  - id: S1-05
+    category: S1
+    text: "Maruti Suzuki sales surge even as Bajaj Auto sales fall sharply"
+    securities: ["NSE:MARUTI", "NSE:BAJAJ-AUTO"]
+    expected: {"NSE:MARUTI": {direction: positive, method: clause_level}, "NSE:BAJAJ-AUTO": {direction: negative, method: clause_level}}
+    note: "even as"
+  - id: S1-06
+    category: S1
+    text: "SBI profit soars, unlike HDFC Bank, whose profit falls"
+    securities: ["NSE:SBIN", "NSE:HDFCBANK"]
+    expected: {"NSE:SBIN": {direction: positive, method: clause_level}, "NSE:HDFCBANK": {direction: negative, method: clause_level}}
+    note: "unlike"
+  - id: S1-07
+    category: S1
+    text: "Wipro wins a large deal; Infosys loses a key client"
+    securities: ["NSE:WIPRO", "NSE:INFY"]
+    expected: {"NSE:WIPRO": {direction: positive, method: clause_level}, "NSE:INFY": {direction: negative, method: clause_level}}
+    note: "semicolon"
+  - id: S1-08
+    category: S1
+    text: "Reliance gains on strong refining margins however Tata Steel drops on weak demand"
+    securities: ["NSE:RELIANCE", "NSE:TATASTEEL"]
+    expected: {"NSE:RELIANCE": {direction: positive, method: clause_level}, "NSE:TATASTEEL": {direction: negative, method: clause_level}}
+    note: "however"
+
+  # ───────────────────────────── S2 same clause names both ─────────────────────────────
+  - id: S2-01
+    category: S2
+    text: "TCS outperformed Infosys in the September quarter"
+    securities: ["NSE:TCS", "NSE:INFY"]
+    expected: {"NSE:TCS": {direction: null, method: shared_clause}, "NSE:INFY": {direction: null, method: shared_clause}}
+    note: "one clause, two securities; the score is not attributable to one of them"
+  - id: S2-02
+    category: S2
+    text: "Wipro and HCL Technologies rally on strong deal pipeline"
+    securities: ["NSE:WIPRO", "NSE:HCLTECH"]
+    expected: {"NSE:WIPRO": {direction: null, method: shared_clause}, "NSE:HCLTECH": {direction: null, method: shared_clause}}
+    note: "conjunction, no split word"
+  - id: S2-03
+    category: S2
+    text: "HDFC Bank and ICICI Bank shares slip after RBI action"
+    securities: ["NSE:HDFCBANK", "NSE:ICICIBANK"]
+    expected: {"NSE:HDFCBANK": {direction: null, method: shared_clause}, "NSE:ICICIBANK": {direction: null, method: shared_clause}}
+    note: "conjunction"
+  - id: S2-04
+    category: S2
+    text: "Tata Steel trails JSW Steel on profitability this quarter"
+    securities: ["NSE:TATASTEEL", "NSE:JSWSTEEL"]
+    expected: {"NSE:TATASTEEL": {direction: null, method: shared_clause}, "NSE:JSWSTEEL": {direction: null, method: shared_clause}}
+    note: "comparison"
+  - id: S2-05
+    category: S2
+    text: "Maruti Suzuki edges past Bajaj Auto in monthly volumes"
+    securities: ["NSE:MARUTI", "NSE:BAJAJ-AUTO"]
+    expected: {"NSE:MARUTI": {direction: null, method: shared_clause}, "NSE:BAJAJ-AUTO": {direction: null, method: shared_clause}}
+    note: "comparison"
+
+  # ───────────────────────────── S3 company references ─────────────────────────────
+  - id: S3-01
+    category: S3
+    text: "Infosys reports Q2 results\nThe company cut its revenue guidance for the year."
+    securities: ["NSE:INFY"]
+    expected: {"NSE:INFY": {direction: negative, method: company_reference}}
+    note: "the spec example; the title is neutral, the reference sentence carries the sentiment"
+  - id: S3-02
+    category: S3
+    text: "HDFC Bank announces Q2 numbers\nThe lender reported a sharp rise in net profit and improved asset quality."
+    securities: ["NSE:HDFCBANK"]
+    expected: {"NSE:HDFCBANK": {direction: positive, method: company_reference}}
+    note: "'the lender'"
+  - id: S3-03
+    category: S3
+    text: "Tata Steel updates on European operations\nThe company posted a wider loss and warned of weak demand."
+    securities: ["NSE:TATASTEEL"]
+    expected: {"NSE:TATASTEEL": {direction: negative, method: company_reference}}
+    note: "'the company'"
+  - id: S3-04
+    category: S3
+    text: "Wipro releases quarterly figures\nIts net profit rose strongly and it raised full-year guidance."
+    securities: ["NSE:WIPRO"]
+    expected: {"NSE:WIPRO": {direction: positive, method: company_reference}}
+    note: "'its' / 'it'"
+  - id: S3-05
+    category: S3
+    text: "Infosys and Wipro report results\nThe company cut its revenue guidance."
+    securities: ["NSE:INFY", "NSE:WIPRO"]
+    expected: {"NSE:INFY": {direction: null, method_not: company_reference}, "NSE:WIPRO": {direction: null, method_not: company_reference}}
+    note: "two primary securities: 'the company' is ambiguous, company_reference must NOT apply"
+  - id: S3-06
+    category: S3
+    text: "SBI reports Q2 results\nThe bank saw a jump in bad loans and provisions."
+    securities: ["NSE:SBIN"]
+    expected: {"NSE:SBIN": {direction: negative, method: company_reference}}
+    note: "'the bank'"
+
+  # ───────────────────────────── S4 three companies, different directions across sentences ─────────────────────────────
+  - id: S4-01
+    category: S4
+    text: "IT earnings roundup\nTCS posted record profit and raised guidance. Infosys cut its revenue outlook and shares tumbled. Wipro reported flat revenue and no change to guidance."
+    securities: ["NSE:TCS", "NSE:INFY", "NSE:WIPRO"]
+    expected: {"NSE:TCS": {direction: positive, method: sentence_level}, "NSE:INFY": {direction: negative, method: sentence_level}, "NSE:WIPRO": {direction: neutral, method: sentence_level}}
+    note: "one security per sentence"
+  - id: S4-02
+    category: S4
+    text: "Banks in focus\nHDFC Bank reported a strong rise in profit. ICICI Bank saw a sharp spike in bad loans. SBI announced the date of its board meeting."
+    securities: ["NSE:HDFCBANK", "NSE:ICICIBANK", "NSE:SBIN"]
+    expected: {"NSE:HDFCBANK": {direction: positive, method: sentence_level}, "NSE:ICICIBANK": {direction: negative, method: sentence_level}, "NSE:SBIN": {direction: neutral, method: sentence_level}}
+    note: "one security per sentence"
+  - id: S4-03
+    category: S4
+    text: "Auto sales update\nMaruti Suzuki sales jumped 20% in October, a record. Bajaj Auto sales fell 15% and missed estimates. Reliance announced the appointment of a new director."
+    securities: ["NSE:MARUTI", "NSE:BAJAJ-AUTO", "NSE:RELIANCE"]
+    expected: {"NSE:MARUTI": {direction: positive, method: sentence_level}, "NSE:BAJAJ-AUTO": {direction: negative, method: sentence_level}, "NSE:RELIANCE": {direction: neutral, method: sentence_level}}
+    note: "one security per sentence"
+  - id: S4-04
+    category: S4
+    text: "Metals and energy wrap\nTata Steel reported a wider loss and cut its output target. JSW Steel posted a sharp rise in profit and record volumes. Reliance said its annual general meeting will be held next month."
+    securities: ["NSE:TATASTEEL", "NSE:JSWSTEEL", "NSE:RELIANCE"]
+    expected: {"NSE:TATASTEEL": {direction: negative, method: sentence_level}, "NSE:JSWSTEEL": {direction: positive, method: sentence_level}, "NSE:RELIANCE": {direction: neutral, method: sentence_level}}
+    note: "one security per sentence"
+  - id: S4-05
+    category: S4
+    text: "Tech and finance\nHCL Technologies won a large multi-year contract and shares surged. Infosys lost a major client and profit fell. HDFC Bank held its dividend unchanged."
+    securities: ["NSE:HCLTECH", "NSE:INFY", "NSE:HDFCBANK"]
+    expected: {"NSE:HCLTECH": {direction: positive, method: sentence_level}, "NSE:INFY": {direction: negative, method: sentence_level}, "NSE:HDFCBANK": {direction: neutral, method: sentence_level}}
+    note: "one security per sentence"
+
+  # ───────────────────────────── S5 neutral mentions ─────────────────────────────
+  - id: S5-01
+    category: S5
+    text: "Infosys profit jumps 20%, beats estimates\nAnalysts compared it with Wipro on margins."
+    securities: ["NSE:INFY", "NSE:WIPRO"]
+    expected: {"NSE:INFY": {direction: positive}, "NSE:WIPRO": {direction: neutral}}
+    note: "the spec example: Wipro is only a comparison reference"
+  - id: S5-02
+    category: S5
+    text: "HDFC Bank reports a sharp rise in profit\nThe results were measured against ICICI Bank figures released last week."
+    securities: ["NSE:HDFCBANK", "NSE:ICICIBANK"]
+    expected: {"NSE:HDFCBANK": {direction: positive}, "NSE:ICICIBANK": {direction: neutral}}
+    note: "benchmark mention"
+  - id: S5-03
+    category: S5
+    text: "Tata Steel falls after a wider quarterly loss\nThe stock is often tracked alongside JSW Steel by brokerages."
+    securities: ["NSE:TATASTEEL", "NSE:JSWSTEEL"]
+    expected: {"NSE:TATASTEEL": {direction: negative}, "NSE:JSWSTEEL": {direction: neutral}}
+    note: "peer mention"
+  - id: S5-04
+    category: S5
+    text: "Maruti Suzuki sales hit a record\nThe filing was submitted through the NSE portal, a peer, Bajaj Auto, will report on Friday."
+    securities: ["NSE:MARUTI", "NSE:BAJAJ-AUTO"]
+    expected: {"NSE:MARUTI": {direction: positive}, "NSE:BAJAJ-AUTO": {direction: neutral}}
+    note: "scheduling mention"
+  - id: S5-05
+    category: S5
+    text: "Wipro announces board meeting date\nIn a separate note, brokerages compared Infosys valuations with sector averages."
+    securities: ["NSE:WIPRO", "NSE:INFY"]
+    expected: {"NSE:WIPRO": {direction: neutral}, "NSE:INFY": {direction: neutral}}
+    note: "all neutral"
+  - id: S5-06
+    category: S5
+    text: "SBI shares rally on strong profit growth\nSome analysts compared the lender's performance with Reliance's retail arm."
+    securities: ["NSE:SBIN", "NSE:RELIANCE"]
+    expected: {"NSE:SBIN": {direction: positive}, "NSE:RELIANCE": {direction: neutral}}
+    note: "comparison reference"
+
+  # ───────────────────────────── S6 headline vs body disagreement (report only, not scored) ─────────────────────────────
+  - id: S6-01
+    category: S6
+    text: "Infosys shares jump 5% on deal win\nDespite the rally, the company reported a sharp fall in quarterly profit and warned of weak demand."
+    securities: ["NSE:INFY"]
+    expected: {"NSE:INFY": {direction: null}}
+    note: "report only: what does the pipeline say when the title is positive and the body negative"
+  - id: S6-02
+    category: S6
+    text: "HDFC Bank profit falls 8%\nThe bank nonetheless raised its dividend and reported record loan growth and improving asset quality."
+    securities: ["NSE:HDFCBANK"]
+    expected: {"NSE:HDFCBANK": {direction: null}}
+    note: "report only: negative title, positive body"
+  - id: S6-03
+    category: S6
+    text: "Tata Steel bounces back to profit\nThe company still faces heavy losses in Europe and cut its capex plan."
+    securities: ["NSE:TATASTEEL"]
+    expected: {"NSE:TATASTEEL": {direction: null}}
+    note: "report only"
+  - id: S6-04
+    category: S6
+    text: "Wipro slumps on weak guidance\nThe company won several large deals this quarter and its order book rose to a record."
+    securities: ["NSE:WIPRO"]
+    expected: {"NSE:WIPRO": {direction: null}}
+    note: "report only"
