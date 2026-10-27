@@ -31,6 +31,6 @@ def test_supported_exchanges():
 
 
 def test_vocab_sizes_and_uniqueness():
-    assert len(vocab.CATEGORIES) == 7 and len(vocab.EVENT_TYPES) == 24
+    assert len(vocab.CATEGORIES) == 7 and len(vocab.EVENT_TYPES) == 25
     assert len({c[0] for c in vocab.CATEGORIES}) == 7
-    assert len({e[0] for e in vocab.EVENT_TYPES}) == 24
+    assert len({e[0] for e in vocab.EVENT_TYPES}) == 25

@@ -35,6 +35,7 @@ EVENT_CATEGORY = {
     "macro_data_release": "economy_macro", "government_policy_budget": "government_regulation",
     "trade_tariff_sanction": "geopolitical", "conflict_security": "geopolitical", "election_politics": "geopolitical",
     "natural_disaster_weather": "geopolitical", "commodity_price_move": "commodities_energy", "market_move": "markets",
+    "corporate_admin": "company",
 }
 
 # the provider's own category label -> our category (anything not listed gives no hint)

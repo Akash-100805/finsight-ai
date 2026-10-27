@@ -89,6 +89,7 @@ rules:
       - '\bprice target\b|\btarget price\b'
       - '\binitiates? coverage\b'
       - '\brating (?:upgrade|downgrade|action|outlook|reaffirmed)\b'
+      - '\brating confirmed\b|\bmaintained by\b'
 
   - id: management_change
     event_type: management_change
@@ -121,6 +122,7 @@ rules:
       - '\b(?:new|greenfield|brownfield) (?:plant|factory|facility|unit|refinery|project)\b'
       - '\b(?:to )?(?:set up|commissions?|inaugurates?) (?:\w+ ){0,3}(?:plant|facility|factory|unit)\b'
       - '\binvests? (?:rs|₹|\$)\s?[\d,.]+\s?(?:crore|cr|lakh|million|billion|bn|mn)\b'
+      - '\bcommencement of (?:commercial )?(?:production|operations)\b'
 
   - id: insider_trade
     event_type: insider_trade
@@ -143,6 +145,7 @@ rules:
       - '\bacquisitions?\b'
       - '\b(?:stake sale|sells? (?:\w+ )?stake|buys? (?:\w+ )?stake|picks up (?:\w+ )?stake|divest(?:s|ment|iture)?)\b'
       - '\bdeal talks\b|\bin talks to (?:buy|acquire|merge)\b'
+      - '\b(?:acquires?|acquired|acquiring)\b.{0,30}\bshares\b'
 
   - id: board_meeting
     event_type: board_meeting
@@ -172,6 +175,14 @@ rules:
       - '\b(?:sentenced|jailed|convicted|defamation|acquitted)\b'
       - '\b(?:delhi|bombay|madras|calcutta|karnataka|kerala|gujarat|punjab|allahabad|telangana) hc\b'
 
+  # Routine compliance certificates (Reg 7(3), 74(5), 40(9)) name "SEBI ... Regulations", which the regulatory_action rule below would
+  # otherwise take. They can never be a substantive event, so this narrow rule sits just before it.
+  - id: corporate_admin_certificates
+    event_type: corporate_admin
+    category: company
+    patterns:
+      - '\b(?:regulation|reg\.?)\s*(?:7\s*\(\s*3\s*\)|74\s*\(\s*5\s*\)|40\s*\(\s*9\s*\))'
+
   - id: regulatory_action
     event_type: regulatory_action
     category: government_regulation
@@ -185,6 +196,8 @@ rules:
       - '\b(?:confirmatory|final|interim|adjudication|settlement|release|recovery) orders?\b|\bnotice of demand\b|\brelease of attachment\b'
       - '\bamendment\)? regulations\b|\bregulations, 20\d\d\b'
       - '\bapproval of (?:the |an )?(?:application|proposal|merger)\b'
+      - '\b(?:appeal no|prohibitory order|order in the matter of|in the matter of|completion of rc)\b'
+      - '\bdirections? under section\b|\bcaution to investors\b|\bregulatory requirements?\b'
 
   - id: macro_data
     event_type: macro_data_release
@@ -196,6 +209,7 @@ rules:
       - '\bindustrial (?:production|output)\b'
       - '\bgst collections?\b'
       - '\b(?:core sector|factory output|services activity|manufacturing activity)\b'
+      - '\boverseas direct investment\b'
 
   - id: gov_policy_budget
     event_type: government_policy_budget
@@ -232,6 +246,7 @@ rules:
     patterns:
       - '\b(?:elections?|polls?|voting|votes?|ballot|lok sabha|rajya sabha|assembly polls?|by-?election|exit poll)\b'
       - '\b(?:coup|impeachment|coalition|prime minister|president|parliament|summit|chief minister|opposition|bjp|congress party)\b'
+      - '\b(?:kremlin|putin|trump|biden|netanyahu|xi jinping|zelensky|modi)\b'
 
   - id: natural_disaster
     event_type: natural_disaster_weather
@@ -247,6 +262,7 @@ rules:
       - '\b(?:brent|wti|crude(?: oil)?|oil prices?|opec\+?|natural gas|lng|gold (?:price|rate|rates|prices)|silver (?:price|rate)|copper|steel prices?|coal)\b'
       - "\\btoday.s (?:gold|silver) rate\\b"
       - '\b(?:gold|silver|crude|oil) (?:rallies|hits|slips|surges|falls|jumps|holds|extends|ticks)\b'
+      - '\b(?:price of (?:oil|gold|silver|crude)|petrol price|diesel price|octane)\b'
 
   - id: market_move
     event_type: market_move
@@ -257,3 +273,36 @@ rules:
       - '\b(?:fpis?|fiis?|dii|foreign investors) (?:buy|sell|outflows?|inflows?|net)\b'
       - '\b(?:rupee|dollar|euro|yen|yuan|bond yields?)\b.{0,30}\b(?:falls?|rises?|slips?|gains?|weakens?|strengthens?|closes?|opens?)\b'
       - '\b(?:shares?|stocks?) (?:fall|rise|jump|surge|slump|tumble|rally|gain|slide|climb|plunge|sink|hit)\b'
+      - '\b(?:government|state government) securities\b|\btreasury (?:yield|bills?)\b|\b(?:\d+-year|10-year) (?:treasury|bond|yield)\b|\bbond market\b'
+
+  # Routine NSE/BSE disclosures. Last on purpose: every substantive rule above is tried first, so a "Reg 30" intimation that is really
+  # about an order, a dividend or a resignation is classified by that subject, not by the fact that it is a disclosure.
+  - id: corporate_admin
+    event_type: corporate_admin
+    category: company
+    patterns:
+      - '\bnewspaper (?:publication|advertisements?|clippings?)\b'
+      - '\btrading window\b'
+      - '\b(?:loss|duplicate)\b.{0,25}\bshare certificates?\b|\bshare certificates?\b.{0,25}\b(?:loss|lost|duplicate)\b'
+      - '\b(?:regulation|reg\.?)\s*(?:7\s*\(\s*3\s*\)|74\s*\(\s*5\s*\)|40\s*\(\s*9\s*\))'
+      - '\bcompliance (?:certificate|report)\b|\bcertificate (?:under|pursuant to) regulation\b'
+      - '\b(?:analysts?|institutional investors?|investors?)(?:\s*(?:/|or|and)\s*(?:analysts?|institutional investors?|investors?))*\s*(?:meet|meets|con\.? call)\b'
+      - '\bschedule of (?:analysts?|institutional|investors?)?\s*meet\b'
+      - '\b(?:change|updates?) in (?:the )?(?:contact|registrar|rta|compliance officer|company secretary)\b'
+      - '\b(?:registrar and (?:share )?transfer agent|rta)\b.{0,30}\b(?:details|contact|address|change)\b'
+      - '\b(?:esop|esos|employee stock option)\b.{0,60}\b(?:allot|allotment)\b|\ballotment\b.{0,60}\b(?:esop|esos|employee stock option)'
+      - '\bgeneral updates?\b|(?:^|:)\s*updates?\s*$'
+      - '\bdisclosure of material (?:issue|event)\b|(?:^|:)\s*agreements?\s*$'
+      - '\b(?:intimation|disclosure)s? (?:under|pursuant to) (?:regulation|reg\.?)\s*\d+'
+      - '\bdisclosure under regulation\b'
+      - '\b(?:link of|audio|video)(?:/| )?(?:recording|video)\b|\brecording\b|\btranscripts?\b'
+      - '\b(?:investor )?presentation\b'
+      - '\bconfirmation of (?:redemption|payment|interest)\b'
+      - '\b(?:allotment|issuance|issue) of securities\b'
+      - '\bsecurity cover\b|\bstatement of (?:utili[sz]ation|deviation)\b|\bdeviation\(?s?\)? or variation\b|\bdeviation/variation\b'
+      - '\b(?:annual|integrated) (?:disclosure|filing|impact report)\b'
+      - '\basset/liability management\b'
+      - '\bextension of financial year\b'
+      - '\bnoc/no dues\b|\bno dues certificate\b'
+      - '\bamendment to (?:aoa|moa)\b|\bagreements?,\s*contracts?,\s*arrangements?\b'
+      - '\bintimation (?:of|under|regarding)\b'

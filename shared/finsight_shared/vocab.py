@@ -36,6 +36,7 @@ EVENT_TYPES: tuple[tuple[str, str], ...] = (
     ("natural_disaster_weather", "Natural Disaster / Weather"),
     ("commodity_price_move", "Commodity Price Move"),
     ("market_move", "Market Move"),
+    ("corporate_admin", "Routine corporate/compliance filing"),
     ("other", "Other"),
 )
 
