@@ -41,6 +41,8 @@ class Settings(BaseSettings):
     EMBED_MAX_ATTEMPTS: int = 5
     RAW_PAYLOAD_RETENTION_DAYS: int = 7
     DB_SIZE_WARN_MB: int = 800
+    # Text sector classifier: cosine threshold, calibrated against the from_security sectors (see embed/sectors.py; phase5_storage.md)
+    SECTOR_TEXT_THRESHOLD: float = 0.80   # NO threshold on the 0.40-0.80 grid reached precision 0.80 (best ~0.46): fail closed. See phase5_storage.md
 
     @field_validator("DATABASE_URL", "TEST_DATABASE_URL")
     @classmethod

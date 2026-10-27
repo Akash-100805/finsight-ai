@@ -1,0 +1,71 @@
+# One description per NSE sector (the 22 frozen sector ids). The text classifier embeds each description as a document and scores an
+# article by cosine similarity to it (guide section 8). DRAFT for owner review: edit freely, then re-run the calibration.
+sectors:
+  automobile_and_auto_components: >-
+    News about Indian carmakers, two-wheeler and commercial vehicle makers, tractor makers and auto component suppliers. Monthly vehicle sales
+    and registrations, new model launches, electric vehicle adoption and charging, dealer inventory, tyre and battery makers, and auto demand
+    in rural and urban India.
+  capital_goods: >-
+    News about Indian engineering, machinery, electrical equipment, defence manufacturing, railway rolling stock and industrial products
+    companies. Order books and order wins, capacity expansion, PLI schemes, government capex driving demand for transformers, cables, pumps,
+    shipbuilding and heavy equipment.
+  chemicals: >-
+    News about Indian specialty and commodity chemical makers, agrochemicals, fertilisers, paints, dyes and polymers. Input prices, China
+    competition and anti-dumping duties, export demand, capacity additions and margins for chemical manufacturers.
+  construction: >-
+    News about Indian infrastructure developers and engineering and construction contractors. Roads, highways, metros, airports, ports and
+    irrigation projects, government tenders, order inflows, execution pace and project awards by the NHAI and state governments.
+  construction_materials: >-
+    News about Indian cement, ceramic tiles, glass, pipes and building material producers. Cement demand and prices, capacity expansion,
+    limestone and coal and fuel costs, housing and infrastructure activity and dealer-level pricing.
+  consumer_durables: >-
+    News about Indian makers of air conditioners, refrigerators, washing machines, televisions, small appliances, lighting, jewellery,
+    footwear and furniture. Seasonal demand, festive sales, premiumisation, input costs and retail expansion.
+  consumer_services: >-
+    News about Indian restaurants and quick-service chains, hotels, travel, airlines, online delivery and e-commerce platforms, education
+    and entertainment services. Footfalls, same-store sales, room rates and occupancy, app users and new store openings.
+  diversified: >-
+    News about Indian conglomerates and diversified business groups with interests across several sectors. Group restructuring,
+    demergers, holding company results and large investments across retail, energy, telecom and manufacturing.
+  fast_moving_consumer_goods: >-
+    News about Indian packaged food, beverage, personal care, home care, tobacco and dairy companies. Rural and urban volume growth,
+    price hikes, commodity inflation, distribution reach, new launches and quarterly volume and margin trends.
+  financial_services: >-
+    News about Indian banks, non-banking finance companies, insurers, asset managers, brokers and exchanges. Net interest margins, loan
+    growth, deposits, asset quality and bad loans, RBI regulation, credit costs, insurance premiums and capital market activity.
+  forest_materials: >-
+    News about Indian plywood, laminates, paper, packaging board and timber product makers. Wood and pulp costs, import competition,
+    housing-related demand and capacity additions.
+  healthcare: >-
+    News about Indian pharmaceutical makers, hospitals, diagnostics and medical device companies. US FDA inspections and approvals,
+    generic drug pricing, export formulations, hospital bed additions, drug launches and clinical trial results.
+  information_technology: >-
+    News about Indian IT services and software companies and global technology firms. Large deal wins, quarterly revenue and margin
+    guidance, attrition and hiring, generative AI demand, client budgets in the US and Europe and cloud and digital contracts.
+  media_entertainment_and_publication: >-
+    News about Indian television broadcasters, films, streaming, radio, advertising and publishing companies. Advertising revenue,
+    box office collections, content deals, subscriber numbers and sports rights.
+  metals_and_mining: >-
+    News about Indian steel, aluminium, copper, zinc and coal and iron ore mining companies. Steel prices and imports, safeguard duties,
+    global metal prices, mine auctions, production volumes, capacity expansion and demand from construction and autos.
+  oil_gas_and_consumable_fuels: >-
+    News about Indian oil refiners, oil and gas explorers, fuel marketing and gas distribution companies. Crude oil and gas prices,
+    refining margins, petrol and diesel pricing, LNG imports, city gas distribution and upstream production.
+  power: >-
+    News about Indian power generators, transmission and renewable energy companies. Electricity demand and tariffs, coal supply, solar
+    and wind capacity, power purchase agreements, transmission projects and discom payments.
+  realty: >-
+    News about Indian real estate developers and housing markets. Residential sales bookings, launches, unsold inventory, property
+    prices in Mumbai, Delhi NCR and Bengaluru, home loan rates, office leasing and RERA.
+  services: >-
+    News about Indian logistics, ports, shipping, staffing, trading and business services companies. Cargo volumes, freight rates,
+    e-commerce logistics, airport and port operations and outsourcing demand.
+  telecommunication: >-
+    News about Indian mobile operators, telecom towers and network equipment makers. Tariff hikes, 5G rollout, spectrum auctions,
+    subscriber additions, average revenue per user and AGR dues.
+  textiles: >-
+    News about Indian cotton, yarn, fabric, garment and home textile makers and exporters. Cotton prices, export orders from the US and
+    Europe, tariffs, labour costs and apparel retail demand.
+  utilities: >-
+    News about Indian water, gas and other regulated utility and infrastructure service companies. Regulated returns, tariffs and
+    pipeline networks, municipal and state utility projects.

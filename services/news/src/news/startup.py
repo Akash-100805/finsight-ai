@@ -30,7 +30,15 @@ def alembic_head() -> str:
     return head
 
 
-def run_startup_checks(engine: Engine, settings: Settings | None = None) -> None:
+def check_embedding_dimension(embedder, settings: Settings | None = None) -> None:
+    """The model's output dimension must equal EMBEDDING_DIM (which run_startup_checks already matched to the DB column)."""
+    settings = settings or get_settings()
+    if int(embedder.dim) != settings.EMBEDDING_DIM:
+        raise StartupCheckError(f"embedding model {getattr(embedder, 'model_name', '?')} outputs {embedder.dim} dimensions, "
+                                f"but EMBEDDING_DIM / the database column is {settings.EMBEDDING_DIM}")
+
+
+def run_startup_checks(engine: Engine, settings: Settings | None = None, embedder=None) -> None:
     settings = settings or get_settings()
     with engine.connect() as conn:
         # (i) pgvector >= 0.7
@@ -59,4 +67,6 @@ def run_startup_checks(engine: Engine, settings: Settings | None = None) -> None
         if declared != expected:
             raise StartupCheckError(f"news.article_embeddings.embedding is {declared}, but config requires {expected}")
 
-    # TODO(Phase 5): also check that the embedding model's output dimension equals EMBEDDING_DIM.
+    # (iv) the embedding model's output dimension == EMBEDDING_DIM == the column (only when a model is given: ingest loads it once)
+    if embedder is not None:
+        check_embedding_dimension(embedder, settings)
