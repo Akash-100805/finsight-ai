@@ -136,8 +136,13 @@ def cmd_migrate():
 
 
 def cmd_ingest():
-    print("Disabled until Phase 5")
-    return 1
+    target, rest = _target_args(sys.argv[2:])
+    return run_in_venv(["-m", "src.news.pipeline.ingest", "--target", target, *rest])
+
+
+def cmd_purge():
+    target, rest = _target_args(sys.argv[2:])
+    return run_in_venv(["-m", "src.news.pipeline.cli_ops", "purge", "--target", target, *rest])
 
 
 def cmd_securities_refresh():
@@ -194,8 +199,8 @@ def cmd_owner_check_score():
 
 
 def cmd_report():
-    print("Available from Phase 7")
-    return 1
+    target, rest = _target_args(sys.argv[2:])
+    return run_in_venv(["-m", "src.news.pipeline.cli_ops", "report", "--target", target, *rest])
 
 
 COMMANDS = {
@@ -203,13 +208,14 @@ COMMANDS = {
     "db-check": (cmd_db_check, "check both Neon databases: direct endpoint, SSL, Postgres and pgvector versions"),
     "test": (cmd_test, "run pytest in services/news"),
     "migrate": (cmd_migrate, "run alembic upgrade head (--target main|test, default main)"),
-    "ingest": (cmd_ingest, "disabled until Phase 5"),
+    "ingest": (cmd_ingest, "ingest [--target main|test] [--sources a,b] [--ignore-interval] | --from-jsonl <file|all>: fetch, enrich, store, embed, post-embed, report"),
+    "purge": (cmd_purge, "purge [--target main|test]: set raw_payload to NULL on articles older than RAW_PAYLOAD_RETENTION_DAYS"),
     "securities-refresh": (cmd_securities_refresh, "load NSE/BSE/US securities, sectors and aliases (--target main|test, --offline, --refresh-bse-industry)"),
     "sources-sync": (cmd_sources_sync, "upsert config/sources.yaml into news.sources (--target main|test)"),
     "fetch": (cmd_fetch, "fetch --dry-run [--target main|test] [--sources a,b] [--ignore-interval]; storage arrives in Phase 5"),
     "owner-check-score": (cmd_owner_check_score, "owner-check-score [file.csv]: score the filled docs/review/phase4_1_owner_check.csv (security precision/recall, sentiment direction accuracy)"),
     "enrich": (cmd_enrich, "enrich --from-jsonl <file|all> [--target main|test] [--limit N]: securities, FinBERT, classification on saved dry-run articles"),
-    "report": (cmd_report, "print the latest run report (available from Phase 7)"),
+    "report": (cmd_report, "report [--target main|test]: latest ingestion run, per-source rows, database and table sizes"),
 }
 
 
