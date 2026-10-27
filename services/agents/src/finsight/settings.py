@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: SecretStr = SecretStr("")
     AGENTS_LLM_MODEL: str = ""            # per-stock calls
     AGENTS_SYNTH_LLM_MODEL: str = ""      # the single final synthesis call
+    AGENTS_SYNTH_FALLBACK_MODEL: str = "" # optional: ONE attempt with this model if the synth model stays unavailable after the retries
     AGENTS_LLM_RPM: float = 10            # calls per minute: the minimum spacing between calls is 60 / RPM seconds
     AGENTS_LLM_MAX_CALLS_PER_RUN: int = 8
 

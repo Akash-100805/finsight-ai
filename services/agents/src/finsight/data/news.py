@@ -102,3 +102,14 @@ def top_articles(security_id: str, days: int | None = None, k: int = 8, *, engin
             "ORDER BY n.recency_weight * n.source_reliability * n.confidence DESC, n.published_at DESC LIMIT :k"),
             {"s": security_id, "d": days, "k": k}).mappings()
         return [dict(r) for r in rows]
+
+
+def sentiment_with_index(security_id: str, days: int | None = None, *, engine: Engine | None = None,
+                         target: Literal["main", "test"] = "main") -> tuple[dict | Unavailable, dict[str, dict]]:
+    """sentiment_signal plus {article_id: {title, url, published_at}} for the articles it cites, from the SAME query (one round trip)."""
+    s = get_settings()
+    rows = security_news([security_id], days, engine=engine, target=target)
+    signal = weighted_sentiment(rows, s.SHARED_CLAUSE_WEIGHT, s.SENTIMENT_MIN_ARTICLES)
+    by_id = {r["article_id"]: r for r in rows}
+    cited = signal["top_article_ids"] if isinstance(signal, dict) else []
+    return signal, {a: {"title": by_id[a]["title"], "url": by_id[a]["url"], "published_at": by_id[a]["published_at"].isoformat()} for a in cited if a in by_id}

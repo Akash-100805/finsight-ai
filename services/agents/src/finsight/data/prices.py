@@ -16,6 +16,7 @@ from finsight.settings import AGENTS_ROOT
 CACHE_DIR = AGENTS_ROOT / "data_cache" / "prices"
 US_EXCHANGES = ("NASDAQ", "NYSE", "CBOE")
 BENCHMARKS = {"IN": "^NSEI", "US": "^GSPC"}
+USD_INR_SYMBOL = "USDINR=X"
 
 
 def yahoo_symbol(security_id: str) -> str | Unavailable:
@@ -92,3 +93,14 @@ def benchmark_history(country: str, period: str = "1y", *, today: date | None = 
     if symbol is None:
         return Unavailable("unsupported_country", f"no benchmark for country {country!r} (IN and US only)")
     return _history(symbol, period, today)
+
+
+def usd_inr(*, today: date | None = None) -> dict | Unavailable:
+    """The latest USDINR close: {'rate': float, 'date': 'YYYY-MM-DD'}. Unavailable when it cannot be fetched; a rate is never assumed."""
+    frame = _history(USD_INR_SYMBOL, "5d", today)
+    if isinstance(frame, Unavailable):
+        return Unavailable("fx_unavailable", frame.detail or frame.reason)
+    rate = float(frame["Close"].iloc[-1])
+    if not rate > 0:
+        return Unavailable("fx_unavailable", f"non-positive USDINR close {rate}")
+    return {"rate": rate, "date": pd.Timestamp(frame.index[-1]).date().isoformat()}
