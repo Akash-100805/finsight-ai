@@ -1,0 +1,31 @@
+from_sector,to_sector,link,weight,rationale,reviewed
+metals_mining,capital_goods,supplier_of,-0.55,Steel and aluminium are primary inputs for heavy industrial machinery fabricators,False
+metals_mining,auto,supplier_of,-0.5,"Automobile bodies, chassis and engines require structural steel and alloy castings",False
+metals_mining,construction,supplier_of,-0.55,TMT steel bars and structural girders are core structural materials for civil projects,False
+metals_mining,consumer_durables,supplier_of,-0.4,White goods and appliances consume sheets of cold-rolled steel and aluminium,False
+cement,construction,supplier_of,-0.6,"Cement is non-substitutable binding input in roads, bridges, and building contracts",False
+cement,realty,supplier_of,-0.55,Civil residential and commercial real estate towers require ready-mix and bagged cement,False
+power,metals_mining,supplier_of,-0.6,Aluminium smelters and electric arc furnaces consume vast baseload electrical energy,False
+power,cement,supplier_of,-0.5,Grinding mills and kiln drives consume heavy continuous industrial electric power,False
+power,chemicals,supplier_of,-0.45,Chlor-alkali and industrial gas electrolysis are highly energy-intensive processes,False
+oil_gas,chemicals,supplier_of,-0.65,"Naphtha, propane, and natural gas are basic building-block petchem feedstocks",False
+oil_gas,paints,supplier_of,-0.7,"Solvents, resins and phthalic anhydride are petroleum-derived paint raw materials",False
+oil_gas,aviation,supplier_of,-0.8,Aviation turbine fuel (ATF) is direct refined output powering airline fleets,False
+oil_gas,power,supplier_of,-0.5,Gas-based turbine plants rely on LNG and domestic natural gas pipeline supply,False
+oil_gas,textiles,supplier_of,-0.4,Purified Terephthalic Acid (PTA) and MEG feedstock are crude derivatives,False
+agri,fmcg,supplier_of,-0.5,"Wheat, sugar, milk, and vegetable oils form ingredients for packaged food producers",False
+agri,textiles,supplier_of,-0.6,Raw raw cotton bales supply spinning mills producing yarn and woven garments,False
+telecom,it_services,customer_of,0.4,Telecom 5G rollouts and digital network virtualization procure IT enterprise contracts,False
+banking,realty,supplier_of,-0.6,Bank mortgage lending rates directly influence retail apartment purchase affordability,False
+banking,auto,supplier_of,-0.55,Vehicle retail loan availability and interest rates drive dealer inventory turnover,False
+banking,capital_goods,supplier_of,0.5,Project finance debt syndication fuels heavy private sector corporate capital expenditure,False
+capital_goods,power,supplier_of,0.5,"Boilers, turbines, generators and switchgear supply power capacity additions",False
+capital_goods,construction,supplier_of,0.55,"Excavators, cranes, and earth-moving machinery equip construction contractors",False
+construction,realty,supplier_of,0.65,Civil construction EPC execution delivers finished real estate square footage,False
+chemicals,agri,supplier_of,0.55,Technical grade agrochemicals and crop protection formulations protect agricultural yields,False
+chemicals,pharma,supplier_of,-0.5,Key Starting Materials (KSMs) and active chemical intermediates supply pharma drug synthesis,False
+consumer_durables,realty,customer_of,0.5,"New home completions drive primary demand for kitchen appliances, ACs and fans",False
+services,auto,customer_of,0.45,Commercial logistics and fleet transport operators purchase medium and heavy CVs,False
+it_services,banking,customer_of,0.55,Core banking software renewals and cybersecurity initiatives generate IT contracts,False
+textiles,fmcg,customer_of,0.35,Urban retail lifestyle and apparel footfalls expand with consumer discretionary spending,False
+auto,metals_mining,customer_of,0.5,Automobile production runs demand substantial domestic alloy and flat steel supply,False
