@@ -293,11 +293,10 @@ sources:
     daily_request_budget: 96
     adapter: marketaux
     options:
-      listing_scope: both          # covers India and the US: keep both listings of a cross-listed company
       limit: 3
       calls:
-        - {name: india, params: {countries: in}}
-        - {name: global, params: {}}
+        - {name: india, region: india, params: {countries: in}}
+        - {name: global, region: global, params: {}}
   finnhub:
     display_name: Finnhub
     tier: B
@@ -343,11 +342,10 @@ sources:
     daily_request_budget: 144
     adapter: newsdata
     options:
-      listing_scope: both
       calls:
-        - {name: india_business, params: {country: in, category: business}}
-        - {name: india_politics_environment_top, params: {country: in, category: "politics,environment,top"}}
-        - {name: global_business_world, params: {category: "business,world"}}
+        - {name: india_business, region: india, params: {country: in, category: business}}
+        - {name: india_politics_environment_top, region: india, params: {country: in, category: "politics,environment,top"}}
+        - {name: global_business_world, region: global, params: {category: "business,world"}}
   gdelt:
     display_name: GDELT DOC 2.0
     tier: C
@@ -362,7 +360,6 @@ sources:
     daily_request_budget: 80
     adapter: gdelt
     options:
-      listing_scope: both
       maxrecords: 15
       sort: hybridrel
       inter_query_delay_seconds: 10

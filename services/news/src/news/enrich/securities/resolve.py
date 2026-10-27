@@ -119,8 +119,9 @@ def pick_listings(recs: list[AliasRec], matcher: SecurityMatcher, listing_scope:
 
 
 def resolve_article(art: CanonicalArticle, matcher: SecurityMatcher, org_spans: list[tuple[int, int]],
-                    listing_scope: str = "both") -> Resolution:
-    """listing_scope: india | us | both - which listing of a cross-listed company the source's readers mean (see pick_listings)."""
+                    listing_scope: str = "both", financial: bool = True) -> Resolution:
+    """listing_scope: india | us | both - which listing of a cross-listed company the source's readers mean (see pick_listings).
+    financial: the article's domain is financial (a bare group word such as "Reliance" may then take its reviewed default)."""
     out = Resolution()
     text = article_text(art.title, art.description)
     title_end = len(art.title)
@@ -138,6 +139,7 @@ def resolve_article(art: CanonicalArticle, matcher: SecurityMatcher, org_spans: 
             alias_hits.setdefault(primary, []).append((h.start, h.end))
 
     cands: dict[str, _Cand] = {}
+    group_pending: list[tuple[str, str, tuple[int, int]]] = []       # (default security, matched text, span): a group word with no strong cue
 
     def add(sec_id: str, method: str, confidence: float, matched: str | None = None, span: tuple[int, int] | None = None,
             sentiment: float | None = None, relevance: float | None = None, filing: bool = False) -> None:
@@ -210,8 +212,22 @@ def resolve_article(art: CanonicalArticle, matcher: SecurityMatcher, org_spans: 
             for r in accepted:
                 add(r.security_id, DICTIONARY_CONTEXT, AMBIGUOUS_CONTEXT_CONFIDENCE, raw_text, span)
             if not accepted:
-                out.bump("ambiguous_no_context")
-                out.unresolved.append(UnresolvedMention(raw_text, "ambiguous_no_context"))
+                default = matcher.group_defaults.get(normalize(raw_text))
+                if default and financial and raw_text[:1].isupper():       # written as a name; "reliance on imports" is the common word
+                    group_pending.append((default, raw_text, span))
+                else:
+                    out.bump("ambiguous_no_context")
+                    out.unresolved.append(UnresolvedMention(raw_text, "ambiguous_no_context"))
+
+    # 2b. group words (Reliance) with no strong cue: the reviewed default, unless a competing owner of the word is linked ----------
+    for default, raw_text, span in group_pending:
+        rivals = matcher.owners_of_norm.get(normalize(raw_text), set()) - {default}
+        if rivals & set(cands):
+            out.bump("ambiguous_no_context")
+            out.unresolved.append(UnresolvedMention(raw_text, "ambiguous_no_context"))
+        else:
+            add(default, DICTIONARY_CONTEXT, CONFIDENCE[DICTIONARY_CONTEXT], raw_text, span)
+            out.bump("group_default")
 
     # 3. provider tickers --------------------------------------------------------------------------------------------
     for t in art.provider_tickers:

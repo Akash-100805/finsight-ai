@@ -71,7 +71,10 @@ class MarketauxAdapter(Adapter):
             body = response.json()
             succeeded += 1
             result.bump(f"{call['name']}_found", int(body.get("meta", {}).get("found", 0)))
-            result.candidates += [item_to_candidate(d) for d in body.get("data", [])]
+            for d in body.get("data", []):
+                cand = item_to_candidate(d)
+                cand.fetch_region = call.get("region")
+                result.candidates.append(cand)
         if not succeeded:
             result.status, result.error = "failure", "; ".join(result.warnings) or "no call succeeded"
         return result

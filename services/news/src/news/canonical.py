@@ -45,6 +45,7 @@ class CanonicalArticle(_Strict):
     published_at: datetime
     fetched_at: datetime
     source_country: str | None = Field(default=None, min_length=2, max_length=2)
+    fetch_region: str | None = Field(default=None, pattern="^(india|global)$")   # region of the call that returned it
     provider_tickers: list[ProviderTicker] = Field(default_factory=list)
     provider_sentiment: dict[str, Any] | None = None
     provider_category_hint: str | None = None

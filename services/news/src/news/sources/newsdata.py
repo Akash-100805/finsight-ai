@@ -66,7 +66,10 @@ class NewsDataAdapter(Adapter):
                 continue
             succeeded += 1
             result.bump(f"{call['name']}_total", int(body.get("totalResults") or 0))
-            result.candidates += [item_to_candidate(i, result) for i in body.get("results", [])]
+            for i in body.get("results", []):
+                cand = item_to_candidate(i, result)
+                cand.fetch_region = call.get("region")
+                result.candidates.append(cand)
         if not succeeded:
             result.status, result.error = "failure", "; ".join(result.warnings) or "no call succeeded"
         return result

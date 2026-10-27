@@ -92,7 +92,7 @@ def normalize_candidate(c: Candidate, source: SourceConfig, fetched_at: datetime
             source_id=source.source_id, source_article_id=c.source_article_id, url=c.url.strip(), canonical_url=canonical,
             title=title, description=clean_text(c.description), content=None, author=clean_text(c.author),
             language="en", published_at=published, fetched_at=fetched_at,
-            source_country=normalize_country(c.source_country), provider_tickers=c.provider_tickers,
+            source_country=normalize_country(c.source_country), fetch_region=c.fetch_region or source.region, provider_tickers=c.provider_tickers,
             provider_sentiment=c.provider_sentiment, provider_category_hint=c.provider_category_hint,
             provider_topics=[t for t in (clean_text(x) for x in c.provider_topics) if t],
             filing=c.filing, event_type_hint=c.event_type_hint or source.default_event_type,

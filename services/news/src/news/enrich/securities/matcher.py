@@ -24,7 +24,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from src.news.enrich.securities.tokenize import Token, norm_sequence, raw_sequence
-from src.news.security_master.datafiles import load_non_company_phrases
+from src.news.security_master.datafiles import load_group_defaults, load_non_company_phrases
 from src.news.security_master.names import normalize, strip_suffixes
 
 _UNKNOWN = chr(0x10FFFF)       # a token that is in no alias
@@ -102,7 +102,7 @@ class _TokenAutomaton:
 
 class SecurityMatcher:
     def __init__(self, securities: Iterable[SecRow], aliases: Iterable[AliasRec], signature: tuple | None = None,
-                 blockers: Iterable[str] | None = None) -> None:
+                 blockers: Iterable[str] | None = None, group_defaults: dict[str, str] | None = None) -> None:
         self.securities: dict[str, SecRow] = {s.security_id: s for s in securities}
         self.aliases: dict[int, AliasRec] = {a.alias_id: a for a in aliases if a.security_id in self.securities}
         self.signature = signature
@@ -118,6 +118,9 @@ class SecurityMatcher:
         for i, phrase in enumerate(load_non_company_phrases() if blockers is None else blockers):
             self._blk.add(norm_sequence(normalize(phrase)), i)
         self._blk.build()
+        defaults = load_group_defaults() if group_defaults is None else group_defaults
+        # group word -> the primary security it defaults to (only when that security is in this master)
+        self.group_defaults: dict[str, str] = {t: self.securities[s].primary_id for t, s in defaults.items() if s in self.securities}
         # owners: how many distinct PRIMARY securities share a normalized alias
         owners: dict[str, set[str]] = {}
         for a in self.aliases.values():

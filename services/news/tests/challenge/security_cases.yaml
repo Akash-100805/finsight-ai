@@ -139,3 +139,8 @@ cases:
   - {id: C10-06, category: C10, source_type: publisher, source_region: global, text: "Community Holdings Inc. completes acquisition of a regional lender", expected_securities: [], forbidden_securities: [], note: "generic words only, any link is a false positive"}
   - {id: C10-07, category: C10, source_type: publisher, source_region: global, text: "Global Industries Group posts higher quarterly sales", expected_securities: [], forbidden_securities: [], note: "generic words only"}
   - {id: C10-08, category: C10, source_type: publisher, source_region: global, text: "Peoples Bancorp Inc. shares gain after strong credit quality", expected_securities: ["NASDAQ:PEBO"], forbidden_securities: ["NASDAQ:TBBK"], note: "correct company, with a share cue"}
+
+  # ───────────────────────────── added 5 (after baseline): group-term default ─────────────────────────────
+  - {id: C5-12, category: C5, source_type: publisher, source_region: india, text: "Reliance shares hit record", expected_securities: ["NSE:RELIANCE"], forbidden_securities: ["NSE:RPOWER"], note: "added 5: bare group word + strong cue"}
+  - {id: C5-13, category: C5, source_type: publisher, source_region: india, text: "Reliance Power and Reliance announce a joint venture", expected_securities: ["NSE:RPOWER", "NSE:RELIANCE"], forbidden_securities: [], note: "added 5: both, separated (the bare 'Reliance' takes the owner default)"}
+  - {id: C5-14, category: C5, source_type: publisher, source_region: india, text: "reliance on imports rises as the rupee weakens", expected_securities: [], forbidden_securities: ["NSE:RELIANCE", "NSE:RPOWER"], note: "added 5: the common word"}

@@ -20,10 +20,13 @@ from src.news.sources.base import SourceConfig
 NER_BATCH = 16
 
 
-def listing_scope_of(source: SourceConfig) -> str:
-    """Which listing of a company listed in both India and the US the source's readers mean: india | us | both.
-    An Indian-region source means the Indian listing, a global one the US listing; config/sources.yaml can say `listing_scope: both`."""
-    return source.options.get("listing_scope") or ("india" if source.region == "india" else "us")
+def listing_scope_of(article: CanonicalArticle, source: SourceConfig) -> str:
+    """Which listing of a company listed in both India and the US the article's readers mean: india | us.
+    The region of the call that returned it (fetch_region; an Indian-region call -> the Indian listing, a global call -> the US listing),
+    falling back to the source's own region. (A source may still force `options.listing_scope: both`; none of the configured ones does.)"""
+    if source.options.get("listing_scope"):
+        return source.options["listing_scope"]
+    return "india" if (article.fetch_region or source.region) == "india" else "us"
 
 
 REJECT_OUT_OF_SCOPE = "out_of_scope"
@@ -68,7 +71,9 @@ class Enricher:
         sector_of = {sid: s.sector for sid, s in self.matcher.securities.items()}
         for art, org_spans in zip(articles, orgs):
             t1 = time.perf_counter()
-            resolution = resolve_article(art, self.matcher, org_spans, listing_scope_of(self.registry[art.source_id]))
+            src = self.registry[art.source_id]
+            financial = classify(art, src, [], sector_of, self.rules).domain == "financial"     # decides if a bare group word takes its default
+            resolution = resolve_article(art, self.matcher, org_spans, listing_scope_of(art, src), financial)
             self.timing.resolve_seconds += time.perf_counter() - t1
             if art.filing is not None and resolution.counters.get("filing_unresolved"):
                 # an exchange filing whose company is not in the security master (an unlisted issuer, a debt-only filer ...):

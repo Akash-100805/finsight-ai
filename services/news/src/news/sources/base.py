@@ -83,6 +83,7 @@ class Candidate:
     filing: FilingInfo | None = None
     event_type_hint: str | None = None
     category_hint: str | None = None
+    fetch_region: str | None = None             # india | global: the region of the call/query that returned it (None = the source's region)
     canonical_suffix: str | None = None         # makes canonical_url unique when a feed reuses one link for many items
     raw_payload: dict[str, Any] = field(default_factory=dict)
 

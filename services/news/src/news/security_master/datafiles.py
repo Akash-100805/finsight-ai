@@ -75,3 +75,9 @@ def load_generic_corporate_words(data_dir: Path | None = None) -> set[str]:
 
 def load_non_company_phrases(data_dir: Path | None = None) -> list[str]:
     return [r["phrase"].strip() for r in read_csv("non_company_phrases.csv", data_dir) if r["phrase"].strip()]
+
+
+def load_group_defaults(data_dir: Path | None = None) -> dict[str, str]:
+    """term (normalized) -> security_id: the company a bare group word (Reliance) means in a financial article. Reviewed rows only."""
+    return {normalize(r["term"]): r["security_id"].strip() for r in read_csv("group_defaults.csv", data_dir)
+            if r["reviewed"].strip().lower() == "true"}

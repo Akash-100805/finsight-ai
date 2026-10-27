@@ -70,7 +70,10 @@ class GdeltAdapter(Adapter):
                 result.bump("skipped_queries")
                 continue
             succeeded += 1
-            result.candidates += [item_to_candidate(a, q["name"], result) for a in body.get("articles", [])]
+            for a in body.get("articles", []):
+                cand = item_to_candidate(a, q["name"], result)
+                cand.fetch_region = q.get("scope")
+                result.candidates.append(cand)
         if not succeeded:
             result.status, result.error = "failure", "; ".join(sorted(set(result.warnings))) or "no query succeeded"
         return result
