@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from src.news.canonical import CanonicalArticle, ProviderTicker
-from src.news.enrich.securities.cues import country_cue, has_generic_cue
+from src.news.enrich.securities.cues import following_cue, qualified_tickers
 from src.news.enrich.securities.matcher import AliasRec, SecurityMatcher
 from src.news.enrich.securities.ner import overlaps
 from src.news.enrich.securities.sentences import SentenceIndex, article_text, split_sentences
@@ -102,7 +102,25 @@ def _sentence_tokens(tokens, sentence) -> list:
     return [t for t in tokens if t.start >= sentence.start and t.end <= sentence.end]
 
 
-def resolve_article(art: CanonicalArticle, matcher: SecurityMatcher, org_spans: list[tuple[int, int]]) -> Resolution:
+def pick_listings(recs: list[AliasRec], matcher: SecurityMatcher, listing_scope: str) -> list[AliasRec]:
+    """The same company listed in India AND the US (Infosys: NSE + NYSE ADR) counts once, by the source's listing scope:
+    india -> the Indian listing, us -> the US listing, both -> both. A company with only one listing is never filtered."""
+    if listing_scope == "both" or len(recs) < 2:
+        return recs
+    want = "IN" if listing_scope == "india" else "US"
+    by_company: dict[str, list[AliasRec]] = {}
+    for r in recs:
+        by_company.setdefault(matcher.company_key[r.security_id], []).append(r)
+    kept: list[AliasRec] = []
+    for group in by_company.values():
+        countries = {matcher.securities[r.security_id].country for r in group}
+        kept += [r for r in group if matcher.securities[r.security_id].country == want] if {"IN", "US"} <= countries else group
+    return kept
+
+
+def resolve_article(art: CanonicalArticle, matcher: SecurityMatcher, org_spans: list[tuple[int, int]],
+                    listing_scope: str = "both") -> Resolution:
+    """listing_scope: india | us | both - which listing of a cross-listed company the source's readers mean (see pick_listings)."""
     out = Resolution()
     text = article_text(art.title, art.description)
     title_end = len(art.title)
@@ -157,29 +175,38 @@ def resolve_article(art: CanonicalArticle, matcher: SecurityMatcher, org_spans: 
         sentence = sentences[index.of(m.start)]
         sentence_tokens = _sentence_tokens(tokens, sentence)
         recs: list[AliasRec] = [matcher.aliases[a] for a in m.alias_ids]
-        plain = [r for r in recs if not r.is_ambiguous]
+        plain = pick_listings([r for r in recs if not r.is_ambiguous], matcher, listing_scope)
         ambiguous = [r for r in recs if r.is_ambiguous]
+        is_filing = art.filing is not None
         for r in plain:
-            method = DICTIONARY_NER if overlaps(span, org_spans) else DICTIONARY_CONTEXT
+            in_org = overlaps(span, org_spans)
+            if is_filing and not in_org:         # in a filing only NER-confirmed names count, besides the filer itself
+                out.bump("filing_mention_skipped")
+                continue
+            method = DICTIONARY_NER if in_org else DICTIONARY_CONTEXT
             add(r.security_id, method, CONFIDENCE[method], raw_text, span)
-        if ambiguous:
-            generic = has_generic_cue(sentence.text)
-            where = country_cue(sentence.text)
+        if ambiguous and is_filing:              # filings (SMP, KMP, ESOP ...): an ambiguous alias is never read as a company
+            out.bump("filing_ambiguous_skipped")
+        elif ambiguous:
+            qualified = qualified_tickers(sentence.text)
+            after = [t.norm for t in tokens[m.tok_end:] if t.end <= sentence.end]
+            followed = following_cue(after)
             multi_owner = len({matcher.company_key[r.security_id] for r in ambiguous}) > 1      # several DIFFERENT companies share the alias
+            inside = set(range(m.tok_start, m.tok_end))
             accepted: list[AliasRec] = []
             for r in ambiguous:
-                sec = matcher.securities[r.security_id]
                 symbols = matcher.symbols_of(r.security_id)
-                inside = {i for i, t in enumerate(tokens) if m.tok_start <= i < m.tok_end}
-                symbol_cue = any(t.raw in symbols for i, t in enumerate(tokens) if i not in inside and t in sentence_tokens)
-                if multi_owner:      # several securities share this alias: only a market cue that names ONE country can pick
-                    ok = symbol_cue or (where is not None and where == sec.country)
-                else:
-                    ok = symbol_cue or generic
+                # (b) is about a NAME being backed by the ticker; a ticker cannot vouch for itself, so it is skipped for symbol matches
+                symbol_cue = r.alias_type != "symbol" and any(
+                    t.raw in symbols for i, t in enumerate(tokens) if i not in inside and t in sentence_tokens)
+                qualified_cue = bool(qualified & matcher.listings_of(r.security_id))
+                # the following-word cue says "a company", not WHICH one: it cannot pick between different companies sharing the alias
+                ok = symbol_cue or qualified_cue or (followed and not multi_owner)
                 if ok:
                     accepted.append(r)
             if multi_owner and len({matcher.company_key[r.security_id] for r in accepted}) != 1:
                 accepted = []
+            accepted = pick_listings(accepted, matcher, listing_scope)
             for r in accepted:
                 add(r.security_id, DICTIONARY_CONTEXT, AMBIGUOUS_CONTEXT_CONFIDENCE, raw_text, span)
             if not accepted:

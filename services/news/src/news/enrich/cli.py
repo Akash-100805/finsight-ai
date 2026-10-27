@@ -13,7 +13,7 @@ from pathlib import Path
 
 from src.news.canonical import CanonicalArticle
 from src.news.db.engine import get_engine
-from src.news.enrich.pipeline import Enricher, to_record
+from src.news.enrich.pipeline import ISSUER_NOT_IN_MASTER, Enricher, to_record
 from src.news.enrich.securities.matcher import get_matcher
 from src.news.enrich.securities.ner import NerModel
 from src.news.enrich.sentiment import FinBert
@@ -80,11 +80,13 @@ def main(argv: list[str] | None = None) -> int:
         for e in enriched:
             fh.write(json.dumps(to_record(e), ensure_ascii=False) + "\n")
     t = enricher.timing
-    meta = {"articles": len(enriched), "total_seconds": round(total, 1),
+    rejected = [e for e in enriched if e.rejection is not None]
+    meta = {"articles": len(enriched) - len(rejected),
+            "rejected_out_of_scope": {ISSUER_NOT_IN_MASTER: len(rejected)}, "total_seconds": round(total, 1),
             "ner_articles_per_second": round(t.ner_articles / t.ner_seconds, 2) if t.ner_seconds else None,
             "finbert_sentences_scored": t.finbert_sentences,
             "finbert_sentences_per_second": round(t.finbert_sentences / t.finbert_seconds, 2) if t.finbert_seconds else None,
-            "finbert_articles_per_second": round(len(enriched) / t.finbert_seconds, 2) if t.finbert_seconds else None,
+            "finbert_articles_per_second": round((len(enriched) - len(rejected)) / t.finbert_seconds, 2) if t.finbert_seconds else None,
             "resolve_seconds": round(t.resolve_seconds, 1)}
     out.with_suffix(".meta.json").write_text(json.dumps(meta, indent=1), encoding="utf-8")
     print(json.dumps(meta))

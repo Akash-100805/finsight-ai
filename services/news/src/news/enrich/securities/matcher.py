@@ -8,6 +8,10 @@ Two automata:
   * case-insensitive aliases: tokens are the normalized forms (alias_norm.split());
   * case-sensitive aliases (symbols, acronyms such as RIL / L&T): tokens are the ORIGINAL-case words.
 Overlaps between matches are resolved longest-first (tokens), so "State Bank of India" beats "Bank of India".
+
+A third automaton holds the NON-COMPANY phrases ("Reserve Bank of India", "World Bank": institutions that must never be read as a
+listed company). They take part in the longest-match; when one wins, every alias overlapping it is suppressed and the phrase itself
+is not returned as a match.
 """
 from __future__ import annotations
 
@@ -20,6 +24,7 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from src.news.enrich.securities.tokenize import Token, norm_sequence, raw_sequence
+from src.news.security_master.datafiles import load_non_company_phrases
 from src.news.security_master.names import normalize, strip_suffixes
 
 _UNKNOWN = chr(0x10FFFF)       # a token that is in no alias
@@ -96,7 +101,8 @@ class _TokenAutomaton:
 
 
 class SecurityMatcher:
-    def __init__(self, securities: Iterable[SecRow], aliases: Iterable[AliasRec], signature: tuple | None = None) -> None:
+    def __init__(self, securities: Iterable[SecRow], aliases: Iterable[AliasRec], signature: tuple | None = None,
+                 blockers: Iterable[str] | None = None) -> None:
         self.securities: dict[str, SecRow] = {s.security_id: s for s in securities}
         self.aliases: dict[int, AliasRec] = {a.alias_id: a for a in aliases if a.security_id in self.securities}
         self.signature = signature
@@ -108,6 +114,10 @@ class SecurityMatcher:
                 self._ci.add(norm_sequence(a.alias_norm), a.alias_id)
         self._ci.build()
         self._cs.build()
+        self._blk = _TokenAutomaton()
+        for i, phrase in enumerate(load_non_company_phrases() if blockers is None else blockers):
+            self._blk.add(norm_sequence(normalize(phrase)), i)
+        self._blk.build()
         # owners: how many distinct PRIMARY securities share a normalized alias
         owners: dict[str, set[str]] = {}
         for a in self.aliases.values():
@@ -140,32 +150,60 @@ class SecurityMatcher:
                     symbols.add(sym.upper())
         return symbols
 
-    def find_matches(self, tokens: list[Token]) -> list[Match]:
-        """All alias occurrences, overlaps resolved longest-first. Case-insensitive on normalized tokens, case-sensitive on raw."""
+    def _blocked_spans(self, tokens: list[Token]) -> list[tuple[int, int]]:
+        spans = {(start, end) for start, end, _ in self._blk.find([t.norm for t in tokens])}
+        if any(t.possessive for t in tokens):               # "Reserve Bank of India's Data Centre"
+            spans |= {(start, end) for start, end, _ in self._blk.find([t.norm[:-1] if t.possessive else t.norm for t in tokens])}
+        return sorted(spans)
+
+    def _alias_spans(self, tokens: list[Token]) -> dict[tuple[int, int], list[int]]:
         raw: dict[tuple[int, int], list[int]] = {}
-        for start, end, ids in self._ci.find([t.norm for t in tokens]):
-            raw.setdefault((start, end), []).extend(ids)
-        for start, end, ids in self._cs.find([t.raw for t in tokens]):
-            raw.setdefault((start, end), []).extend(ids)
-        spans = sorted(raw, key=lambda se: (-(se[1] - se[0]), se[0]))
+        passes = [([t.norm for t in tokens], [t.raw for t in tokens])]
+        if any(t.possessive for t in tokens):              # "Bank of Baroda's capital plan": also read it as "Bank of Baroda"
+            passes.append(([t.norm[:-1] if t.possessive else t.norm for t in tokens], [t.raw[:-1] if t.possessive else t.raw for t in tokens]))
+        for n, (norms, raws) in enumerate(passes):
+            for start, end, ids in self._ci.find(norms):
+                raw.setdefault((start, end), []).extend(ids)
+            if n == 0:                       # acronyms (M&M, L&T) are exact: "M&M's candy" is not M&M
+                for start, end, ids in self._cs.find(raws):
+                    raw.setdefault((start, end), []).extend(ids)
+        return raw
+
+    def find_matches(self, tokens: list[Token]) -> list[Match]:
+        """All alias occurrences, overlaps resolved longest-first (a non-company phrase wins a tie and swallows what it overlaps).
+        Case-insensitive on normalized tokens, case-sensitive on raw."""
+        raw = self._alias_spans(tokens)
+        blocked = self._blocked_spans(tokens)
+        spans = [(se, True) for se in blocked] + [(se, False) for se in raw]
+        spans.sort(key=lambda x: (-(x[0][1] - x[0][0]), not x[1], x[0][0]))
         taken: list[tuple[int, int]] = []
         chosen: list[Match] = []
-        for start, end in spans:
+        for (start, end), is_blocker in spans:
             if any(start < t_end and t_start < end for t_start, t_end in taken):
                 continue
             taken.append((start, end))
-            chosen.append(Match(start, end, tokens[start].start, tokens[end - 1].end, sorted(set(raw[(start, end)]))))
+            if not is_blocker:
+                chosen.append(Match(start, end, tokens[start].start, tokens[end - 1].end, sorted(set(raw[(start, end)]))))
         chosen.sort(key=lambda m: m.tok_start)
         return chosen
 
     def all_alias_hits(self, tokens: list[Token]) -> list[Match]:
-        """Every occurrence BEFORE overlap resolution (used to find the sentences that talk about a security)."""
-        raw: dict[tuple[int, int], list[int]] = {}
-        for start, end, ids in self._ci.find([t.norm for t in tokens]):
-            raw.setdefault((start, end), []).extend(ids)
-        for start, end, ids in self._cs.find([t.raw for t in tokens]):
-            raw.setdefault((start, end), []).extend(ids)
-        return [Match(s, e, tokens[s].start, tokens[e - 1].end, sorted(set(ids))) for (s, e), ids in sorted(raw.items())]
+        """Every occurrence BEFORE overlap resolution, except those that sit inside a non-company phrase
+        (used to find the sentences that talk about a security)."""
+        raw = self._alias_spans(tokens)
+        blocked = self._blocked_spans(tokens)
+        return [Match(s, e, tokens[s].start, tokens[e - 1].end, sorted(set(ids))) for (s, e), ids in sorted(raw.items())
+                if not any(b_s <= s and e <= b_e for b_s, b_e in blocked)]
+
+    def listings_of(self, security_id: str) -> set[tuple[str, str]]:
+        """(exchange, SYMBOL) of every listing of the company behind security_id; BSE listings also by numeric code."""
+        group = [s for s in self.securities.values() if s.primary_id == self.securities[security_id].primary_id]
+        out: set[tuple[str, str]] = set()
+        for s in group:
+            for sym in (s.symbol, s.alt_symbol):
+                if sym:
+                    out.add((s.exchange, sym.upper()))
+        return out
 
     def match_text(self, text_: str, m: Match) -> str:
         return text_[m.start:m.end]

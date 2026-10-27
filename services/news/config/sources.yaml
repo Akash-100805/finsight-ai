@@ -293,6 +293,7 @@ sources:
     daily_request_budget: 96
     adapter: marketaux
     options:
+      listing_scope: both          # covers India and the US: keep both listings of a cross-listed company
       limit: 3
       calls:
         - {name: india, params: {countries: in}}
@@ -342,6 +343,7 @@ sources:
     daily_request_budget: 144
     adapter: newsdata
     options:
+      listing_scope: both
       calls:
         - {name: india_business, params: {country: in, category: business}}
         - {name: india_politics_environment_top, params: {country: in, category: "politics,environment,top"}}
@@ -360,6 +362,7 @@ sources:
     daily_request_budget: 80
     adapter: gdelt
     options:
+      listing_scope: both
       maxrecords: 15
       sort: hybridrel
       inter_query_delay_seconds: 10

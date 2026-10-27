@@ -20,12 +20,23 @@ from src.news.sources.base import SourceConfig
 NER_BATCH = 16
 
 
+def listing_scope_of(source: SourceConfig) -> str:
+    """Which listing of a company listed in both India and the US the source's readers mean: india | us | both.
+    An Indian-region source means the Indian listing, a global one the US listing; config/sources.yaml can say `listing_scope: both`."""
+    return source.options.get("listing_scope") or ("india" if source.region == "india" else "us")
+
+
+REJECT_OUT_OF_SCOPE = "out_of_scope"
+ISSUER_NOT_IN_MASTER = "issuer_not_in_master"
+
+
 @dataclass
 class EnrichedArticle:
     article: CanonicalArticle
     resolution: Resolution
-    sentiment: ArticleSentiment
-    classification: Classification
+    sentiment: ArticleSentiment | None
+    classification: Classification | None
+    rejection: tuple[str, str] | None = None      # (reason, sub_reason): the article is not stored
 
 
 @dataclass
@@ -57,8 +68,14 @@ class Enricher:
         sector_of = {sid: s.sector for sid, s in self.matcher.securities.items()}
         for art, org_spans in zip(articles, orgs):
             t1 = time.perf_counter()
-            resolution = resolve_article(art, self.matcher, org_spans)
+            resolution = resolve_article(art, self.matcher, org_spans, listing_scope_of(self.registry[art.source_id]))
             self.timing.resolve_seconds += time.perf_counter() - t1
+            if art.filing is not None and resolution.counters.get("filing_unresolved"):
+                # an exchange filing whose company is not in the security master (an unlisted issuer, a debt-only filer ...):
+                # nothing to attach it to, so it is out of scope. Counted, never guessed.
+                resolution.links.clear()
+                results.append(EnrichedArticle(art, resolution, None, None, (REJECT_OUT_OF_SCOPE, ISSUER_NOT_IN_MASTER)))
+                continue
             before = self.scorer.sentences_scored
             t2 = time.perf_counter()
             sentiment = score_article(art.title, art.description, resolution.links, self.scorer)
@@ -72,6 +89,10 @@ class Enricher:
 def to_record(e: EnrichedArticle) -> dict:
     """JSON-serializable record of one enriched article (raw_payload is left out to keep the files small)."""
     a = e.article
+    if e.rejection is not None:
+        return {"type": "rejected", "reason": e.rejection[0], "sub_reason": e.rejection[1], "source_id": a.source_id,
+                "source_article_id": a.source_article_id, "title": a.title,
+                "filing_company": a.filing.company_name if a.filing else None, "published_at": a.published_at.isoformat()}
     base = a.model_dump(mode="json", exclude={"raw_payload"})
     securities = []
     for link in e.resolution.links:

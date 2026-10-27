@@ -1,25 +1,26 @@
-"""Context cues for ambiguous aliases (guide 6.3, step 3). A cue must occur in the SAME sentence as the matched text."""
+"""Strong context cues for ambiguous aliases (guide 6.3, step 3). A cue must occur in the SAME sentence as the matched text.
+
+Three cues count, nothing else (rupee signs, crore, Nifty, Sensex, results and quarters do NOT):
+  (a) the match is followed within two tokens by Ltd | Limited | Inc | Corp | Industries | shares | stock | share price | scrip;
+  (b) the security's own ticker appears in upper case in the sentence (outside the match);
+  (c) an exchange-qualified ticker of the security: "NSE: INFY", "BSE: 500209", "(NASDAQ: AAPL)", "(NYSE: SE)".
+Capitalization is never evidence: a capital letter at the start of a sentence says nothing about a name.
+"""
 import re
 
-# generic finance cues from the guide: shares, stock, Ltd, Limited, Q1-Q4, results, BSE, NSE, rupee sign, crore, Nifty, Sensex
-GENERIC_CUE = re.compile(
-    r"\b(?:shares?|stocks?|ltd|limited|results?|bse|nse|crore|nifty|sensex)\b|\bQ[1-4]\b|₹",
-    re.IGNORECASE,
-)
-# exchange / market cues that say WHICH country's security is meant (used when one alias belongs to several securities)
-INDIA_CUE = re.compile(r"\b(?:bse|nse|crore|nifty|sensex|lakh)\b|₹|\bRs\.?\s?\d", re.IGNORECASE)
-US_CUE = re.compile(r"\b(?:nyse|nasdaq|wall\s+street|dow\s+jones|s&p\s*500)\b", re.IGNORECASE)
+FOLLOWING_CUES = frozenset({"ltd", "limited", "inc", "corp", "industries", "shares", "stock", "scrip"})
+FOLLOW_WINDOW = 2
+QUALIFIED_TICKER = re.compile(r"\b(NSE|BSE|NASDAQ|NYSE|CBOE)\s*:\s*([A-Za-z0-9&.\-]+)")
 
 
-def has_generic_cue(sentence: str) -> bool:
-    return bool(GENERIC_CUE.search(sentence))
+def following_cue(next_norms: list[str]) -> bool:
+    """next_norms: the normalized tokens after the match, inside the same sentence (any length; only the first two are looked at)."""
+    window = next_norms[:FOLLOW_WINDOW]
+    if any(n in FOLLOWING_CUES for n in window):
+        return True
+    return any(n == "share" and next_norms[i + 1:i + 2] == ["price"] for i, n in enumerate(window))
 
 
-def country_cue(sentence: str) -> str | None:
-    """'IN' / 'US' when the sentence names an Indian / US market, None when it says neither (or both)."""
-    india, us = bool(INDIA_CUE.search(sentence)), bool(US_CUE.search(sentence))
-    if india and not us:
-        return "IN"
-    if us and not india:
-        return "US"
-    return None
+def qualified_tickers(sentence: str) -> set[tuple[str, str]]:
+    """{(EXCHANGE, SYMBOL)} for every exchange-qualified ticker written in the sentence."""
+    return {(m.group(1).upper(), m.group(2).upper().rstrip(".")) for m in QUALIFIED_TICKER.finditer(sentence)}

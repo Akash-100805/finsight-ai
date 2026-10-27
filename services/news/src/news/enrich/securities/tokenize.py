@@ -22,6 +22,7 @@ class Token:
     raw: str       # the word as written, dots/apostrophes removed, ORIGINAL case ('&' stays '&')
     start: int     # char span in the original text
     end: int
+    possessive: bool = False   # written with 's ("Baroda's"); the matcher also tries the word without it
 
 
 def tokenize(text: str) -> list[Token]:
@@ -30,7 +31,7 @@ def tokenize(text: str) -> list[Token]:
         word = m.group(0)
         raw = word.replace(".", "").replace("'", "").replace("’", "")
         for norm in normalize(word).split():
-            tokens.append(Token(norm, raw if raw else word, m.start(), m.end()))
+            tokens.append(Token(norm, raw if raw else word, m.start(), m.end(), word.lower().endswith(("'s", "\u2019s"))))
     return tokens
 
 
