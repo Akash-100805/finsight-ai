@@ -123,8 +123,12 @@ def cmd_agents_test():
     return run_in_agents_venv(["-m", "pytest", *sys.argv[2:]])
 
 
+def cmd_agents_run():
+    return run_in_agents_venv(["-W", "ignore", "-m", "finsight.run", *sys.argv[2:]])
+
+
 def cmd_agents_smoke():
-    return run_in_agents_venv(["-m", "finsight.smoke", *sys.argv[2:]])
+    return run_in_agents_venv(["-W", "ignore", "-m", "finsight.smoke", *sys.argv[2:]])
 
 
 def cmd_setup():
@@ -245,6 +249,7 @@ def cmd_report():
 COMMANDS = {
     "agents-setup": (cmd_agents_setup, "create services/agents/.venv (py -3.12) and install the agents service + finsight-shared"),
     "agents-test": (cmd_agents_test, "run pytest in services/agents"),
+    "agents-run": (cmd_agents_run, "agents-run --sample india_diversified|concentrated_it|mixed_us | --file path.json [--target main|test]: run the analysis flow, print the report, save runs/<ts>_<name>.json"),
     "agents-smoke": (cmd_agents_smoke, "agents-smoke [--target main|test]: per sample portfolio, holdings with sector, price, sentiment, sector signal, plus one LLM ping per model role"),
     "setup": (cmd_setup, "create services/news/.venv and install dependencies (idempotent)"),
     "db-check": (cmd_db_check, "check both Neon databases: direct endpoint, SSL, Postgres and pgvector versions"),
