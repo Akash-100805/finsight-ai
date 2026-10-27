@@ -5,3 +5,7 @@
   reason: "Key Corporation Ltd / Mega Corporation Ltd are BSE-only; the cases assume the press uses the full 'Corporation Ltd' name for them."
 - id: S6-01
   reason: "S6 cases are report-only: no direction is asserted for headline-vs-body disagreement."
+- id: C4-01
+  reason: "Crown Lifters Limited was assumed to be an unlisted filer, but it is a real NSE SME (Emerge) listing (NSE:CROWN) once the SME list is loaded, so linking it as the filer is correct. The case expects no link."
+- id: C6-12
+  reason: "Resolved with data, not by editing the case: 'Tata Steel Long Products' is now a non-company phrase (an unlisted subsidiary), so it no longer resolves to the parent."

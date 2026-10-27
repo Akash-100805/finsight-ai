@@ -4,40 +4,42 @@ Hand-written cases run end-to-end with the real models and the real security mas
 
 ## Pass counts per category
 
-| Category | BASELINE |
-|---|---|
-| C1 | 8/18 |
-| C2 | 7/12 |
-| C3 | 5/12 |
-| C4 | 5/10 |
-| C5 | 10/11 |
-| C6 | 11/12 |
-| C7 | 7/12 |
-| C8 | 3/8 |
-| C9 | 8/9 |
-| C10 | 3/8 |
-| S1 | 0/8 |
-| S2 | 0/5 |
-| S3 | 1/6 |
-| S4 | 0/5 |
-| S5 | 2/6 |
-| S6 | 0/0 |
+| Category | BASELINE | AFTER |
+|---|---|---|
+| C1 | 8/18 | 18/18 |
+| C2 | 7/12 | 12/12 |
+| C3 | 5/12 | 12/12 |
+| C4 | 5/10 | 9/10 |
+| C5 | 10/11 | 11/11 |
+| C6 | 11/12 | 12/12 |
+| C7 | 7/12 | 12/12 |
+| C8 | 3/8 | 8/8 |
+| C9 | 8/9 | 9/9 |
+| C10 | 3/8 | 8/8 |
+| S1 | 0/8 | 2/8 |
+| S2 | 0/5 | 5/5 |
+| S3 | 1/6 | 6/6 |
+| S4 | 0/5 | 2/5 |
+| S5 | 2/6 | 4/6 |
+| S6 | 0/0 | 0/0 |
 
 BASELINE: security cases 67/112 = 59.8%
 
+AFTER: security cases 111/112 = 99.1%
+
 ## Targets
 
-| Target | BASELINE |
-|---|---|
-| security cases overall >= 95% | 67/112 = 59.8% FAIL |
-| C2 100% and zero false positives | 7/12, 5 false positives FAIL |
-| C3 100% and zero false positives | 5/12, 7 false positives FAIL |
-| C4 100% and zero false positives | 5/10, 6 false positives FAIL |
-| S1 direction accuracy >= 85% | 5/7 = 71.4% FAIL |
-| S3 direction accuracy >= 85% | 0/3 = 0.0% FAIL |
-| S4 direction accuracy >= 85% | 7/7 = 100.0% PASS |
-| S5 direction accuracy >= 85% | 5/5 = 100.0% PASS |
-| S2 flagged shared_clause 100% | 0/10 FAIL |
+| Target | BASELINE | AFTER |
+|---|---|---|
+| security cases overall >= 95% | 67/112 = 59.8% FAIL | 111/112 = 99.1% PASS |
+| C2 100% and zero false positives | 7/12, 5 false positives FAIL | 12/12, 0 false positives PASS |
+| C3 100% and zero false positives | 5/12, 7 false positives FAIL | 12/12, 0 false positives PASS |
+| C4 100% and zero false positives | 5/10, 6 false positives FAIL | 9/10, 1 false positives FAIL |
+| S1 direction accuracy >= 85% | 5/16 = 31.2% FAIL | 9/16 = 56.2% FAIL |
+| S3 direction accuracy >= 85% | 0/5 = 0.0% FAIL | 5/5 = 100.0% PASS |
+| S4 direction accuracy >= 85% | 7/15 = 46.7% FAIL | 12/15 = 80.0% FAIL |
+| S5 direction accuracy >= 85% | 5/12 = 41.7% FAIL | 10/12 = 83.3% FAIL |
+| S2 flagged shared_clause 100% | 0/10 FAIL | 10/10 PASS |
 
 ## BASELINE — failures (actual vs expected)
 
@@ -123,9 +125,35 @@ _run 2026-10-27T11:07:21+00:00_
 - S6-03: article label **neutral**; NSE:TATASTEEL: positive (+0.73) via sentence_level — _report only_
 - S6-04: article label **neutral**; NSE:WIPRO: NOT LINKED (+0.00) via None — _report only_
 
+## AFTER — failures (actual vs expected)
+
+_run 2026-10-27T12:16:59+00:00_
+
+- **C4-01** (C4) `Crown Lifters Limited: Change in Directors/KMP/SMP/Auditor/RTA` — expected [], actual ['NSE:CROWN']; unexpected extra ['NSE:CROWN'] — _SMP = senior management personnel_
+- **S1-01** (S1) `TCS beats estimates while Wipro misses` — NSE:TCS: neutral (+0.03) via clause_level, expected positive via clause_level; NSE:WIPRO: neutral (+0.01) via clause_level, expected negative via clause_level
+- **S1-02** (S1) `Infosys raises guidance, but HCL Technologies cuts its outlook` — NSE:INFY: neutral (+0.05) via clause_level, expected positive via clause_level; NSE:HCLTECH: negative (-0.94) via clause_level, expected negative via clause_level
+- **S1-03** (S1) `HDFC Bank profit jumps whereas ICICI Bank profit slumps` — NSE:HDFCBANK: negative (-0.41) via clause_level, expected positive via clause_level; NSE:ICICIBANK: negative (-0.96) via clause_level, expected negative via clause_level
+- **S1-04** (S1) `Tata Steel posts a surprise loss despite JSW Steel reporting record profit` — NSE:TATASTEEL: neutral (+0.04) via clause_level, expected negative via clause_level; NSE:JSWSTEEL: positive (+0.81) via clause_level, expected positive via clause_level
+- **S1-05** (S1) `Maruti Suzuki sales surge even as Bajaj Auto sales fall sharply` — NSE:MARUTI: neutral (+0.07) via clause_level, expected positive via clause_level; NSE:BAJAJ-AUTO: negative (-0.96) via clause_level, expected negative via clause_level
+- **S1-08** (S1) `Reliance gains on strong refining margins however Tata Steel drops on weak demand` — NSE:RELIANCE: NOT LINKED; NSE:TATASTEEL: negative (-0.85) via title_only, expected negative via clause_level
+- **S4-01** (S4) `IT earnings roundup / TCS posted record profit and raised guidance. Infosys cut its revenue ` — NSE:TCS: positive (+0.93) via sentence_level, expected positive via sentence_level; NSE:INFY: negative (-0.96) via sentence_level, expected negative via sentence_level; NSE:WIPRO: negative (-0.95) via sentence_level, expected neutral via sentence_level
+- **S4-03** (S4) `Auto sales update / Maruti Suzuki sales jumped 20% in October, a record. Bajaj Auto sales fe` — NSE:MARUTI: positive (+0.93) via sentence_level, expected positive via sentence_level; NSE:BAJAJ-AUTO: negative (-0.97) via sentence_level, expected negative via sentence_level; NSE:RELIANCE: NOT LINKED
+- **S4-04** (S4) `Metals and energy wrap / Tata Steel reported a wider loss and cut its output target. JSW Ste` — NSE:TATASTEEL: negative (-0.96) via sentence_level, expected negative via sentence_level; NSE:JSWSTEEL: positive (+0.87) via sentence_level, expected positive via sentence_level; NSE:RELIANCE: NOT LINKED
+- **S5-01** (S5) `Infosys profit jumps 20%, beats estimates / Analysts compared it with Wipro on margins.` — NSE:INFY: positive (+0.90) via sentence_level, expected positive via any; NSE:WIPRO: positive (+0.67) via sentence_level, expected neutral via any
+- **S5-06** (S5) `SBI shares rally on strong profit growth / Some analysts compared the lender's performance w` — NSE:SBIN: positive (+0.90) via company_reference, expected positive via any; NSE:RELIANCE: NOT LINKED
+
+### AFTER — S6 (report only, not scored)
+
+- S6-01: article label **neutral**; NSE:INFY: neutral (-0.08) via company_reference — _report only: what does the pipeline say when the title is positive and the body negative_
+- S6-02: article label **neutral**; NSE:HDFCBANK: neutral (-0.01) via company_reference — _report only: negative title, positive body_
+- S6-03: article label **neutral**; NSE:TATASTEEL: neutral (-0.12) via company_reference — _report only_
+- S6-04: article label **neutral**; NSE:WIPRO: neutral (-0.01) via company_reference — _report only_
+
 ## Disputed expectations
 
 Expectations the owner may want to overrule. They were NOT edited; the cases still count as written.
 - **C6-12**: Tata Steel Long Products is no longer separately listed, so the case expects NO link (not the parent). Some readers would want it mapped to Tata Steel.
 - **C1-13**: Key Corporation Ltd / Mega Corporation Ltd are BSE-only; the cases assume the press uses the full 'Corporation Ltd' name for them.
 - **S6-01**: S6 cases are report-only: no direction is asserted for headline-vs-body disagreement.
+- **C4-01**: Crown Lifters Limited was assumed to be an unlisted filer, but it is a real NSE SME (Emerge) listing (NSE:CROWN) once the SME list is loaded, so linking it as the filer is correct. The case expects no link.
+- **C6-12**: Resolved with data, not by editing the case: 'Tata Steel Long Products' is now a non-company phrase (an unlisted subsidiary), so it no longer resolves to the parent.

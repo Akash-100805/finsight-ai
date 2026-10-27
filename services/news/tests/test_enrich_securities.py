@@ -95,11 +95,37 @@ def test_ambiguous_alias_needs_a_cue_in_the_same_sentence():
     assert other_sentence.unresolved[0].reason == "ambiguous_no_context"
 
 
-def test_ambiguous_alias_accepted_by_each_guide_cue():
-    for sentence in ("Titan Q2 numbers are out", "Titan Ltd announces expansion", "Titan reported strong results", "Titan on the NSE",
-                     "Titan jumps in Nifty", "Titan crossed Rs 3,000 crore revenue", "Titan up in Sensex trade", "Titan ₹3,500 apiece",
-                     "Titan stock in focus", "Titan Limited board meets"):
+def test_ambiguous_alias_accepted_by_each_strong_cue():
+    # (a) followed within two tokens by Ltd | Limited | Inc | Corp | Industries | shares | stock | share price | scrip
+    for sentence in ("Titan Ltd announces expansion", "Titan Limited board meets", "Titan shares rise", "Titan stock in focus",
+                     "Titan share price jumps", "Titan scrip gains", "Titan Industries hires", "Titan Inc expands", "Titan Corp signs a deal",
+                     "Titan has shares on offer"):          # 'has shares': the cue is the second token after the match
         assert link(run(sentence), "NSE:TITAN") is not None, sentence
+    # (b) the security's own ticker in upper case, in the same sentence
+    assert link(run("Titan rallies, TITAN was the top gainer"), "NSE:TITAN") is not None
+    # (c) an exchange-qualified ticker
+    assert link(run("Titan (NSE: TITAN) rallies"), "NSE:TITAN") is not None
+    assert link(run("Titan rallies, NSE:TITAN closes higher"), "NSE:TITAN") is not None
+
+
+def test_weak_cues_no_longer_accept_an_ambiguous_alias():
+    for sentence in ("Titan Q2 numbers are out", "Titan reported strong results", "Titan on the NSE", "Titan jumps in Nifty",
+                     "Titan crossed Rs 3,000 crore revenue", "Titan up in Sensex trade", "Titan ₹3,500 apiece",
+                     "Titan has been in the news for a month, shares rise elsewhere"):       # cue is too far from the match
+        r = run(sentence)
+        assert link(r, "NSE:TITAN") is None, sentence
+        assert r.unresolved and r.unresolved[0].reason == "ambiguous_no_context"
+
+
+def test_a_qualified_ticker_of_another_exchange_or_company_is_not_a_cue():
+    assert link(run("Titan (BSE: 500114) rallies"), "NSE:TITAN") is None            # not Titan's code in the master
+    assert link(run("Titan (NYSE: TTN) rallies"), "NSE:TITAN") is None              # wrong exchange and symbol for this security
+
+
+def test_sentence_initial_capital_is_never_evidence_of_a_name():
+    assert run("Titan of industry speaks").links == []
+    assert run("Apple a day keeps the doctor away").links == []
+    assert link(run("Titan shares of industry speak"), "NSE:TITAN") is not None     # a real cue, wherever the word sits
 
 
 def test_symbol_in_uppercase_is_a_cue():
@@ -108,12 +134,13 @@ def test_symbol_in_uppercase_is_a_cue():
     assert run("An apple a day").links == []
 
 
-def test_one_alias_for_several_companies_needs_a_market_cue_naming_one_country():
-    assert run("AGI shares jump").links == []                                              # generic cue is not enough
+def test_one_alias_for_several_companies_needs_a_cue_that_names_one_company():
+    assert run("AGI shares jump").links == []                       # 'shares' says "a company", not WHICH one
     assert [u.reason for u in run("AGI shares jump").unresolved] == ["ambiguous_no_context"]
-    assert [l.security_id for l in run("AGI up on the NSE today").links] == ["NSE:AGI"]
-    assert [l.security_id for l in run("AGI climbs on the NYSE").links] == ["NYSE:AGI"]
-    assert run("AGI on NSE and NYSE").links == []                                          # both markets named: still ambiguous
+    assert [l.security_id for l in run("AGI up (NSE: AGI) today").links] == ["NSE:AGI"]
+    assert [l.security_id for l in run("AGI climbs (NYSE: AGI)").links] == ["NYSE:AGI"]
+    assert run("AGI on NSE: AGI and NYSE: AGI").links == []        # both companies qualified: still ambiguous
+    assert run("AGI up on the NSE today").links == []              # the bare market name is no longer a cue
 
 
 def test_same_company_listed_twice_is_not_ambiguous_between_its_listings():

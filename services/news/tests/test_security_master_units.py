@@ -84,9 +84,12 @@ def test_symbol_alias_is_case_sensitive_uppercase():
 
 
 def test_ambiguity_maps_to_more_than_one_primary():
+    # two DIFFERENT companies sharing an alias are ambiguous; two listings of one company (Zeta Holdings Ltd / Inc) are not
+    cur = [dict(security_id=s, alias="Zetaco", alias_type="curated", reviewed="false", note="") for s in ("NSE:AAA", "NYSE:BBB")]
+    r = gen([sec("NSE:AAA", "Alpha Quux Ltd", "AAA"), sec("NYSE:BBB", "Beta Quux Inc", "BBB")], curated=cur)
+    assert all(a.is_ambiguous for a in r.aliases if a.alias_norm == "zetaco")
     r = gen([sec("NSE:AAA", "Zeta Holdings Ltd", "AAA"), sec("NYSE:ZETA", "Zeta Holdings Inc", "ZETA")])
-    flagged = {(a.security_id, a.alias_norm): a.is_ambiguous for a in r.aliases}
-    assert flagged[("NSE:AAA", "zeta holdings")] and flagged[("NYSE:ZETA", "zeta holdings")]
+    assert not any(a.is_ambiguous for a in r.aliases if a.alias_norm == "zeta holdings")
 
 
 def test_dual_listing_does_not_collide_with_itself():
@@ -95,14 +98,17 @@ def test_dual_listing_does_not_collide_with_itself():
 
 
 def test_ambiguity_single_common_word():
+    # the generated 'apple' is dropped (rule R1); a curated row for it is kept and flagged ambiguous (zipf >= 3.5, single word)
     r = gen([sec("NASDAQ:APPL1", "Apple Inc.", "APPL1")])
-    assert by_norm(r)[("NASDAQ:APPL1", "apple")].is_ambiguous  # zipf >= 3.5, single word
+    assert ("NASDAQ:APPL1", "apple") not in by_norm(r)
+    r = gen([sec("NASDAQ:APPL1", "Apple Inc.", "APPL1")], curated=[dict(security_id="NASDAQ:APPL1", alias="Apple", alias_type="curated", reviewed="false", note="")])
+    assert by_norm(r)[("NASDAQ:APPL1", "apple")].is_ambiguous
     r = gen([sec("NSE:XYZ", "Quuxinfra Limited", "XYZ")])
     assert not by_norm(r)[("NSE:XYZ", "quuxinfra")].is_ambiguous  # rare single word
 
 
 def test_ambiguity_multiword_common_words_not_flagged():
-    r = gen([sec("NSE:CIL", "Coal India Limited", "CIL")])
+    r = gen([sec("NSE:CIL", "Coal India Limited", "CIL")], curated=[dict(security_id="NSE:CIL", alias="Coal India", alias_type="curated", reviewed="false", note="")])
     assert not by_norm(r)[("NSE:CIL", "coal india")].is_ambiguous
 
 

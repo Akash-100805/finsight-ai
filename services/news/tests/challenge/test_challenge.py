@@ -68,7 +68,10 @@ def challenge_registry(cases: list[dict]):
         if key in out:
             continue
         base_id = BASE_SOURCE.get((st, region)) or BASE_SOURCE[st]
-        out[key] = base[base_id].model_copy(update={"source_id": key, "source_type": st, "region": region})
+        update = {"source_id": key, "source_type": st, "region": "global" if region == "both" else region}
+        if region == "both":                 # a source whose readers follow both markets
+            update["options"] = {**base[base_id].options, "listing_scope": "both"}
+        out[key] = base[base_id].model_copy(update=update)
     return out
 
 
@@ -152,14 +155,18 @@ def category_counts(data: dict) -> dict[str, tuple[int, int]]:
 
 
 def direction_accuracy(data: dict, cat: str) -> tuple[int, int]:
+    """Every asserted direction counts in the denominator; a security the pipeline did not link at all is a miss."""
     ok = n = 0
-    for r in data["sentiment"].values():
+    cases = {c["id"]: c for c in load_cases("sentiment_cases.yaml")}
+    for cid, r in data["sentiment"].items():
         if r["category"] != cat:
             continue
-        for p in r["per_security"].values():
-            if p.get("asserts_direction"):
-                n += 1
-                ok += bool(p["ok_direction"])
+        for sid, want in cases[cid]["expected"].items():
+            if want.get("direction") is None:
+                continue
+            n += 1
+            p = r["per_security"].get(sid, {})
+            ok += bool(p.get("linked") and p.get("ok_direction"))
     return ok, n
 
 
