@@ -142,17 +142,22 @@ def test_a_company_with_one_listing_is_never_filtered():
     assert ids(run("Wipro posts record profit", scope="us", orgs=("Wipro",))) == {"NSE:WIPRO"}
 
 
-def test_listing_scope_comes_from_the_source():
+def test_listing_scope_comes_from_the_call_region():
     reg = registry()
-    assert listing_scope_of(reg["et_markets"]) == "india" and listing_scope_of(reg["finnhub"]) == "us"
-    assert listing_scope_of(reg["marketaux"]) == "both"
+    assert listing_scope_of(make_article("x", source_id="et_markets"), reg["et_markets"]) == "india"
+    assert listing_scope_of(make_article("x", source_id="finnhub"), reg["finnhub"]) == "us"
+    # the same source, two calls: the India call -> Indian listing, the global call -> US listing (no source forces "both" any more)
+    assert listing_scope_of(make_article("x", source_id="marketaux", fetch_region="india"), reg["marketaux"]) == "india"
+    assert listing_scope_of(make_article("x", source_id="marketaux", fetch_region="global"), reg["marketaux"]) == "us"
+    assert not any(c.options.get("listing_scope") for c in reg.values())
 
 
 def test_enricher_applies_the_scope_per_source():
     enr = Enricher(M, StubNer(), StubScorer(), registry())
     out = enr.enrich([make_article("Infosys shares fall", source_id="et_markets"), make_article("Infosys shares fall", source_id="finnhub"),
-                      make_article("Infosys shares fall", source_id="marketaux")])
-    assert [ids(e.resolution) for e in out] == [{"NSE:INFY"}, {"NYSE:INFY"}, {"NSE:INFY", "NYSE:INFY"}]
+                      make_article("Infosys shares fall", source_id="marketaux", fetch_region="india"),
+                      make_article("Infosys shares fall", source_id="marketaux", fetch_region="global")])
+    assert [ids(e.resolution) for e in out] == [{"NSE:INFY"}, {"NYSE:INFY"}, {"NSE:INFY"}, {"NYSE:INFY"}]
 
 
 # ── C. unresolved filer -> out_of_scope / issuer_not_in_master ────────────────────────────────────────────────────

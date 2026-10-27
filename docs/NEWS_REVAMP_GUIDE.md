@@ -90,15 +90,26 @@ The scheduler runs every 30 minutes. Each source has its own minimum interval an
                      article-level FinBERT             → articles.article_sentiment_*
                   c) category / event_type / geo_scope / countries (rules)
                   d) sectors from securities           → article_sectors (method='from_security')
-6. STORE          one transaction per article: article + securities + sectors;
-                  pipeline_status='stored', embedding_status='pending'
-7. EMBED          batch-embed all pending (incl. earlier failures, attempts<5) → article_embeddings;
-                  embedding_status='embedded' | 'failed' (attempts++)
-8. POST-EMBED     a) text sector classification for articles still without a sector
-                  b) near-duplicate clustering
-                  pipeline_status='complete'
-9. REPORT         write ingestion_runs + per-source rows with quality counters
+6. STORE          one transaction per article: article + securities + sectors + unresolved mentions;
+                  pipeline_status='stored', embedding_status='pending'. A unique violation rolls back that article only (counted as an
+                  exact dupe); one bad article never stops the batch. An exchange filing whose issuer is not in the master is
+                  rejected (out_of_scope / issuer_not_in_master) and never stored.
+7. EMBED          batch-embed (32) the pending/failed articles with attempts < EMBED_MAX_ATTEMPTS, oldest first, up to 2,000 per run;
+                  a failing batch is retried one article at a time; embedding_status='embedded' | 'failed' (attempts++, last_error)
+8. POST-EMBED     a) text sector classification for embedded articles still without a sector (section 8)
+                  b) near-duplicate clustering (section 10)
+                  pipeline_status='complete' (articles whose embedding permanently failed stay 'stored' and are counted)
+9. REPORT         ingestion_runs (running → final status, all counters, db_size_mb) + one ingestion_source_runs row per source attempted
 ```
+
+**As built (Phase 5):** `python dev.py ingest [--target main|test] [--sources a,b] [--ignore-interval]` runs steps 1–9 under the advisory lock
+(a second concurrent run exits at once). `ingest --from-jsonl <file|all>` takes saved dry-run articles through the same path with the CURRENT code
+(no API calls; normal exact dedup applies). `purge` sets `raw_payload = NULL` after `RAW_PAYLOAD_RETENTION_DAYS` (ingest runs it once per UTC day),
+`report` prints the latest run, per-source rows, database size and table sizes (warning above `DB_SIZE_WARN_MB`). At startup the embedding model is
+loaded once and its output dimension must equal `EMBEDDING_DIM` and the column. Documents are embedded as title + "\n" + description with no
+instruction prefix (`embed_query()` adds the BGE query prefix for consumers); `embedded_text_hash` = sha256 of the exact text.
+Each call or query carries its own region (`fetch_region`, `india` or `global`; Marketaux/NewsData/GDELT India calls → india): it decides which listing of an
+India+US company is linked (India → the Indian listing, global → the US listing).
 
 5b runs after 5a because per-security scoring needs the securities. 5c and 5d are cheap rules and can run alongside.
 
@@ -118,11 +129,12 @@ Create a fresh Alembic baseline (the old migrations are retired; dev data is dis
 `alias_id BIGSERIAL PK, security_id TEXT FK, alias TEXT, alias_norm TEXT, alias_type TEXT CHECK IN ('official_name','short_name','symbol','curated','brand'), is_ambiguous BOOL, case_sensitive BOOL`. Index on `alias_norm`.
 
 **`news.articles`**
-`article_id UUID PK, source_id TEXT FK, source_article_id TEXT NULL, url TEXT, canonical_url TEXT UNIQUE, title TEXT (≤500), description TEXT NULL, content TEXT NULL, author TEXT NULL, language CHAR(2), published_at TIMESTAMPTZ, fetched_at TIMESTAMPTZ, category TEXT` (7 values, section 7), `event_type TEXT` (section 7), `geo_scope TEXT CHECK IN ('india','global','both'), countries CHAR(2)[], domain TEXT CHECK IN ('financial','non_financial'), title_fingerprint TEXT, article_sentiment_score NUMERIC(4,3) NULL CHECK -1..1, article_sentiment_label TEXT NULL, provider_sentiment JSONB NULL, duplicate_of_id UUID NULL FK self, cluster_id UUID NULL, cluster_size INT DEFAULT 1, pipeline_status TEXT CHECK IN ('stored','complete','failed'), embedding_status TEXT CHECK IN ('pending','embedded','failed'), embedding_attempts INT DEFAULT 0, last_error TEXT NULL, raw_payload JSONB NULL (purged after 7 days, L13), created_at, updated_at`.
+`article_id UUID PK, source_id TEXT FK, source_article_id TEXT NULL, url TEXT, canonical_url TEXT UNIQUE, title TEXT (≤500), description TEXT NULL, content TEXT NULL, author TEXT NULL, language CHAR(2), published_at TIMESTAMPTZ, fetched_at TIMESTAMPTZ, category TEXT` (7 values, section 7), `event_type TEXT` (section 7), `geo_scope TEXT CHECK IN ('india','global','both'), countries CHAR(2)[], domain TEXT CHECK IN ('financial','non_financial'), title_fingerprint TEXT, article_sentiment_score NUMERIC(4,3) NULL CHECK -1..1, article_sentiment_label TEXT NULL, provider_sentiment JSONB NULL, duplicate_of_id UUID NULL FK self, cluster_id UUID NULL, cluster_size INT DEFAULT 1, pipeline_status TEXT CHECK IN ('stored','complete','failed'), embedding_status TEXT CHECK IN ('pending','embedded','failed'), embedding_attempts INT DEFAULT 0, last_error TEXT NULL, raw_payload JSONB NULL (purged after 7 days, L13), fetch_region TEXT NULL CHECK IN ('india','global'), article_sentiment_model TEXT NULL, enrichment_version TEXT NOT NULL DEFAULT 'unset', created_at, updated_at`.
+`enrichment_version` is the constant `ENRICHMENT_VERSION` in `enrich/__init__.py` (bump it whenever matching, classification or sentiment logic changes).
 Partial unique index `(source_id, source_article_id) WHERE source_article_id IS NOT NULL`. Indexes: `published_at DESC`, `category`, `event_type`, `title_fingerprint`, `embedding_status`.
 
 **`news.article_securities`**
-`article_id UUID FK, security_id TEXT FK, role TEXT CHECK IN ('primary','mentioned'), method TEXT CHECK IN ('exchange_filing','provider_confirmed','dictionary_ner','dictionary_context','provider_only'), confidence NUMERIC(3,2), matched_text TEXT[], finbert_score NUMERIC(4,3) NULL CHECK -1..1, finbert_label TEXT NULL CHECK IN ('positive','neutral','negative'), finbert_n_sentences INT, sentiment_method TEXT CHECK IN ('sentence_level','clause_level','shared_clause','company_reference','title_only','article_fallback'), provider_sentiment NUMERIC(4,3) NULL, PRIMARY KEY (article_id, security_id)`.
+`article_id UUID FK, security_id TEXT FK, role TEXT CHECK IN ('primary','mentioned'), method TEXT CHECK IN ('exchange_filing','provider_confirmed','dictionary_ner','dictionary_context','provider_only'), confidence NUMERIC(3,2), matched_text TEXT[], finbert_score NUMERIC(4,3) NULL CHECK -1..1, finbert_label TEXT NULL CHECK IN ('positive','neutral','negative'), finbert_n_sentences INT, sentiment_method TEXT CHECK IN ('sentence_level','clause_level','shared_clause','company_reference','title_only','article_fallback'), provider_sentiment NUMERIC(4,3) NULL, sentiment_model TEXT NULL, PRIMARY KEY (article_id, security_id)`.
 
 **`news.article_sectors`**
 `article_id UUID FK, sector TEXT, method TEXT CHECK IN ('from_security','text_classifier'), confidence NUMERIC(3,2), PRIMARY KEY (article_id, sector)`.
@@ -276,7 +288,8 @@ How the fields are assigned:
 - **From securities (step 5d):** each linked security with confidence ≥ 0.70 adds its sector → `method='from_security'`, confidence = the security link's confidence.
 - **Text classifier (step 8a)**, for articles with no `from_security` sector:
   - Compute the cosine similarity between the article embedding and each sector's prototype embedding. Prototypes are an embedded description per sector, kept in `shared/data/sector_descriptions.yaml`; Claude Code drafts them and lists them in the phase summary.
-  - Assign every sector with similarity ≥ 0.55, at most 3. If none qualifies and the category is macro/central-bank/geopolitical, assign `macro_cross_sector`.
+  - Assign every sector with similarity ≥ `SECTOR_TEXT_THRESHOLD` (at most 3; `method='text_classifier'`, confidence = the score rounded to 2 decimals). If none qualifies and the category is economy_macro, central_bank_monetary_policy or geopolitical, assign `macro_cross_sector` with confidence 0.50.
+  - **The threshold is calibrated, not guessed:** the stored articles that have `from_security` sectors are the answer key; thresholds 0.40 to 0.80 in steps of 0.025 are evaluated (micro precision/recall over the assigned sectors) and the LOWEST threshold with precision ≥ 0.80 is chosen (`python -m src.news.embed.sectors calibrate`; `reclassify` re-assigns after a change). If no threshold reaches 0.80 the setting fails closed at 0.80 (the top of the grid) and the shortfall is reported (Phase 5: best precision was about 0.46, so text sectors are effectively off and only the macro fallback applies).
 - An article left with no sector is counted as `articles_without_sector` in the run report. Target: under 5% of complete articles. If above target, report the top 20 such titles in the phase summary.
 
 ---
@@ -293,6 +306,7 @@ How the fields are assigned:
 - **Article-level:** the mean over all sentences, stored on `articles`. Consumers use it only for articles with no securities.
 - **Provider sentiment** (Marketaux entity sentiment, Alpha Vantage ticker sentiment) is stored in `article_securities.provider_sentiment` and `articles.provider_sentiment`. It is never blended with FinBERT.
 - Inputs are truncated to 512 tokens.
+- **Provenance:** every stored score records the model id (`articles.article_sentiment_model`, `article_securities.sentiment_model`) and every article the `enrichment_version`. FinBERT's accuracy on short clauses is limited (a known and accepted limit for V1; revisit later).
 
 ---
 
@@ -303,9 +317,11 @@ How the fields are assigned:
   2. `(source_id, source_article_id)`.
   3. `title_fingerprint` = sha256 of the normalized title (lowercase, strip punctuation, collapse whitespace), matched against articles published within ±3 days. Source is deliberately **not** part of the hash, so syndicated copies across outlets are caught, but the check applies **only between two different `source_id`s** and **never when either source's `source_type` is `exchange_filing` or `regulator`** (those publish many items with the same generic title). It is skipped when the normalized title has fewer than 5 tokens.
 - **Near-duplicate (step 8b):**
-  - Candidates: articles within ±72h whose embedding cosine similarity is ≥ 0.92, **and** that either share at least one primary security or have title-token Jaccard ≥ 0.40.
+  - Only articles NOT from an `exchange_filing` or `regulator` source take part (neither as the article nor as a candidate).
+  - Candidates: other such articles within ±72h whose embedding cosine similarity is ≥ 0.92, **and** that either share at least one primary security or have title-token Jaccard ≥ 0.40.
   - The canonical article of a cluster is the one from the highest-reliability source; ties go to the earliest `published_at`.
-  - Non-canonical articles get `duplicate_of_id` and a shared `cluster_id`. The canonical article's `article_securities` gain the union of the cluster's securities (with each one's best confidence). `cluster_size` is updated.
+  - Non-canonical articles get `duplicate_of_id` and a shared `cluster_id`; `cluster_size` is set on the canonical. A security linked only in a duplicate is copied onto the canonical (keeping that row's confidence, sentiment and sentiment_model). A new copy joins the existing cluster.
+  - Cluster size is metadata only; it is never used as a signal.
 - Duplicates are never deleted.
 
 ---
