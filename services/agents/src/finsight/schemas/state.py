@@ -10,7 +10,9 @@ is expected until the corresponding agent/step is implemented.
 
 from __future__ import annotations
 
+import operator
 from enum import Enum
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
@@ -221,6 +223,17 @@ class Stage2StockVerdict(BaseModel):
         default=None,
         description="Present only when vote_aggregation.conflict_detected is True.",
     )
+    # --- added in MA-2 (all optional) ---
+    price_signal: float | None = Field(default=None, description="Price-check signal in -1..1 (code), None when unavailable.")
+    price_metrics: dict[str, float] | None = Field(default=None, description="Period returns, annualized volatility, max drawdown, rel_6m.")
+    risk_flags: list[str] = Field(default_factory=list, description="high_volatility / deep_drawdown from the price check.")
+    recheck_signal: float | None = Field(default=None, description="Sentiment-recheck (LLM) signal in -1..1, None when unavailable.")
+    key_points: list[dict[str, Any]] = Field(default_factory=list, description="Recheck key points: text, article_ids, titles.")
+    unavailable: dict[str, str] = Field(default_factory=dict, description="voter -> reason it produced no signal (e.g. llm_unavailable).")
+    combined_signal: float | None = Field(default=None, description="Weighted vote of the available voters, -1..1.")
+    status: str | None = Field(default=None, description="ok | conflicting_signals | single_voter | no_voters")
+    attention: str | None = Field(default=None, description="high | medium | low")
+    direction_label: str | None = Field(default=None, description="positive momentum | negative pressure | mixed/neutral")
 
 
 class AnalysisState(BaseModel):
@@ -302,3 +315,23 @@ class AnalysisState(BaseModel):
             "Populated in Phase 7."
         ),
     )
+
+    # --- added in MA-2: what the analysis flow records (every field optional / defaulted) ---
+    holding_info: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> security_id, name, sector, country, exchange (from the news security master).")
+    excluded_holdings: dict[str, str] = Field(default_factory=dict, description="ticker -> reason it is outside the scan (security_not_found, price_unavailable, fx_unavailable).")
+    fx_rate: float | None = Field(default=None, description="USDINR used to convert US holdings to INR; None when no US holding or unavailable.")
+    fx_date: str | None = Field(default=None, description="Date of the USDINR close used.")
+    stage1_structural: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> structural verdict or unavailable.")
+    stage1_sentiment: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> sentiment verdict or unavailable.")
+    stage1_sector: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> sector verdict or unavailable.")
+    sector_signal_source: str | None = Field(default=None, description="tkg_lite or tkg: where the sector signals came from.")
+    article_index: dict[str, dict[str, Any]] = Field(default_factory=dict, description="article_id -> title, url, published_at, source_id for the evidence cited in Stage 1.")
+    fused_values: dict[str, float] = Field(default_factory=dict, description="ticker -> mean of the available Stage 1 signals (what the shortlist is ranked on).")
+    not_deep_dived: list[dict[str, Any]] = Field(default_factory=list, description="Fusion hits dropped by the shortlist cap (ticker, reason, fused value).")
+    synthesis: dict[str, Any] | None = Field(default=None, description="Validated structured synthesis (or the template) after the compliance check.")
+    synthesis_model: str | None = Field(default=None, description="Which model produced the synthesis, or 'template'.")
+    synthesis_label: str | None = Field(default=None, description="Set when the text is an auto-summary instead of LLM output.")
+    llm_calls_used: int = Field(default=0, description="LLM responses counted against AGENTS_LLM_MAX_CALLS_PER_RUN in this run.")
+    run_seconds: float | None = Field(default=None, description="Wall-clock time of the analysis run.")
+    data_gaps: list[str] = Field(default_factory=list, description="Human-readable list of what could not be computed and why.")
+    errors: Annotated[list[str], operator.add] = Field(default_factory=list, description="Node failures; the graph continues past them.")
