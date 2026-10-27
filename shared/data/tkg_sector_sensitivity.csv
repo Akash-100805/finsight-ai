@@ -1,0 +1,122 @@
+driver_id,sector_id,sensitivity,rationale,reviewed
+drv:crude_oil_price,oil_gas_and_consumable_fuels,0.6,"Upstream benefits from higher crude realization, though OMCs squeezed",False
+drv:crude_oil_price,chemicals,-0.65,Petrochemical feedstock costs rise directly with crude oil,False
+drv:crude_oil_price,automobile_and_auto_components,-0.4,Higher fuel prices dampen vehicle ownership sentiment and raise component freight,False
+drv:crude_oil_price,construction_materials,-0.45,"Petcoke and diesel freight costs increase, depressing operating margins",False
+drv:crude_oil_price,textiles,-0.35,"Synthetic fibers (polyester, purified terephthalic acid) rise with crude",False
+drv:crude_oil_price,consumer_durables,-0.3,Plastics and polymer component input costs rise with crude,False
+drv:crude_oil_price,fast_moving_consumer_goods,-0.35,Packaging costs (plastics) and distribution freight rise with crude,False
+drv:natural_gas_price,oil_gas_and_consumable_fuels,0.5,Gas producers benefit from higher domestic gas realization ceilings,False
+drv:natural_gas_price,power,-0.55,Gas-based power generation becomes unviable without compensatory tariffs,False
+drv:natural_gas_price,chemicals,-0.6,"Natural gas is direct feedstock for ammonia, urea and speciality chemicals",False
+drv:natural_gas_price,construction_materials,-0.3,Gas used in kilns raises thermal energy costs,False
+drv:coal_price,power,-0.65,Imported and domestic e-auction coal cost increases compress merchant margins,False
+drv:coal_price,construction_materials,-0.6,Coal and petcoke form primary thermal energy input for clinker manufacturing,False
+drv:coal_price,metals_and_mining,0.4,"Coal miners gain, but blast-furnace steelmakers suffer coking coal spikes",False
+drv:steel_price,metals_and_mining,0.8,"Primary steel producers (JSW, Tata Steel, SAIL) expand gross margins",False
+drv:steel_price,automobile_and_auto_components,-0.55,Steel is primary raw material for body-in-white and chassis parts,False
+drv:steel_price,capital_goods,-0.5,"Heavy engineering, boiler, turbine fabricators absorb higher steel sheet costs",False
+drv:steel_price,realty,-0.45,TMT rebar cost rises increase construction cost per sq ft,False
+drv:steel_price,construction,-0.55,EPC contractors face margin squeeze on fixed-price infrastructure bids,False
+drv:steel_price,consumer_durables,-0.4,"Appliances (white goods, refrigerators, washing machines) consume CR steel",False
+drv:aluminium_price,metals_and_mining,0.75,"Smelters (Hindalco, Nalco, Vedanta) gain on LME cash price surge",False
+drv:aluminium_price,automobile_and_auto_components,-0.45,Automotive lightweighting makes aluminium a major cost component in engines/wheels,False
+drv:aluminium_price,consumer_durables,-0.35,"Foil, cookware, air conditioner heat exchangers face input cost inflation",False
+drv:aluminium_price,power,-0.3,T&D conductor cables and busbars face cost inflation,False
+drv:copper_price,metals_and_mining,0.75,Copper producers and refiners benefit from LME price rally,False
+drv:copper_price,capital_goods,-0.5,"Transformers, switchgear and industrial motor windings heavily use copper",False
+drv:copper_price,automobile_and_auto_components,-0.4,EV wiring harnesses and motors demand significant copper content,False
+drv:copper_price,consumer_durables,-0.45,AC compressor tubing and fan motors rely directly on copper coils,False
+drv:iron_ore_price,metals_and_mining,0.65,Pure-play miners like NMDC gain directly from pellet and lump ore price hikes,False
+drv:natural_rubber_price,automobile_and_auto_components,-0.55,"Tyre manufacturers (MRF, Apollo, CEAT) absorb natural rubber cost inflation",False
+drv:edible_oil_price,fast_moving_consumer_goods,-0.6,"FMCG food and personal care (soaps, biscuits) use palm/sunflower oil extensively",False
+drv:sugar_price,fast_moving_consumer_goods,-0.3,Beverage and confectionery makers face higher raw sweetening costs,False
+drv:fertilizer_price,chemicals,0.5,Fertilizer and agrochemical producers benefit if retail subsidies or realizations adjust favorably,False
+drv:cotton_price,textiles,-0.65,Spinning mills and apparel exporters face cotton fibre price spikes squeezing yarn spreads,False
+drv:gold_price,consumer_durables,-0.3,High retail jewellery gold prices trigger consumer volume demand elasticity,False
+drv:silver_price,consumer_durables,-0.25,Industrial silverware and jewellery demand softens on sharp spikes,False
+drv:in_repo_rate,realty,-0.7,Higher home loan EMIs hurt residential sales velocity and pre-sales traction,False
+drv:in_repo_rate,automobile_and_auto_components,-0.5,"Vehicle retail finance rates rise, dampening two-wheeler and entry car sales",False
+drv:in_repo_rate,consumer_durables,-0.45,Consumer durable retail financing and discretionary spending slow,False
+drv:in_repo_rate,capital_goods,-0.4,Higher corporate hurdle rates and cost of capital delay private capex decisions,False
+drv:in_repo_rate,construction,-0.5,Working capital debt servicing costs rise for leveraged infrastructure firms,False
+drv:in_cpi_inflation,fast_moving_consumer_goods,-0.5,"Rural and urban real purchasing power erodes, prompting downtrading",False
+drv:in_cpi_inflation,consumer_durables,-0.5,Discretionary big-ticket household purchases delayed in inflationary periods,False
+drv:in_cpi_inflation,automobile_and_auto_components,-0.4,"Consumer disposable income allocated to necessities, slowing vehicle upgrades",False
+drv:in_gdp_growth,automobile_and_auto_components,0.65,Rising household incomes and industrial freight directly boost PV and CV sales,False
+drv:in_gdp_growth,capital_goods,0.7,Accelerating GDP utilization stimulates broad industrial capacity expansions,False
+drv:in_gdp_growth,construction_materials,0.6,"Commercial, residential, and infrastructure construction intensity accelerates",False
+drv:in_gdp_growth,fast_moving_consumer_goods,0.5,Consumer spending power and premiumization drive volume growth,False
+drv:in_gdp_growth,power,0.65,Base-load industrial and commercial power consumption rises with economic activity,False
+drv:in_gdp_growth,realty,0.6,Commercial office absorption and residential demand climb with robust economic growth,False
+drv:in_gdp_growth,services,0.6,"Logistics, hospitality, and retail service volumes track GDP expansion",False
+drv:in_govt_capex,capital_goods,0.85,"Direct budget allocations to railways, defence, and electrical transmission pipelines",False
+drv:in_govt_capex,construction,0.85,"National highways, ports, urban metro, and water infrastructure orders expand order books",False
+drv:in_govt_capex,construction_materials,0.75,"Public road, bridge, and housing schemes absorb substantial domestic cement output",False
+drv:in_govt_capex,metals_and_mining,0.7,Public infrastructure projects consume large tonnages of steel and aluminium,False
+drv:in_govt_capex,power,0.5,"Green energy corridors, sub-stations, and thermal modernization orders rise",False
+drv:in_gst_rates,automobile_and_auto_components,-0.6,"Higher cess/GST directly raises on-road vehicle price, hurting retail demand",False
+drv:in_gst_rates,consumer_durables,-0.55,Higher tax brackets compress appliance volume absorption,False
+drv:in_gst_rates,fast_moving_consumer_goods,-0.45,Higher tax burden forces price hikes or grammage cuts in packaged consumer goods,False
+drv:in_gst_rates,textiles,-0.5,Apparel and fabric value chains suffer from inverted duty or higher slab rates,False
+drv:in_import_duties,metals_and_mining,0.6,Anti-dumping duties and basic customs duties protect domestic steel/aluminium pricing,False
+drv:in_import_duties,textiles,0.5,Safeguard tariffs on Chinese synthetic fabrics protect domestic weavers,False
+drv:in_import_duties,automobile_and_auto_components,0.4,Higher CBU/CKD tariffs protect local OEM assembly and component manufacturing,False
+drv:in_import_duties,chemicals,0.55,Tariffs against cheap solvent/acid dumping support domestic chemical realizations,False
+drv:in_import_duties,capital_goods,0.5,Import duties on machine tools encourage indigenous capital goods sourcing,False
+drv:in_fiscal_deficit,realty,-0.2,Hardening bond yields limit mortgage rate easing,False
+drv:monsoon_rainfall,fast_moving_consumer_goods,0.65,Adequate rural farm harvest boosts rural agricultural wages and FMCG volume uptake,False
+drv:monsoon_rainfall,automobile_and_auto_components,0.6,"Rural prosperity fuels tractor, entry-level motorcycle and small commercial vehicle demand",False
+drv:monsoon_rainfall,consumer_durables,0.4,Post-harvest festival season purchases in rural/semi-urban tier-3 regions pick up,False
+drv:monsoon_rainfall,power,-0.3,Abundant rainfall curbs agricultural irrigation pumping power demand and boosts hydro,False
+drv:in_power_demand,power,0.75,Higher merchant tariff realizations and higher plant load factors (PLF) for generators,False
+drv:inr_strength,information_technology,-0.65,Rupee appreciation reduces rupee revenue realization for USD/EUR export contracts,False
+drv:inr_strength,healthcare,-0.55,Indian pharma generic formulations exported to US/Europe lose currency tailwinds,False
+drv:inr_strength,textiles,-0.5,Garment exporters face price competition from Bangladesh/Vietnam in USD terms,False
+drv:inr_strength,metals_and_mining,-0.4,Import parity prices for domestic steel and base metals decline as INR strengthens,False
+drv:inr_strength,oil_gas_and_consumable_fuels,0.45,Refiners and OMCs benefit from reduced rupee import bill on dollar-denominated crude,False
+drv:inr_strength,automobile_and_auto_components,0.3,Automakers with imported engine/transmission assemblies enjoy lower rupee landed cost,False
+drv:fpi_flows_india,information_technology,0.6,Large-cap IT stocks benefit from foreign institutional portfolio allocation,False
+drv:fpi_flows_india,automobile_and_auto_components,0.5,Institutional equity inflows improve market valuations across top-tier auto names,False
+drv:us_fed_rate,information_technology,-0.55,Higher US interest rates constrain Fortune 500 discretionary tech budgets and cloud migrations,False
+drv:us_10y_yield,information_technology,-0.5,Surging US risk-free yields prompt valuation multiple contraction in high-growth tech,False
+drv:us_tariffs_on_india,information_technology,-0.3,H1B or digital service restrictions increase compliance overheads,False
+drv:us_tariffs_on_india,textiles,-0.7,Indian cotton and synthetic readymade garment exports to US become uncompetitive,False
+drv:us_tariffs_on_india,healthcare,-0.5,Customs tariffs on generic oral solid dosages or active ingredients pinch export margins,False
+drv:us_tariffs_on_india,metals_and_mining,-0.5,Section 232 steel and aluminium tariffs restrict Indian metal exports into US,False
+drv:us_tariffs_on_india,automobile_and_auto_components,-0.45,"Indian auto forging, casting, and engine component exports face tariff penalties",False
+drv:global_tariff_level,textiles,-0.55,Global trade barriers stifle international supply chain throughput for apparel,False
+drv:global_tariff_level,metals_and_mining,-0.5,Protectionism disrupts global mineral and metal bilateral flow agreements,False
+drv:global_shipping_freight,textiles,-0.55,High container freight costs erode tight operating margins of garment exporters,False
+drv:global_shipping_freight,chemicals,-0.5,Speciality chemical exporters face severe shipping cost surcharges and delays,False
+drv:global_shipping_freight,automobile_and_auto_components,-0.4,Component shipping times stretch and freight charges raise CKD landing costs,False
+drv:semiconductor_supply,automobile_and_auto_components,0.7,Resolved chip supply eliminates production bottlenecks in sensor-rich modern cars,False
+drv:semiconductor_supply,consumer_durables,0.6,Microcontroller availability eases manufacturing of smart inverter appliances,False
+drv:semiconductor_supply,telecommunication,0.5,"5G router, optical network terminal and handset component availability improves",False
+drv:china_demand,metals_and_mining,0.8,"Chinese industrial re-acceleration soaks up global steel, copper and iron ore supply",False
+drv:china_demand,chemicals,0.65,Strong Chinese domestic absorption stops predatory dumping of chemical intermediates,False
+drv:china_demand,oil_gas_and_consumable_fuels,0.5,Strong Chinese crude and LNG imports lift global energy benchmarks,False
+drv:global_risk_aversion,information_technology,-0.45,Global corporate decision-makers defer multi-year enterprise transformation projects,False
+drv:global_risk_aversion,realty,-0.3,High-end luxury property transactions and institutional REIT funding cool down,False
+drv:geopolitical_conflict_intensity,oil_gas_and_consumable_fuels,0.5,Geopolitical war risk premiums elevate crude and LNG price realizations,False
+drv:geopolitical_conflict_intensity,capital_goods,0.4,Defence modernization allocations and indigenous military procurement escalate,False
+drv:geopolitical_conflict_intensity,fast_moving_consumer_goods,-0.35,"Crude, palm oil, and packaging supply shocks compress FMCG gross margins",False
+drv:gold_price,financial_services,0.6,Gold loan NBFCs see loan-to-value collateral headroom expand and loan growth pick up,False
+drv:in_repo_rate,financial_services,-0.18,"NIM expansion initially on floating loan resets, though credit growth may moderate / Borrowing costs rise faster than fixed-rate asset repricing, pinching spreads",False
+drv:in_cpi_inflation,financial_services,-0.25,High inflation triggers policy rate hikes and risks retail loan delinquencies,False
+drv:in_gdp_growth,financial_services,0.7,Strong broad-based economic activity accelerates corporate and retail credit demand,False
+drv:in_fiscal_deficit,financial_services,-0.3,Heavy government borrowing program hardens sovereign bond yields and marks-to-market G-Sec books,False
+drv:in_credit_growth,financial_services,0.78,"Robust loan disbursement expands interest earning assets and operating profitability / AUM expansion accelerates across vehicle, SME, and personal loan verticals",False
+drv:fpi_flows_india,financial_services,0.7,FPI inflows disproportionately target liquid heavyweight private and PSU bank counters,False
+drv:us_fed_rate,financial_services,-0.3,US rate hikes tighten global dollar liquidity and raise domestic yield pressures,False
+drv:us_10y_yield,financial_services,-0.35,Foreign portfolio outflows and emerging market currency volatility increase,False
+drv:global_risk_aversion,financial_services,-0.55,Risk-off market regimes trigger foreign capital flight from emerging market financial assets,False
+drv:natural_gas_price,utilities,-0.4,City gas distribution networks face margin pressure when domestic natural gas input costs surge,False
+drv:in_power_demand,utilities,0.6,Power and water utility providers experience higher volume dispatch and transmission utilization,False
+drv:in_govt_capex,utilities,0.55,"Government budgetary allocations for water grids, renewable energy, and urban utility infra boost project pipeline",False
+drv:in_cpi_inflation,consumer_services,-0.45,"High retail inflation crimps urban discretionary spend on restaurants, hotels, and entertainment",False
+drv:in_gdp_growth,consumer_services,0.65,"Accelerating economic expansion drives hospitality occupancy, travel volumes, and retail services footfalls",False
+drv:inr_strength,consumer_services,0.35,Stronger rupee lowers outbound travel costs and enhances domestic service franchise margins,False
+drv:in_gdp_growth,forest_materials,0.45,Economic growth accelerates commercial paper and packaging board consumption,False
+drv:in_cpi_inflation,forest_materials,-0.3,Rising pulp and chemical costs squeeze paper and wood product gross margins,False
+drv:global_shipping_freight,forest_materials,-0.4,High ocean freight rates inflate imported wood pulp and timber procurement expenses,False

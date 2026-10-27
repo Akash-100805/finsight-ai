@@ -1,0 +1,26 @@
+from_sector,to_sector,link,weight,rationale,reviewed
+metals_and_mining,capital_goods,supplier_of,-0.55,Steel and aluminium are primary inputs for heavy industrial machinery fabricators,False
+metals_and_mining,automobile_and_auto_components,supplier_of,-0.5,"Automobile bodies, chassis and engines require structural steel and alloy castings",False
+metals_and_mining,construction,supplier_of,-0.55,TMT steel bars and structural girders are core structural materials for civil projects,False
+metals_and_mining,consumer_durables,supplier_of,-0.4,White goods and appliances consume sheets of cold-rolled steel and aluminium,False
+construction_materials,construction,supplier_of,-0.6,"Cement is non-substitutable binding input in roads, bridges, and building contracts",False
+construction_materials,realty,supplier_of,-0.55,Civil residential and commercial real estate towers require ready-mix and bagged cement,False
+power,metals_and_mining,supplier_of,-0.6,Aluminium smelters and electric arc furnaces consume vast baseload electrical energy,False
+power,construction_materials,supplier_of,-0.5,Grinding mills and kiln drives consume heavy continuous industrial electric power,False
+power,chemicals,supplier_of,-0.45,Chlor-alkali and industrial gas electrolysis are highly energy-intensive processes,False
+oil_gas_and_consumable_fuels,chemicals,supplier_of,-0.65,"Naphtha, propane, and natural gas are basic building-block petchem feedstocks",False
+oil_gas_and_consumable_fuels,power,supplier_of,-0.5,Gas-based turbine plants rely on LNG and domestic natural gas pipeline supply,False
+oil_gas_and_consumable_fuels,textiles,supplier_of,-0.4,Purified Terephthalic Acid (PTA) and MEG feedstock are crude derivatives,False
+telecommunication,information_technology,customer_of,0.4,Telecom 5G rollouts and digital network virtualization procure IT enterprise contracts,False
+financial_services,realty,supplier_of,-0.6,Bank mortgage lending rates directly influence retail apartment purchase affordability,False
+financial_services,automobile_and_auto_components,supplier_of,-0.55,Vehicle retail loan availability and interest rates drive dealer inventory turnover,False
+financial_services,capital_goods,supplier_of,0.5,Project finance debt syndication fuels heavy private sector corporate capital expenditure,False
+capital_goods,power,supplier_of,0.5,"Boilers, turbines, generators and switchgear supply power capacity additions",False
+capital_goods,construction,supplier_of,0.55,"Excavators, cranes, and earth-moving machinery equip construction contractors",False
+construction,realty,supplier_of,0.65,Civil construction EPC execution delivers finished real estate square footage,False
+chemicals,healthcare,supplier_of,-0.5,Key Starting Materials (KSMs) and active chemical intermediates supply pharma drug synthesis,False
+consumer_durables,realty,customer_of,0.5,"New home completions drive primary demand for kitchen appliances, ACs and fans",False
+services,automobile_and_auto_components,customer_of,0.45,Commercial logistics and fleet transport operators purchase medium and heavy CVs,False
+information_technology,financial_services,customer_of,0.55,Core banking software renewals and cybersecurity initiatives generate IT contracts,False
+textiles,fast_moving_consumer_goods,customer_of,0.35,Urban retail lifestyle and apparel footfalls expand with consumer discretionary spending,False
+automobile_and_auto_components,metals_and_mining,customer_of,0.5,Automobile production runs demand substantial domestic alloy and flat steel supply,False

@@ -1,0 +1,26 @@
+driver_id,security_id,sensitivity,rationale,reviewed
+drv:crude_oil_price,NSE:IOC,-0.65,Oil Marketing Company: marketing margins on petrol/diesel shrink when crude surges without retail hike,False
+drv:crude_oil_price,NSE:BPCL,-0.65,Oil Marketing Company: retail fuel price freezes compress marketing margins during crude rallies,False
+drv:crude_oil_price,NSE:HPCL,-0.7,Pure-play refining and marketing company highly vulnerable to crude feedstock spikes,False
+drv:crude_oil_price,NSE:ONGC,0.75,Upstream exploration: crude price rise directly inflates net crude realization per barrel,False
+drv:crude_oil_price,NSE:OIL,0.75,Upstream explorer: higher crude and domestic gas benchmark prices expand upstream EBITDA,False
+drv:crude_oil_price,NSE:INDIGO,-0.8,InterGlobe Aviation: jet fuel is >40% of cash expenses; crude surges severely dent margins,False
+drv:crude_oil_price,NSE:SPICEJET,-0.85,Weak balance sheet leaves airline unable to absorb fuel inflation or hedge effectively,False
+drv:crude_oil_price,NSE:ASIANPAINT,-0.75,"Titanium dioxide, solvents and monomer resins track crude; gross margins contract",False
+drv:crude_oil_price,NSE:BERGEPAINT,-0.7,Crude-derived solvent and binder costs compress operating EBITDA margins,False
+drv:inr_strength,NSE:TCS,-0.65,Over 90% revenue in USD/EUR/GBP; rupee appreciation shrinks converted rupee EBITDA,False
+drv:inr_strength,NSE:INFY,-0.65,Dollar-heavy revenue base faces translation headwinds on strong rupee,False
+drv:inr_strength,NSE:WIPRO,-0.6,Lower rupee realization from North American client billing during INR rally,False
+drv:inr_strength,NSE:HCLTECH,-0.6,Product and platform global sales convert into fewer rupees when domestic currency rallies,False
+drv:gold_price,NSE:MUTHOOTFIN,0.75,"Higher gold prices increase underlying collateral value, reducing LTV and boosting loan disbursements",False
+drv:gold_price,NSE:MANAPPURAM,0.7,Gold jewel collateral appreciation expands credit headroom and reduces auction losses,False
+drv:steel_price,NSE:MARUTI,-0.6,Sheet steel forms high proportion of passenger car bill-of-materials,False
+drv:steel_price,NSE:TMCV,-0.45,"Steel inflation raises CV and JLR production costs, partially offset by pricing power",False
+drv:aluminium_price,NSE:HINDALCO,0.85,Primary aluminium producer and Novelis recycler benefits directly from higher LME price,False
+drv:aluminium_price,NSE:NATIONALUM,0.8,Low-cost bauxite-integrated aluminium smelter profits directly from LME spikes,False
+drv:natural_rubber_price,NSE:MRF,-0.65,Natural and synthetic rubber forms over 50% of raw material consumption,False
+drv:natural_rubber_price,NSE:APOLLOTYRE,-0.65,Raw material cost pressures erode European and Indian commercial tyre margins,False
+drv:crude_oil_price,NSE:KANSAINER,-0.7,Kansai Nerolac: crude-derived solvents and industrial coatings feedstock costs surge with oil,False
+drv:crude_oil_price,NSE:INDIGOPNTS,-0.7,Indigo Paints: decorative paint solvent and binder costs track crude price inflation,False
+drv:monsoon_rainfall,NSE:M&M,0.65,Mahindra & Mahindra: above-normal monsoon drives farm cash flows and rural tractor sales volume,False
+drv:monsoon_rainfall,NSE:ESCORTS,0.65,Escorts Kubota: buoyant rural agri income directly spurs tractor purchasing and farm mechanization,False
