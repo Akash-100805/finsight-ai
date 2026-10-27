@@ -410,3 +410,18 @@ United States,place
 United Kingdom,place
 United Arab Emirates,place
 BSE,group_or_surname
+MCX,exchange
+NSE,exchange
+CBOE,exchange
+CME,exchange
+Nasdaq,exchange
+NYSE,exchange
+IEX,exchange
+CDSL,exchange
+NSDL,exchange
+Indian Energy Exchange,exchange
+Multi Commodity Exchange,exchange
+Metropolitan Stock Exchange,exchange
+bullish,common_word
+prudential,common_word
+financial institutions,common_word

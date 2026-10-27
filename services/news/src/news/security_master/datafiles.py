@@ -67,3 +67,11 @@ def load_ambiguous_terms(data_dir: Path | None = None) -> set[str]:
 
 def load_symbol_stoplist(data_dir: Path | None = None) -> set[str]:
     return {r["symbol"].strip().upper() for r in read_csv("symbol_stoplist.csv", data_dir)}
+
+
+def load_generic_corporate_words(data_dir: Path | None = None) -> set[str]:
+    return {normalize(r["word"]) for r in read_csv("generic_corporate_words.csv", data_dir)}
+
+
+def load_non_company_phrases(data_dir: Path | None = None) -> list[str]:
+    return [r["phrase"].strip() for r in read_csv("non_company_phrases.csv", data_dir) if r["phrase"].strip()]

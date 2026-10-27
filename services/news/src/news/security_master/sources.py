@@ -20,6 +20,7 @@ CACHE_ROOT = Path(__file__).resolve().parents[3] / "data_cache"
 BROWSER_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
 NSE_URL = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
+NSE_SME_URL = "https://nsearchives.nseindia.com/emerge/corporates/content/SME_EQUITY_L.csv"   # NSE Emerge (SME platform) equity list
 BSE_URL = "https://api.bseindia.com/BseIndiaAPI/api/ListofScripData/w?Group=&Scripcode=&industry=&segment=Equity&status=Active"
 BSE_REFERER = "https://www.bseindia.com/"
 NIFTY_TM_URL = "https://www.niftyindices.com/IndexConstituent/ind_niftytotalmarket_list.csv"
@@ -83,6 +84,10 @@ def _fetch_cached(source: str, url: str, ext: str, offline: bool, headers: dict[
 
 def fetch_nse(offline: bool = False) -> Path:
     return _fetch_cached("nse", NSE_URL, "csv", offline)
+
+
+def fetch_nse_sme(offline: bool = False) -> Path:
+    return _fetch_cached("nse_sme", NSE_SME_URL, "csv", offline)
 
 
 def fetch_nifty_total_market(offline: bool = False) -> Path:

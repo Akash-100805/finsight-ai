@@ -16,7 +16,7 @@ from src.news.security_master.datafiles import (
     load_ambiguous_terms, load_bse_industry_map, load_curated, load_sic_ranges, load_symbol_stoplist,
 )
 from src.news.security_master.load import LoadStats, SourceStats, sync_aliases, upsert_source
-from src.news.security_master.parse import parse_bse, parse_nifty, parse_nse, parse_sec
+from src.news.security_master.parse import parse_bse, parse_nifty, parse_nse, parse_nse_sme, parse_sec
 
 FIXTURE_DIR = Path(__file__).resolve().parents[3] / "tests" / "fixtures" / "security_master"
 
@@ -32,13 +32,16 @@ def _input_paths(offline: bool, fixtures: bool) -> dict[str, Path]:
     if fixtures:
         return {"nse": FIXTURE_DIR / "nse.csv", "bse": next(FIXTURE_DIR.glob("bse.*")), "nifty": FIXTURE_DIR / "nifty_total_market.csv",
                 "sec": FIXTURE_DIR / "sec_tickers.json"}
-    return {"nse": sources.fetch_nse(offline), "bse": sources.fetch_bse(offline),
+    return {"nse": sources.fetch_nse(offline), "nse_sme": sources.fetch_nse_sme(offline), "bse": sources.fetch_bse(offline),
             "nifty": sources.fetch_nifty_total_market(offline), "sec": sources.fetch_sec_tickers(offline)}
 
 
 def run_refresh(target: str = "main", offline: bool = False, fixtures: bool = False, refresh_bse_industry: bool = False) -> RefreshResult:
     paths = _input_paths(offline, fixtures)
     nse, bse, nifty, sec = parse_nse(paths["nse"]), parse_bse(paths["bse"]), parse_nifty(paths["nifty"]), parse_sec(paths["sec"])
+    if "nse_sme" in paths:       # NSE Emerge (SME) listings are NSE equities too; the main list wins if a symbol is in both
+        listed = {r.symbol for r in nse}
+        nse = nse + [r for r in parse_nse_sme(paths["nse_sme"]) if r.symbol not in listed]
     if fixtures:
         sic_cache = json.loads((FIXTURE_DIR / "sec_sic.json").read_text(encoding="utf-8"))
     else:

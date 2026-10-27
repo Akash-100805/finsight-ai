@@ -75,6 +75,15 @@ def parse_nse(path: Path) -> list[NseRow]:
     return [NseRow(r["SYMBOL"].upper(), r["NAME OF COMPANY"], r["ISIN NUMBER"].upper(), r["SERIES"]) for r in rows if r["SYMBOL"]]
 
 
+def parse_nse_sme(path: Path) -> list[NseRow]:
+    """NSE Emerge list (SME_EQUITY_L.csv): same shape as NseRow, different column names."""
+    headers, rows = _dict_rows(path)
+    need = {"SYMBOL", "NAME_OF_COMPANY", "ISIN_NUMBER", "SERIES"}
+    if not need <= set(headers):
+        raise ShapeError(f"NSE SME_EQUITY_L.csv headers unexpected: {headers}")
+    return [NseRow(r["SYMBOL"].upper(), r["NAME_OF_COMPANY"], r["ISIN_NUMBER"].upper(), r["SERIES"]) for r in rows if r["SYMBOL"]]
+
+
 def parse_nifty(path: Path) -> list[NiftyRow]:
     headers, rows = _dict_rows(path)
     need = {"Company Name", "Industry", "Symbol", "Series", "ISIN Code"}
