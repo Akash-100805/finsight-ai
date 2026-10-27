@@ -290,6 +290,7 @@ How the fields are assigned:
   - Compute the cosine similarity between the article embedding and each sector's prototype embedding. Prototypes are an embedded description per sector, kept in `shared/data/sector_descriptions.yaml`; Claude Code drafts them and lists them in the phase summary.
   - Assign every sector with similarity ≥ `SECTOR_TEXT_THRESHOLD` (at most 3; `method='text_classifier'`, confidence = the score rounded to 2 decimals). If none qualifies and the category is economy_macro, central_bank_monetary_policy or geopolitical, assign `macro_cross_sector` with confidence 0.50.
   - **The threshold is calibrated, not guessed:** the stored articles that have `from_security` sectors are the answer key; thresholds 0.40 to 0.80 in steps of 0.025 are evaluated (micro precision/recall over the assigned sectors) and the LOWEST threshold with precision ≥ 0.80 is chosen (`python -m src.news.embed.sectors calibrate`; `reclassify` re-assigns after a change). If no threshold reaches 0.80 the setting fails closed at 0.80 (the top of the grid) and the shortfall is reported (Phase 5: best precision was about 0.46, so text sectors are effectively off and only the macro fallback applies).
+  - **Owner decision (V1): the text classifier is disabled** (`SECTOR_TEXT_THRESHOLD` stays 0.80; max precision 0.47 on calibration; revisit with labelled prototypes). The macro fallback (`macro_cross_sector`, confidence 0.50, for articles with no `from_security` sector) covers the categories economy_macro, central_bank_monetary_policy, geopolitical, commodities_energy and government_regulation. Articles of other categories without a company sector keep no sector row (counted as `articles_without_sector`).
 - An article left with no sector is counted as `articles_without_sector` in the run report. Target: under 5% of complete articles. If above target, report the top 20 such titles in the phase summary.
 
 ---
@@ -385,5 +386,18 @@ Write `docs/NEWS_OUTPUT_CONTRACT.md` describing each view, column meanings, the 
 | **3. Source adapters** | All sources in section 5, source registry, budgets, circuit breaker, fixtures, normalization to the canonical shape, validation, exact dedup with the new fingerprint. | Each adapter has fixture tests; one live smoke fetch per source reported |
 | **4. Enrichment** | Security resolution and extraction (section 6), per-security and article-level FinBERT (section 9), category/event/geo rules (section 7), sectors from securities. | Unit tests for each method/role/confidence path; sample of 20 enriched articles shown in summary |
 | **5. Storage, embedding, post-embed** | Per-article transactional store, embedding stage with retry sweep, HNSW index, text sector classifier, near-dup clustering. | Pending → embedded flow tested, including forced failures; cluster test on fixtures |
-| **6. Output contract** | Views, recency function and table, `news_reader` grants, `docs/NEWS_OUTPUT_CONTRACT.md`. | Example queries in the doc run successfully against dev data |
-| **7. Quality gates** | Section 14. | All gates met, or misses reported with numbers |
+| **6. Output contract** | Views, recency function and table, `news_reader` grants, `docs/NEWS_OUTPUT_CONTRACT.md`. | Example queries in the doc run successfully against dev data. **DONE** (migration 0006, login `finsight_agents`, `docs/NEWS_OUTPUT_CONTRACT.md` with four example queries run on main) |
+| **7. Quality gates** | Section 14. | All gates met, or misses reported with numbers. **PARTIALLY DONE** for news-v1.0: `run-loop`, `docs/OPERATIONS.md`, a live end-to-end run, idempotency and failure-isolation tests, the privilege check and the run report; the rest is under "Deferred after news-v1.0" |
+
+
+---
+
+## 16. Deferred after news-v1.0
+
+Built for the deadline: the output contract (section 12, migration 0006, login `finsight_agents`), `run-loop` and `docs/OPERATIONS.md`, one live end-to-end run with the idempotency and privilege checks. Not built yet:
+
+- **Golden set / owner check:** the 150-article golden set with an eval script (section 14); the 60-row owner-check file (`docs/review/phase4_1_owner_check.csv`) is generated but unlabelled, and `dev.py owner-check-score` is waiting for it. Until then linking precision/recall and near-duplicate precision are known only from the challenge set.
+- **Sentiment model upgrade:** FinBERT is weak on short clauses and contrast sentences (challenge set: S1 56%, S4 80%, S5 83% direction accuracy against an 85% target) and biased to neutral. Options: a stronger model, or LLM-based per-security scoring. Every score records its `sentiment_model`, and `enrichment_version` marks which logic produced it.
+- **BSE announcements:** the BSE announcements source is not built (the API refuses scripts; see section 5).
+- **Storage cleanup policy beyond the `raw_payload` purge:** no deletion or archiving of old articles, embeddings or `unresolved_mentions`; the 800 MB warning is the only guard (about 7 KB per processed article).
+- **Production scheduler hardening:** `run-loop` / Task Scheduler on one machine only; no alerting, no automatic restart, no off-machine logs, no per-source health dashboard, no secrets manager; the text sector classifier is disabled (section 8) and `articles_without_sector` stays above the 5% target until it is revisited with labelled prototypes.

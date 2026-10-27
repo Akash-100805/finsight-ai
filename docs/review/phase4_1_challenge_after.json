@@ -1,6 +1,6 @@
 {
  "label": "after",
- "when": "2026-10-27T12:16:59+00:00",
+ "when": "2026-10-27T15:41:03+00:00",
  "security": {
   "C1-01": {
    "category": "C1",
@@ -1725,6 +1725,57 @@
     "NASDAQ:PEBO": "dictionary_ner"
    },
    "note": "correct company, with a share cue"
+  },
+  "C5-12": {
+   "category": "C5",
+   "text": "Reliance shares hit record",
+   "passed": true,
+   "actual": [
+    "NSE:RELIANCE"
+   ],
+   "expected": [
+    "NSE:RELIANCE"
+   ],
+   "missing": [],
+   "forbidden_hit": [],
+   "extras": [],
+   "methods": {
+    "NSE:RELIANCE": "dictionary_context"
+   },
+   "note": "added 5: bare group word + strong cue"
+  },
+  "C5-13": {
+   "category": "C5",
+   "text": "Reliance Power and Reliance announce a joint venture",
+   "passed": true,
+   "actual": [
+    "NSE:RELIANCE",
+    "NSE:RPOWER"
+   ],
+   "expected": [
+    "NSE:RELIANCE",
+    "NSE:RPOWER"
+   ],
+   "missing": [],
+   "forbidden_hit": [],
+   "extras": [],
+   "methods": {
+    "NSE:RPOWER": "dictionary_ner",
+    "NSE:RELIANCE": "dictionary_context"
+   },
+   "note": "added 5: both, separated (the bare 'Reliance' takes the owner default)"
+  },
+  "C5-14": {
+   "category": "C5",
+   "text": "reliance on imports rises as the rupee weakens",
+   "passed": true,
+   "actual": [],
+   "expected": [],
+   "missing": [],
+   "forbidden_hit": [],
+   "extras": [],
+   "methods": {},
+   "note": "added 5: the common word"
   }
  },
  "sentiment": {
@@ -1984,25 +2035,33 @@
    "category": "S1",
    "text": "Reliance gains on strong refining margins however Tata Steel drops on weak demand",
    "scored": true,
-   "passed": false,
+   "passed": true,
    "per_security": {
     "NSE:RELIANCE": {
-     "linked": false,
-     "ok_direction": false,
-     "ok_method": false
+     "linked": true,
+     "direction": "positive",
+     "score": 0.938,
+     "method": "clause_level",
+     "n_sentences": 1,
+     "want_direction": "positive",
+     "want_method": "clause_level",
+     "want_method_not": null,
+     "asserts_direction": true,
+     "ok_direction": true,
+     "ok_method": true
     },
     "NSE:TATASTEEL": {
      "linked": true,
      "direction": "negative",
-     "score": -0.855,
-     "method": "title_only",
+     "score": -0.941,
+     "method": "clause_level",
      "n_sentences": 1,
      "want_direction": "negative",
      "want_method": "clause_level",
      "want_method_not": null,
      "asserts_direction": true,
      "ok_direction": true,
-     "ok_method": false
+     "ok_method": true
     }
    },
    "article_label": "negative",
@@ -2441,7 +2500,7 @@
    "category": "S4",
    "text": "Auto sales update\nMaruti Suzuki sales jumped 20% in October, a record. Bajaj Auto sales fell 15% and missed estimates. Reliance announced the appointment of a new director.",
    "scored": true,
-   "passed": false,
+   "passed": true,
    "per_security": {
     "NSE:MARUTI": {
      "linked": true,
@@ -2470,9 +2529,17 @@
      "ok_method": true
     },
     "NSE:RELIANCE": {
-     "linked": false,
-     "ok_direction": false,
-     "ok_method": false
+     "linked": true,
+     "direction": "neutral",
+     "score": 0.034,
+     "method": "sentence_level",
+     "n_sentences": 1,
+     "want_direction": "neutral",
+     "want_method": "sentence_level",
+     "want_method_not": null,
+     "asserts_direction": true,
+     "ok_direction": true,
+     "ok_method": true
     }
    },
    "article_label": "neutral",
@@ -2482,7 +2549,7 @@
    "category": "S4",
    "text": "Metals and energy wrap\nTata Steel reported a wider loss and cut its output target. JSW Steel posted a sharp rise in profit and record volumes. Reliance said its annual general meeting will be held next month.",
    "scored": true,
-   "passed": false,
+   "passed": true,
    "per_security": {
     "NSE:TATASTEEL": {
      "linked": true,
@@ -2511,9 +2578,17 @@
      "ok_method": true
     },
     "NSE:RELIANCE": {
-     "linked": false,
-     "ok_direction": false,
-     "ok_method": false
+     "linked": true,
+     "direction": "neutral",
+     "score": -0.017,
+     "method": "sentence_level",
+     "n_sentences": 1,
+     "want_direction": "neutral",
+     "want_method": "sentence_level",
+     "want_method_not": null,
+     "asserts_direction": true,
+     "ok_direction": true,
+     "ok_method": true
     }
    },
    "article_label": "neutral",
