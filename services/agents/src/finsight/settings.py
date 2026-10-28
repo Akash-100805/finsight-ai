@@ -45,6 +45,7 @@ class Settings(BaseSettings):
     SECTOR_MIN_ARTICLES: int = 5
     SHARED_CLAUSE_WEIGHT: float = 0.5
     SECTOR_PROVIDER: Literal["tkg_lite", "tkg"] = "tkg_lite"
+    TKG_MAX_AGE_HOURS: float = 6   # SECTOR_PROVIDER=tkg: an older latest snapshot means tkg_lite is used for that run
 
     @field_validator("AGENTS_DATABASE_URL", "AGENTS_TEST_DATABASE_URL")
     @classmethod

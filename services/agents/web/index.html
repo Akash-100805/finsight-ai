@@ -198,8 +198,9 @@ function render(d) {
   const chips = [`<span class="chip">Duration <b>${m.duration_s ?? "?"}s</b></span>`, `<span class="chip">LLM calls <b>${m.llm_calls ?? "?"}</b></span>`,
     `<span class="chip">Stock model <b>${esc(m.stock_model || "n/a")}</b></span>`,
     `<span class="chip ${m.synth_model_used === "template" ? "" : ""}">Synthesis <b>${esc(m.synth_model_used === "template" ? "auto-summary (no LLM)" : m.synth_model_used || "n/a")}</b></span>`];
-  if (m.sector_source === "tkg_lite") chips.push(`<span class="chip accent">Sector signals: news-based estimate (TKG-lite)</span>`);
-  else if (m.sector_source) chips.push(`<span class="chip accent">Sector signals: ${esc(m.sector_source)}</span>`);
+  if (m.sector_source === "tkg") chips.push(`<span class="chip accent">Sector view: TKG (provisional)</span>`);
+  else if (m.sector_source === "tkg_lite") chips.push(`<span class="chip accent"${m.sector_fallback_reason ? ` title="TKG unavailable, fell back: ${esc(m.sector_fallback_reason)}"` : ""}>Sector view: TKG-lite</span>`);
+  else if (m.sector_source) chips.push(`<span class="chip accent">Sector view: ${esc(m.sector_source)}</span>`);
   if (m.fx_rate) chips.push(`<span class="chip">US holdings in INR at USD/INR <b>${fmtINR(m.fx_rate)}</b> (${esc(m.fx_date)})</span>`);
   const label = d.synthesis_label ? `<div class="card muted"><b>${esc(d.synthesis_label)}</b> — the text below was built by fixed rules from the computed signals, because the language model was unavailable or its output was withheld by the compliance check. The numbers are the same.</div>` : "";
   let html = `<section class="card"><div class="kicker">Run ${esc(d.run_id)}</div><div class="headline">${esc(d.headline || "Portfolio summary")}</div>

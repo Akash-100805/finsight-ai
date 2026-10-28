@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"news window {s.NEWS_WINDOW_DAYS} days; sentiment min {s.SENTIMENT_MIN_ARTICLES}; sector min {s.SECTOR_MIN_ARTICLES}; "
           f"shared_clause weight {s.SHARED_CLAUSE_WEIGHT}; sector provider {s.SECTOR_PROVIDER}; database {args.target}")
     try:
-        provider = get_sector_provider(s, target=args.target) if s.SECTOR_PROVIDER == "tkg_lite" else get_sector_provider(s)
+        provider = get_sector_provider(s, target=args.target)
     except SectorProviderError as exc:
         print("sector provider:", exc)
         return 1

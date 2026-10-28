@@ -90,15 +90,17 @@ def sector_verdict(sector: str | None, signals: dict, source: str) -> dict:
     rationale = f"{'positive' if signal > 0 else 'negative'} sector news ({sector}, n={sig['n']}, source {sig['source']})"
     return verdict(signal, sc.sector_confidence(sig["confidence"], sig["source"]), sc.limit_words(rationale, 25),
                    {"source": sig["source"], "sector": sector, "n": sig["n"], "raw_score": sig["score"], "provider_confidence": sig["confidence"],
-                    "evidence_article_ids": sig.get("evidence_article_ids", []), "neutral": False})
+                    "evidence_article_ids": sig.get("evidence_article_ids", []), "neutral": False,
+                    **({"paths": sig["explanations"], "as_of": sig.get("as_of")} if sig.get("explanations") else {})})
 
 
 def stage1_sector(state: AnalysisState, deps: Deps) -> dict:
     tickers = included_tickers(state)
     sectors = sorted({state.holding_info[t]["sector"] for t in tickers if state.holding_info[t]["sector"]})
-    source = deps.sector_provider.source
     signals = deps.sector_provider.sector_signals(sectors) if sectors else {}        # ONE call for all sectors; SectorProviderError -> node failure
-    return {"stage1_sector": {t: sector_verdict(state.holding_info[t]["sector"], signals, source) for t in tickers}, "sector_signal_source": source}
+    source = deps.sector_provider.source                                              # read AFTER the call: the fallback provider reports what it actually used
+    return {"stage1_sector": {t: sector_verdict(state.holding_info[t]["sector"], signals, source) for t in tickers}, "sector_signal_source": source,
+            "sector_fallback_reason": getattr(deps.sector_provider, "fallback_reason", None)}
 
 
 def fusion(state: AnalysisState, deps: Deps) -> dict:

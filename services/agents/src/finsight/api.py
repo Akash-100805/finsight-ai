@@ -151,7 +151,7 @@ def build_response(state: AnalysisState, run_id: str, generated_at: str | None =
                           "price": price if price else {"unavailable_reason": (v.unavailable.get("price_check") if v else None) or "not_run"},
                           "recheck": recheck, "summary": (stocks.get(info["security_id"]) or {}).get("summary")})
     meta = {"duration_s": state.run_seconds, "llm_calls": state.llm_calls_used, "stock_model": s.AGENTS_LLM_MODEL or None, "synth_model_used": state.synthesis_model,
-            "sector_source": state.sector_signal_source, "fx_rate": state.fx_rate, "fx_date": state.fx_date,
+            "sector_source": state.sector_signal_source, "sector_fallback_reason": state.sector_fallback_reason, "fx_rate": state.fx_rate, "fx_date": state.fx_date,
             "generated_at": generated_at or datetime.now(timezone.utc).isoformat(timespec="seconds")}
     return {"run_id": run_id, "meta": meta, "headline": synth.get("headline"), "portfolio_overview": synth.get("portfolio_overview"),
             "synthesis_label": state.synthesis_label, "compliance": {k: synth.get("compliance", {}).get(k) for k in ("regenerated", "template")},

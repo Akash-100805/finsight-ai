@@ -325,6 +325,7 @@ class AnalysisState(BaseModel):
     stage1_sentiment: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> sentiment verdict or unavailable.")
     stage1_sector: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> sector verdict or unavailable.")
     sector_signal_source: str | None = Field(default=None, description="tkg_lite or tkg: where the sector signals came from.")
+    sector_fallback_reason: str | None = Field(default=None, description="Set when SECTOR_PROVIDER=tkg fell back to tkg_lite for this run: why.")
     article_index: dict[str, dict[str, Any]] = Field(default_factory=dict, description="article_id -> title, url, published_at, source_id for the evidence cited in Stage 1.")
     fused_values: dict[str, float] = Field(default_factory=dict, description="ticker -> mean of the available Stage 1 signals (what the shortlist is ranked on).")
     not_deep_dived: list[dict[str, Any]] = Field(default_factory=list, description="Fusion hits dropped by the shortlist cap (ticker, reason, fused value).")

@@ -107,6 +107,7 @@ def template_synthesis(state: AnalysisState) -> SynthesisOutput:
         ids = [a for k in v.key_points for a in k["article_ids"]]
         stocks.append(SynthStock(security_id=info.get("security_id", v.ticker), summary=sc.limit_words("; ".join(parts), 60), evidence_article_ids=ids))
     sector_note = ("Sector signals are a news-based estimate (tkg_lite)." if state.sector_signal_source == "tkg_lite" else
+                   "Sector signals come from the temporal knowledge graph (provisional)." if state.sector_signal_source == "tkg" else
                    f"Sector signals come from {state.sector_signal_source or 'no source'}.")
     return SynthesisOutput(
         headline=f"{n_in} holdings analysed, {len(state.shortlist or [])} flagged for a closer look",

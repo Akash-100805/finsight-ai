@@ -10,7 +10,7 @@ from finsight.data import prices
 from finsight.data.common import Unavailable
 from finsight.data.llm import LLMBudgetError, LLMClient, LLMOutputError, RawResponse, parse_model_json
 from finsight.data.news import normalize_security_id, weighted_sentiment
-from finsight.data.sector_signal import (SectorProviderError, TkgLiteProvider, TkgProvider, get_sector_provider, weighted_sector_signal)
+from finsight.data.sector_signal import (FallbackSectorProvider, SectorProviderError, TkgLiteProvider, TkgProvider, get_sector_provider, weighted_sector_signal)
 from finsight.settings import Settings, SettingsError
 
 
@@ -162,14 +162,11 @@ def test_tkg_provider_fails_clearly_when_the_function_is_missing():
         TkgProvider(module=Empty(), settings=make_settings(SECTOR_PROVIDER="tkg")).sector_signals(["power"])
 
 
-def test_tkg_provider_fails_clearly_when_the_package_is_missing(monkeypatch):
-    import importlib
-
-    def boom(name):
-        raise ImportError("No module named 'tkg'")
-    monkeypatch.setattr(importlib, "import_module", boom)
-    with pytest.raises(SectorProviderError, match="cannot be imported"):
-        TkgProvider(settings=make_settings(SECTOR_PROVIDER="tkg")).sector_signals(["power"])
+def test_tkg_provider_wraps_a_db_error_as_a_provider_error():
+    class BadEngine:
+        def connect(self): raise RuntimeError("db down")
+    with pytest.raises(SectorProviderError, match="db down"):
+        TkgProvider(engine=BadEngine(), settings=make_settings(SECTOR_PROVIDER="tkg")).sector_signals(["power"])
 
 
 def test_tkg_provider_never_falls_back_when_the_call_errors():
@@ -186,7 +183,7 @@ def test_tkg_provider_maps_the_result_and_validates_ranges():
         def sector_impacts(sectors, days):
             return {"power": {"score": -0.4, "confidence": 0.7, "n_events": 3, "top_paths": ["a>b"]}}
     out = TkgProvider(module=Ok, settings=make_settings(SECTOR_PROVIDER="tkg")).sector_signals(["power", "realty"])
-    assert out["power"] == {"score": -0.4, "confidence": 0.7, "n": 3, "source": "tkg", "evidence_article_ids": [], "top_paths": ["a>b"]}
+    assert {k: out["power"][k] for k in ("score", "confidence", "n", "source", "top_paths")} == {"score": -0.4, "confidence": 0.7, "n": 3, "source": "tkg", "top_paths": ["a>b"]}
     assert out["realty"].reason == "no_tkg_result"
 
     class Bad:
@@ -198,7 +195,8 @@ def test_tkg_provider_maps_the_result_and_validates_ranges():
 
 def test_the_provider_follows_the_setting_and_does_not_mix():
     assert isinstance(get_sector_provider(make_settings(SECTOR_PROVIDER="tkg_lite"), engine=FakeEngine([])), TkgLiteProvider)
-    assert isinstance(get_sector_provider(make_settings(SECTOR_PROVIDER="tkg")), TkgProvider)
+    fb = get_sector_provider(make_settings(SECTOR_PROVIDER="tkg"))
+    assert isinstance(fb, FallbackSectorProvider) and isinstance(fb.primary, TkgProvider) and isinstance(fb.fallback, TkgLiteProvider)
 
 
 # ── prices ────────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -344,11 +342,51 @@ def test_logs_model_tokens_latency_but_never_the_key(caplog):
     assert "SECRET-KEY-VALUE" not in text
 
 
-def test_tkg_status_no_signal_is_neutral_sector_not_an_error():
+def test_tkg_status_no_signal_is_unavailable_like_tkg_lite_not_an_error():
     class Ok:
         @staticmethod
         def sector_impacts(sectors, days):
             return {"power": {"status": "no_signal"}, "realty": {"score": 0.5, "confidence": 0.9, "n_events": 4, "top_paths": []}}
     out = TkgProvider(module=Ok, settings=make_settings(SECTOR_PROVIDER="tkg")).sector_signals(["power", "realty"])
-    assert isinstance(out["power"], Unavailable) and out["power"].reason == "neutral_sector"
+    assert isinstance(out["power"], Unavailable) and out["power"].reason == "insufficient_news"
     assert out["realty"]["confidence"] == 0.9                                                    # the TKG's own confidence is passed through untouched
+
+
+def _snapshot_rows(hours_old: float, now):
+    from datetime import timedelta
+    return {"power": {"score": -0.4, "confidence": 0.7, "n_events": 3, "top_paths": [], "as_of": now - timedelta(hours=hours_old)}}
+
+
+def test_tkg_provider_rejects_a_snapshot_older_than_six_hours():
+    from datetime import datetime, timezone
+    now = datetime(2026, 10, 28, 12, tzinfo=timezone.utc)
+
+    class Old:
+        @staticmethod
+        def sector_impacts(sectors, days): return _snapshot_rows(6.5, now)
+    with pytest.raises(SectorProviderError, match="old"):
+        TkgProvider(module=Old, settings=make_settings(SECTOR_PROVIDER="tkg"), now=lambda: now).sector_signals(["power"])
+
+    class Fresh:
+        @staticmethod
+        def sector_impacts(sectors, days): return _snapshot_rows(5.5, now)
+    assert TkgProvider(module=Fresh, settings=make_settings(SECTOR_PROVIDER="tkg"), now=lambda: now).sector_signals(["power"])["power"]["score"] == -0.4
+
+
+def test_the_fallback_provider_uses_tkg_lite_and_says_so_when_the_tkg_fails():
+    class Boom:
+        source = "tkg"
+        def sector_signals(self, ids, days=None): raise SectorProviderError("graph down")
+
+    class Lite:
+        source = "tkg_lite"
+        def sector_signals(self, ids, days=None): return {"power": {"score": 0.2}}
+    fb = FallbackSectorProvider(Boom(), Lite())
+    assert fb.sector_signals(["power"]) == {"power": {"score": 0.2}} and fb.source == "tkg_lite" and "graph down" in fb.fallback_reason
+
+    class Fine:
+        source = "tkg"
+        def sector_signals(self, ids, days=None): return {"power": {"score": 0.5}}
+    ok = FallbackSectorProvider(Fine(), Lite())
+    ok.sector_signals(["power"])
+    assert ok.source == "tkg" and ok.fallback_reason is None

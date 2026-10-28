@@ -31,7 +31,7 @@ class Deps:
 
 def default_deps(target: str = "main", settings: Settings | None = None, llm: LLMClient | None = None) -> Deps:
     s = settings or get_settings()
-    provider = get_sector_provider(s, target=target) if s.SECTOR_PROVIDER == "tkg_lite" else get_sector_provider(s)
+    provider = get_sector_provider(s, target=target)
     return Deps(
         settings=s, llm=llm or LLMClient(s),
         security_info=lambda t: news.security_info(t, target=target),
