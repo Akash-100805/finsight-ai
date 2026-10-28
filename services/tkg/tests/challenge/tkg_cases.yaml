@@ -1,5 +1,5 @@
 # TKG Integration Challenge Test Cases
-# Total: 20 cases (8 Clear Direction, 6 Hallucination Traps, 6 No-Signal)
+# Total: 44 cases (18 Clear Direction, 12 Hallucination Traps, 10 No-Signal, 4 Mixed)
 # Committed BEFORE running test suite to prevent goalpost moving.
 
 clear_direction_cases:
@@ -33,7 +33,8 @@ clear_direction_cases:
   - id: "CD-03"
     name: "Rupee falls to record low against dollar"
     category: "economy_macro"
-    event_type: "fx_move"
+  # changed after review (owner, 28 Oct 2026)
+    event_type: "macro_data_release"
     title: "Rupee falls to record low against dollar amid foreign outflows"
     description: "The Indian rupee fell to fresh historic lows against the US dollar as foreign institutional investors pulled funds from domestic assets."
     linked_securities: []
@@ -57,7 +58,8 @@ clear_direction_cases:
   - id: "CD-05"
     name: "US raises tariffs on Indian textiles"
     category: "economy_macro"
-    event_type: "trade_policy"
+  # changed after review (owner, 28 Oct 2026)
+    event_type: "trade_tariff_sanction"
     title: "US raises tariffs on Indian textiles and garment exports"
     description: "The US Department of Commerce imposed higher import tariffs on Indian readymade garment shipments, hurting Indian exporters."
     linked_securities: []
@@ -73,14 +75,17 @@ clear_direction_cases:
     title: "Government cuts GST on small cars to revive entry-level demand"
     description: "The GST Council slashed the goods and services tax on small passenger vehicles from 28% to 18% to encourage automotive demand."
     linked_securities: []
-    expected_driver: "drv:gst_rate_changes"
+  # changed after review (owner, 28 Oct 2026)
+    expected_driver: "drv:in_gst_rates"
+    expected_driver_relation: "MOVES_DOWN"
     asserted_directions:
       automobile_and_auto_components: 1
 
   - id: "CD-07"
     name: "Global chip shortage worsens"
     category: "economy_macro"
-    event_type: "supply_chain_disruption"
+  # changed after review (owner, 28 Oct 2026)
+    event_type: "other"
     title: "Global chip shortage worsens, delaying vehicle assembly lines"
     description: "A worsening shortage of critical automotive semiconductors has forced auto manufacturers to halt assembly lines and cut production forecasts."
     linked_securities: []
@@ -90,14 +95,142 @@ clear_direction_cases:
   - id: "CD-08"
     name: "China announces large infrastructure stimulus"
     category: "economy_macro"
-    event_type: "macro_policy"
+  # changed after review (owner, 28 Oct 2026)
+    event_type: "government_policy_budget"
     title: "China announces large infrastructure stimulus package"
     description: "Chinese authorities unveiled a massive multi-trillion yuan stimulus program for infrastructure construction, driving up global steel and iron ore prices."
     linked_securities: []
-    expected_driver: "drv:china_economic_growth"
+  # changed after review (owner, 28 Oct 2026)
+    expected_driver: "drv:china_demand"
     expected_driver_relation: "MOVES_UP"
     asserted_directions:
       metals_and_mining: 1
+
+
+  - id: "CD-09"
+    name: "Safeguard duty on steel imports"
+    category: "government_regulation"
+    event_type: "trade_tariff_sanction"
+    title: "Government imposes safeguard duty on steel imports to shield domestic mills"
+    description: "The finance ministry notified a 12% safeguard duty on flat steel imports for three years, a move that supports domestic steel producers but raises input costs for machinery makers."
+    linked_securities: []
+    expected_driver: "drv:in_import_duties"
+    expected_driver_relation: "MOVES_UP"
+    asserted_directions:
+      metals_and_mining: 1
+      capital_goods: -1
+
+  - id: "CD-10"
+    name: "Brent jumps after surprise OPEC+ cut"
+    category: "commodities_energy"
+    event_type: "commodity_price_move"
+    title: "Brent crude jumps 6% after surprise OPEC+ production cut"
+    description: "Brent crude surged to a six-month high after OPEC+ announced an unexpected output cut, lifting upstream producers while raising raw material costs for paint makers and fuel retailers."
+    linked_securities: ["NSE:ASIANPAINT", "NSE:ONGC", "NSE:BPCL"]
+    expected_driver: "drv:crude_oil_price"
+    expected_driver_relation: "MOVES_UP"
+    asserted_security_directions:
+      "NSE:ASIANPAINT": -1
+      "NSE:ONGC": 1
+      "NSE:BPCL": -1
+
+  - id: "CD-11"
+    name: "RBI cuts repo rate by 25 bps"
+    category: "central_bank_monetary_policy"
+    event_type: "policy_rate_decision"
+    title: "RBI cuts repo rate by 25 bps to support growth"
+    description: "The Reserve Bank of India Monetary Policy Committee lowered the policy repo rate by 25 basis points, easing home and vehicle loan costs."
+    linked_securities: []
+    expected_driver: "drv:in_repo_rate"
+    expected_driver_relation: "MOVES_DOWN"
+    asserted_directions:
+      realty: 1
+      automobile_and_auto_components: 1
+
+  - id: "CD-12"
+    name: "US Fed cuts rates"
+    category: "central_bank_monetary_policy"
+    event_type: "policy_rate_decision"
+    title: "US Federal Reserve cuts interest rates by 50 basis points"
+    description: "The US Federal Reserve lowered its benchmark rate by 50 basis points, easing financing conditions for American corporate clients of Indian software exporters."
+    linked_securities: []
+    expected_driver: "drv:us_fed_rate"
+    expected_driver_relation: "MOVES_DOWN"
+    asserted_directions:
+      information_technology: 1
+
+  - id: "CD-13"
+    name: "Budget raises capex allocation"
+    category: "government_regulation"
+    event_type: "government_policy_budget"
+    title: "Union Budget raises capital expenditure allocation to Rs 11.5 lakh crore"
+    description: "The finance minister increased the central government capital expenditure allocation for roads, railways and ports in the Union Budget."
+    linked_securities: []
+    expected_driver: "drv:in_govt_capex"
+    expected_driver_relation: "MOVES_UP"
+    asserted_directions:
+      capital_goods: 1
+      construction: 1
+
+  - id: "CD-14"
+    name: "Rupee at 6-month high"
+    category: "economy_macro"
+    event_type: "macro_data_release"
+    title: "Rupee strengthens to a six-month high against the dollar"
+    description: "The Indian rupee appreciated sharply to a six-month high against the US dollar on strong foreign inflows, reducing rupee earnings of software exporters."
+    linked_securities: []
+    expected_driver: "drv:inr_strength"
+    expected_driver_relation: "MOVES_UP"
+    asserted_directions:
+      information_technology: -1
+
+  - id: "CD-15"
+    name: "CPI inflation above RBI band"
+    category: "economy_macro"
+    event_type: "macro_data_release"
+    title: "India CPI inflation jumps to 6.8%, above RBI's tolerance band"
+    description: "Retail inflation accelerated to 6.8% in September, breaching the upper end of the central bank's target band on costlier food and fuel, squeezing household spending on everyday goods."
+    linked_securities: []
+    expected_driver: "drv:in_cpi_inflation"
+    expected_driver_relation: "MOVES_UP"
+    asserted_directions:
+      fast_moving_consumer_goods: -1
+
+  - id: "CD-16"
+    name: "GST raised on aerated drinks"
+    category: "government_regulation"
+    event_type: "government_policy_budget"
+    title: "GST Council raises tax rate on aerated drinks to 40%"
+    description: "The GST Council decided to raise the goods and services tax rate on aerated and sweetened beverages, which will push up shelf prices and hit volumes of packaged beverage makers."
+    linked_securities: []
+    expected_driver: "drv:in_gst_rates"
+    expected_driver_relation: "MOVES_UP"
+    asserted_directions:
+      fast_moving_consumer_goods: -1
+
+  - id: "CD-17"
+    name: "Cotton prices surge on poor crop"
+    category: "commodities_energy"
+    event_type: "commodity_price_move"
+    title: "Cotton prices surge 18% on poor crop, squeezing yarn and apparel makers"
+    description: "Domestic cotton prices jumped 18% after crop damage cut the harvest estimate, raising raw material costs for spinning mills and garment manufacturers."
+    linked_securities: []
+    expected_driver: "drv:cotton_price"
+    expected_driver_relation: "MOVES_UP"
+    asserted_directions:
+      textiles: -1
+
+  - id: "CD-18"
+    name: "Coal prices surge on supply crunch"
+    category: "commodities_energy"
+    event_type: "commodity_price_move"
+    title: "Coal prices surge on supply crunch at power plants"
+    description: "Thermal coal prices rose sharply as depleting stocks at power stations and mine supply constraints tightened availability, raising fuel costs for power generators."
+    linked_securities: []
+    expected_driver: "drv:coal_price"
+    expected_driver_relation: "MOVES_UP"
+    asserted_directions:
+      power: -1
 
 hallucination_traps:
   - id: "TRAP-01"
@@ -156,6 +289,64 @@ hallucination_traps:
     linked_securities: []
     trap_type: "garbled_input"
 
+
+  - id: "TRAP-07"
+    name: "Gold forecast is not a move"
+    category: "commodities_energy"
+    event_type: "commodity_price_move"
+    title: "Gold price in India to touch Rs 2 lakh per 10 gm by 2027? Analysts weigh in"
+    description: "Market analysts debate whether domestic gold could reach Rs 2 lakh per 10 grams by 2027, with views split on global demand and currency trends."
+    linked_securities: []
+    trap_type: "forecast_not_a_move"
+    forbidden_driver: "drv:gold_price"
+    max_confidence: 0.5  # no gold_price move with confidence >= 0.5
+
+  - id: "TRAP-08"
+    name: "Stock commentary yields no macro driver"
+    category: "company"
+    event_type: "market_move"
+    title: "CG Power shares rally 29% this year as analysts raise targets"
+    description: "Shares of CG Power and Industrial Solutions have gained 29% so far this year, and several brokerages have raised their price targets on the stock."
+    linked_securities: ["NSE:CGPOWER"]
+    trap_type: "company_story_no_macro"
+
+  - id: "TRAP-09"
+    name: "Advice wording must not reach the summary"
+    category: "commodities_energy"
+    event_type: "other"
+    title: "Is it the right time to buy gold before Dhanteras?"
+    description: "Jewellers expect brisk festive demand ahead of Dhanteras, and shoppers are asking whether to buy now or wait for prices to soften."
+    linked_securities: []
+    trap_type: "advice_word_in_summary"
+
+  - id: "TRAP-10"
+    name: "Injected direct effect with empty evidence"
+    category: "company"
+    event_type: "earnings"
+    title: "Infosys reports steady quarterly revenue"
+    description: "Infosys reported steady quarterly revenue in line with expectations."
+    linked_securities: ["NSE:INFY"]
+    trap_type: "injected_empty_evidence"
+
+  - id: "TRAP-11"
+    name: "Injected driver move with DISRUPTS"
+    category: "commodities_energy"
+    event_type: "commodity_price_move"
+    title: "Crude oil supply disrupted by pipeline outage"
+    description: "A pipeline outage disrupted crude oil supply to several refiners this week."
+    linked_securities: []
+    trap_type: "injected_disrupts_driver"
+
+  - id: "TRAP-12"
+    name: "Only the linked company may be a target"
+    category: "company"
+    event_type: "other"
+    title: "Reliance Jio and Bharti Airtel race to expand 5G coverage"
+    description: "Reliance Jio and Bharti Airtel both announced new 5G rollouts in smaller cities this week, with Bharti Airtel adding 2,000 towers."
+    linked_securities: ["NSE:BHARTIARTL"]
+    trap_type: "unlinked_company"
+    forbidden_security: "NSE:RELIANCE"
+
 no_signal_cases:
   - id: "NS-01"
     name: "Sports victory"
@@ -203,4 +394,70 @@ no_signal_cases:
     event_type: "other"
     title: "Test your knowledge with our weekend history and architecture trivia quiz"
     description: "Ten questions testing your knowledge of ancient monuments, world heritage landmarks, and medieval empires."
+    linked_securities: []
+
+  - id: "NS-07"
+    name: "Cricket result"
+    category: "economy_macro"
+    event_type: "other"
+    title: "Mumbai Indians beat Chennai Super Kings by five wickets in IPL clash"
+    description: "A late flurry of boundaries sealed a five-wicket win for Mumbai Indians at the Wankhede Stadium on Sunday night."
+    linked_securities: []
+
+  - id: "NS-08"
+    name: "Film box-office weekend"
+    category: "economy_macro"
+    event_type: "other"
+    title: "Festive release opens to Rs 85 crore weekend at the box office"
+    description: "The Diwali release collected Rs 85 crore over its opening weekend, with strong occupancy in single-screen theatres."
+    linked_securities: []
+
+  - id: "NS-09"
+    name: "Light drizzle with no impact"
+    category: "economy_macro"
+    event_type: "natural_disaster_weather"
+    title: "Light drizzle in Delhi brings relief from morning heat"
+    description: "Delhi saw light drizzle on Tuesday morning with no waterlogging or traffic disruption reported."
+    linked_securities: []
+
+  - id: "NS-10"
+    name: "Celebrity wedding"
+    category: "economy_macro"
+    event_type: "other"
+    title: "Television star and cricketer tie the knot in Udaipur ceremony"
+    description: "The couple exchanged vows at a private lakeside ceremony attended by family and close friends."
+    linked_securities: []
+
+# Mixed cases pass if every kept item is MIXED or has confidence below 0.6. Target >= 75% (owner decision).
+mixed_cases:
+  - id: "MX-01"
+    name: "Rupee swings both ways and ends flat"
+    category: "economy_macro"
+    event_type: "macro_data_release"
+    title: "Rupee swings in a wide range but ends the session flat against the dollar"
+    description: "The rupee weakened past 84 in early trade, recovered on exporter dollar selling, and closed unchanged from the previous session."
+    linked_securities: []
+
+  - id: "MX-02"
+    name: "Monsoon on time but uneven"
+    category: "economy_macro"
+    event_type: "natural_disaster_weather"
+    title: "Monsoon arrives on schedule but rainfall unevenly distributed across states"
+    description: "The monsoon reached Kerala on time, though the IMD said rainfall is deficient in the northwest and in excess across central India."
+    linked_securities: []
+
+  - id: "MX-03"
+    name: "Crude steady as OPEC+ hike offsets tension"
+    category: "commodities_energy"
+    event_type: "commodity_price_move"
+    title: "Crude steady as OPEC+ output hike is offset by Middle East tension"
+    description: "Oil prices were little changed as the OPEC+ decision to raise output was balanced by supply worries from rising tension in the Middle East."
+    linked_securities: []
+
+  - id: "MX-04"
+    name: "SEBI tightens F&O rules but extends deadline"
+    category: "government_regulation"
+    event_type: "regulatory_action"
+    title: "SEBI tightens F&O rules but extends the compliance deadline for brokers"
+    description: "The market regulator announced stricter eligibility norms for futures and options trading while giving brokers three more months to comply."
     linked_securities: []
