@@ -116,9 +116,11 @@ def run_processing(
     dry_run: bool = False,
     as_of: Optional[datetime] = None,
     max_requests: Optional[int] = None,
+    no_llm: bool = False,
 ) -> Dict[str, Any]:
     """
     Execute a single processing run.
+    no_llm=True re-scores the existing events only: no article reads, no LLM calls, no processed_articles writes.
     """
     as_of = as_of or datetime.now(timezone.utc)
     run_id = uuid.uuid4()
@@ -153,6 +155,9 @@ def run_processing(
         "db_size_mb": None,
         "error_summary": None,
         "snapshots_written": 0,
+        "no_llm": no_llm,
+        "articles_skipped_purged": 0,
+        "override_disrupts_excluded": 0,
     }
 
     # 1. Take advisory lock
@@ -176,7 +181,9 @@ def run_processing(
             session.commit()
 
         # 2. Compute LLM budget
-        if max_requests is not None:
+        if no_llm:
+            request_budget = 0
+        elif max_requests is not None:
             # Respect daily remaining quota while using user-provided cap
             try:
                 today_start = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -198,8 +205,11 @@ def run_processing(
         batch_size = settings.TKG_LLM_BATCH_SIZE
         max_articles = request_budget * batch_size
 
-        unprocessed = reader.get_unprocessed_articles(limit=max_articles * 2)
-        pending = reader.get_pending_articles(limit=max_articles)
+        if no_llm:
+            unprocessed, pending = [], []
+        else:
+            unprocessed = reader.get_unprocessed_articles(limit=max_articles * 2)
+            pending = reader.get_pending_articles(limit=max_articles)
         all_candidate_articles = pending + unprocessed
         stats["articles_seen"] = len(all_candidate_articles)
 
@@ -249,7 +259,7 @@ def run_processing(
         logger.info(f"Eligible articles to extract: {len(articles_to_process)} across {len(articles_to_process) // batch_size + 1} batches")
 
         # 5. Extract events with LLM in batches
-        client = llm_client or get_llm_client()
+        client = None if no_llm else (llm_client or get_llm_client())
         created_events: List[Event] = []
 
         for i in range(0, len(articles_to_process), batch_size):
@@ -395,30 +405,36 @@ def run_processing(
             if not dry_run:
                 session.commit()
 
-        # 6. Assign story groups for clustering
-        if not dry_run and created_events:
-            try:
-                assign_story_groups(session, as_of=as_of)
-            except Exception as e:
-                logger.error(f"Story assignment failed: {e}")
+        # 6. Regroup all events in the window into stories (deterministic; errors fail the run)
+        if not dry_run:
+            assign_story_groups(session, as_of=as_of)
 
         # 7. Rebuild graph from tables
         tkg_graph = TKGGraph()
         tkg_graph.rebuild(session, as_of=as_of)
 
-        # 8. Compute snapshots for windows [7, 30]
+        # 8. Compute snapshots for windows [7, 30]. Everything is computed first and written in one
+        #    transaction at the end; any error rolls back and fails the run (no snapshots written).
         windows = settings.TKG_WINDOWS_DAYS
         total_snaps = 0
-
+        score_report: Dict[str, Any] = {}
+        computed = []
         for window in windows:
-            sector_impacts = compute_sector_impacts(session, tkg_graph, as_of=as_of, window_days=window)
-            security_impacts = compute_security_impacts(
-                session, tkg_graph, as_of=as_of, window_days=window, sector_impacts=sector_impacts
+            sector_impacts = compute_sector_impacts(
+                session, tkg_graph, as_of=as_of, window_days=window, report=score_report
             )
+            security_impacts = compute_security_impacts(
+                session, tkg_graph, as_of=as_of, window_days=window, sector_impacts=sector_impacts,
+                report=score_report,
+            )
+            computed.append((window, sector_impacts, security_impacts))
+        stats["articles_skipped_purged"] = score_report.get("articles_skipped_purged", 0)
+        stats["override_disrupts_excluded"] = score_report.get("override_disrupts_excluded", 0)
 
-            if not dry_run:
+        if not dry_run:
+            for window, sector_impacts, security_impacts in computed:
                 for sid, res in sector_impacts.items():
-                    snap = SectorImpactSnapshot(
+                    session.merge(SectorImpactSnapshot(
                         run_id=run_id,
                         sector_id=sid,
                         window_days=window,
@@ -430,12 +446,11 @@ def run_processing(
                         n_events=res["n_events"],
                         top_paths=res["top_paths"],
                         uses_unreviewed_prior=res["uses_unreviewed_prior"],
-                    )
-                    session.merge(snap)
+                    ))
                     total_snaps += 1
 
                 for sec_id, res in security_impacts.items():
-                    sec_snap = SecurityImpactSnapshot(
+                    session.merge(SecurityImpactSnapshot(
                         run_id=run_id,
                         security_id=sec_id,
                         window_days=window,
@@ -446,10 +461,7 @@ def run_processing(
                         n_direct_events=res["n_direct_events"],
                         top_paths=res["top_paths"],
                         uses_unreviewed_prior=res["uses_unreviewed_prior"],
-                    )
-                    session.merge(sec_snap)
-
-        if not dry_run:
+                    ))
             session.commit()
         stats["snapshots_written"] = total_snaps
 
@@ -480,6 +492,7 @@ def run_processing(
         logger.exception(f"Processing run {run_id} failed with unhandled error: {e}")
         stats["status"] = "failed"
         stats["error_summary"] = str(e)
+        session.rollback()  # discard any uncommitted snapshot rows
         if not dry_run and run_record:
             try:
                 run_record.finished_at = datetime.now(timezone.utc)

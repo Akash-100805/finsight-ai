@@ -186,6 +186,7 @@ def cmd_process(args):
     target = getattr(args, "target", "main")
     dry_run = getattr(args, "dry_run", False)
     max_requests = getattr(args, "max_requests", None)
+    no_llm = getattr(args, "no_llm", False)
 
     url = get_target_url(target)
     if target == "main":
@@ -199,7 +200,7 @@ def cmd_process(args):
     factory = get_session_factory(engine)
     session = factory()
     try:
-        stats = run_processing(db_session=session, dry_run=dry_run, max_requests=max_requests)
+        stats = run_processing(db_session=session, dry_run=dry_run, max_requests=max_requests, no_llm=no_llm)
         print("Run completed successfully!")
         print(f"  Run ID: {stats.get('run_id')}")
         print(f"  Articles Seen: {stats.get('articles_seen')}")
@@ -213,6 +214,8 @@ def cmd_process(args):
         print(f"  LLM Requests: {stats.get('llm_requests')}")
         print(f"  LLM Tokens (In/Out): {stats.get('llm_tokens_in')} / {stats.get('llm_tokens_out')}")
         print(f"  Snapshots Written: {stats.get('snapshots_written')}")
+        print(f"  Articles skipped (purged): {stats.get('articles_skipped_purged')}")
+        print(f"  Company overrides excluded (DISRUPTS): {stats.get('override_disrupts_excluded')}")
         print(f"  DB Size (MB): {stats.get('db_size_mb')}")
         print(f"  Duration (s): {stats.get('duration_s', 'N/A')}")
     except Exception as e:
@@ -284,6 +287,7 @@ def main():
     proc_p.add_argument("--target", choices=["main", "test"], default="main", help="Target database")
     proc_p.add_argument("--max-requests", type=int, default=None, help="Override per-run request budget")
     proc_p.add_argument("--dry-run", action="store_true", help="Do not commit writes to DB")
+    proc_p.add_argument("--no-llm", action="store_true", help="Re-score existing events only: no LLM calls, no article reads")
 
     # report
     rep_p = subparsers.add_parser("report", help="Show TKG status report")

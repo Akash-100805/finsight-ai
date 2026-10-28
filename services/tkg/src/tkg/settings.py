@@ -32,8 +32,8 @@ class TKGSettings(BaseSettings):
     TKG_ADVISORY_LOCK_KEY: int = 587219
 
     # ---------- Scoring ----------
-    TKG_SCORE_K: float = 1.0
-    TKG_CONFIDENCE_C: float = 2.0
+    TKG_SCORE_K: float = 3.0
+    TKG_CONFIDENCE_C: float = 4.0
     TKG_SECOND_HOP_ATTENUATION: float = 0.5
     TKG_STORY_SIMILARITY: float = 0.90
     TKG_STORY_WINDOW_HOURS: int = 72

@@ -1,11 +1,16 @@
 """
 Story grouping by embedding similarity (section 7.4).
-Events from articles whose embeddings have cosine similarity >= 0.90 within 72h
-are assigned the same story_id so that duplicate / echoed stories don't count multiple times.
+
+Every run regroups ALL events in [as_of - max_window - 72h, as_of], ordered by (occurred_at, event_id).
+An event joins the earliest existing story whose FIRST event occurred within 72h before it and whose
+first event's article embedding has cosine similarity >= TKG_STORY_SIMILARITY with this event's article
+embedding (computed in SQL with pgvector). Otherwise it starts a new story with story_id = its own
+event_id, so the same events always produce the same story IDs. Events whose article has no embedding
+form their own story. Any database error propagates (no silent empty data).
 """
-import uuid
 import logging
-from typing import Dict, List, Optional, Tuple
+from collections import defaultdict
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
@@ -16,132 +21,73 @@ from tkg.settings import settings
 logger = logging.getLogger("tkg.graph.stories")
 
 
-def cosine_similarity(v1: List[float], v2: List[float]) -> float:
-    """Compute cosine similarity between two vectors."""
-    dot = sum(a * b for a, b in zip(v1, v2))
-    norm1 = sum(a * a for a in v1) ** 0.5
-    norm2 = sum(b * b for b in v2) ** 0.5
-    if norm1 == 0 or norm2 == 0:
-        return 0.0
-    return dot / (norm1 * norm2)
-
-
 def assign_story_groups(session: Session, as_of: Optional[datetime] = None) -> int:
     """
-    Find events without story_id (or newly processed events within the story window)
-    and assign them to existing stories or create a new story_id.
-
-    Returns the count of events assigned.
+    Deterministically regroup all events in the scoring window into stories.
+    Returns the number of events whose story_id changed.
     """
     as_of = as_of or datetime.now(timezone.utc)
-    window_start = as_of - timedelta(hours=settings.TKG_STORY_WINDOW_HOURS)
-    similarity_threshold = settings.TKG_STORY_SIMILARITY
+    story_hours = settings.TKG_STORY_WINDOW_HOURS
+    window_start = as_of - timedelta(days=max(settings.TKG_WINDOWS_DAYS), hours=story_hours)
     news_schema = settings.TKG_NEWS_SCHEMA
+    params = {"window_start": window_start, "as_of": as_of}
 
-    # 1. Fetch events in window that need story_id, along with their article embeddings
-    try:
-        unassigned_events = session.execute(
-            text(f"""
-                SELECT e.event_id, e.article_id, e.occurred_at, ae.embedding
-                FROM tkg.events e
-                LEFT JOIN {news_schema}.article_embeddings ae ON e.article_id = ae.article_id
-                WHERE e.story_id IS NULL AND e.occurred_at >= :window_start
-                ORDER BY e.occurred_at ASC
-            """),
-            {"window_start": window_start}
-        ).fetchall()
-    except Exception as e:
-        logger.warning(f"Could not join {news_schema}.article_embeddings: {e}")
-        try:
-            unassigned_events = session.execute(
-                text("""
-                    SELECT e.event_id, e.article_id, e.occurred_at, NULL as embedding
-                    FROM tkg.events e
-                    WHERE e.story_id IS NULL AND e.occurred_at >= :window_start
-                    ORDER BY e.occurred_at ASC
-                """),
-                {"window_start": window_start}
-            ).fetchall()
-        except Exception as e2:
-            logger.error(f"Failed to query unassigned events: {e2}")
-            return 0
-
-    if not unassigned_events:
+    events = session.execute(
+        text("""
+            SELECT event_id, story_id
+            FROM tkg.events
+            WHERE occurred_at >= :window_start AND occurred_at <= :as_of
+            ORDER BY occurred_at, event_id
+        """),
+        params,
+    ).fetchall()
+    if not events:
         return 0
 
-    # 2. Fetch existing stories with embeddings in the same window
-    try:
-        existing_stories = session.execute(
-            text(f"""
-                SELECT e.story_id, ae.embedding
-                FROM tkg.events e
-                JOIN {news_schema}.article_embeddings ae ON e.article_id = ae.article_id
-                WHERE e.story_id IS NOT NULL AND e.occurred_at >= :window_start
-                  AND ae.embedding IS NOT NULL
-            """),
-            {"window_start": window_start}
-        ).fetchall()
-    except Exception as e:
-        logger.warning(f"Could not load existing stories with embeddings from {news_schema}: {e}")
-        existing_stories = []
+    # Pairs (event, earlier event within 72h with similar article embedding); similarity computed by pgvector.
+    pair_rows = session.execute(
+        text(f"""
+            SELECT e.event_id, f.event_id
+            FROM tkg.events e
+            JOIN tkg.events f
+              ON (f.occurred_at, f.event_id) < (e.occurred_at, e.event_id)
+             AND e.occurred_at - f.occurred_at <= make_interval(hours => :story_hours)
+            JOIN {news_schema}.article_embeddings ea ON ea.article_id = e.article_id
+            JOIN {news_schema}.article_embeddings fa ON fa.article_id = f.article_id
+            WHERE e.occurred_at >= :window_start AND e.occurred_at <= :as_of
+              AND f.occurred_at >= :window_start
+              AND 1 - (ea.embedding <=> fa.embedding) >= :threshold
+            ORDER BY e.occurred_at, e.event_id, f.occurred_at, f.event_id
+        """),
+        {**params, "story_hours": story_hours, "threshold": settings.TKG_STORY_SIMILARITY},
+    ).fetchall()
 
-    # Map of story_id -> list of representative embeddings (first seen per story)
-    story_vectors: Dict[str, List[float]] = {}
-    for row in existing_stories:
-        sid, emb = str(row[0]), row[1]
-        if sid not in story_vectors and emb:
-            if isinstance(emb, str):
-                emb_list = [float(x) for x in emb.strip("[]").split(",") if x.strip()]
-            else:
-                emb_list = list(emb)
-            story_vectors[sid] = emb_list
+    similar_earlier: Dict[str, List[str]] = defaultdict(list)
+    for ev, first in pair_rows:
+        similar_earlier[str(ev)].append(str(first))
 
-    assigned_count = 0
+    roots = set()
+    new_story: Dict[str, str] = {}
+    for event_id, _ in events:
+        eid = str(event_id)
+        story = next((f for f in similar_earlier.get(eid, []) if f in roots), None)
+        if story is None:
+            story = eid
+            roots.add(eid)
+        new_story[eid] = story
 
-    for row in unassigned_events:
-        event_id = row[0]
-        emb = row[3]
-
-        if emb is not None:
-            if isinstance(emb, str):
-                event_vec = [float(x) for x in emb.strip("[]").split(",") if x.strip()]
-            else:
-                event_vec = list(emb)
-        else:
-            event_vec = None
-
-        matched_story_id = None
-
-        if event_vec and story_vectors:
-            # Compare with existing story vectors
-            best_sim = 0.0
-            best_sid = None
-            for sid, svec in story_vectors.items():
-                sim = cosine_similarity(event_vec, svec)
-                if sim > best_sim:
-                    best_sim = sim
-                    best_sid = sid
-
-            if best_sim >= similarity_threshold and best_sid is not None:
-                matched_story_id = best_sid
-                logger.info(f"Event {event_id} matched existing story {matched_story_id} (sim={best_sim:.3f})")
-
-        # If no match found, create a new story_id
-        if matched_story_id is None:
-            matched_story_id = str(uuid.uuid4())
-            if event_vec:
-                story_vectors[matched_story_id] = event_vec
-
-        # Update event in DB
-        try:
-            session.execute(
-                text("UPDATE tkg.events SET story_id = :story_id WHERE event_id = :event_id"),
-                {"story_id": str(matched_story_id), "event_id": str(event_id)}
-            )
-            assigned_count += 1
-        except Exception as e:
-            logger.error(f"Failed to update story_id for event {event_id}: {e}")
-
+    changed = [
+        {"story_id": new_story[str(eid)], "event_id": str(eid)}
+        for eid, old in events
+        if old is None or str(old) != new_story[str(eid)]
+    ]
+    if changed:
+        session.execute(
+            text("UPDATE tkg.events SET story_id = :story_id WHERE event_id = :event_id"),
+            changed,
+        )
     session.commit()
-    logger.info(f"Assigned {assigned_count} events to story groups")
-    return assigned_count
+    logger.info(
+        f"Story grouping: {len(events)} events -> {len(roots)} stories ({len(changed)} story_id changes)"
+    )
+    return len(changed)
