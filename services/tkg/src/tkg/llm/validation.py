@@ -8,12 +8,22 @@ from typing import List, Dict, Any, Tuple
 
 from tkg.vocab import is_valid_driver, is_valid_actor, is_valid_relation, MAGNITUDE_MAP
 from finsight_shared.sectors import ALL_SECTOR_IDS
+from tkg.llm.schemas import ArticleExtractionOutput
+
+logger = logging.getLogger("tkg.llm.validation")
+
 
 def is_valid_sector(s: str) -> bool:
     return s in ALL_SECTOR_IDS
-from tkg.llm.schemas import ArticleExtractionOutput, DriverMoveOutput, DirectEffectOutput
 
-logger = logging.getLogger("tkg.llm.validation")
+
+ADVICE_WORDS = ("buy", "sell", "trim", "hedge")
+_ADVICE_RE = re.compile(r"\b(" + "|".join(ADVICE_WORDS) + r")\b", re.IGNORECASE)
+
+
+def contains_advice_word(text_value: str | None) -> bool:
+    """Case-insensitive whole-word match for buy / sell / trim / hedge."""
+    return bool(text_value and _ADVICE_RE.search(text_value))
 
 
 def normalize_whitespace(text: str) -> str:
@@ -53,6 +63,14 @@ def validate_extraction(
     title = article.get("title", "")
     description = article.get("description", "")
 
+    errors.extend(getattr(extraction, "_pre_drops", []) or [])
+
+    # Summary: advice words null the stored summary (never rewritten)
+    summary = extraction.summary
+    if contains_advice_word(summary):
+        errors.append("summary_advice_word")
+        summary = ""
+
     # Validate actors
     valid_actors = []
     for actor in extraction.actors:
@@ -70,8 +88,10 @@ def validate_extraction(
         if not is_valid_driver(dm.driver_id):
             issues.append(f"invalid_driver:{dm.driver_id}")
         
-        # Check relation
-        if dm.relation not in ("MOVES_UP", "MOVES_DOWN", "DISRUPTS"):
+        # Check relation (DISRUPTS is only valid on direct effects)
+        if dm.relation == "DISRUPTS":
+            issues.append("disrupts_not_allowed_on_driver")
+        elif dm.relation not in ("MOVES_UP", "MOVES_DOWN"):
             issues.append(f"invalid_driver_relation:{dm.relation}")
         
         # Check magnitude
@@ -79,7 +99,9 @@ def validate_extraction(
             issues.append(f"invalid_magnitude:{dm.magnitude}")
         
         # Check evidence
-        if dm.evidence and not evidence_is_substring(dm.evidence, title, description):
+        if not dm.evidence or not dm.evidence.strip():
+            issues.append("evidence_empty")
+        elif not evidence_is_substring(dm.evidence, title, description):
             issues.append(f"evidence_not_found:{dm.evidence[:50]}")
         
         if issues:
@@ -107,7 +129,9 @@ def validate_extraction(
             issues.append(f"invalid_target_type:{de.target_type}")
         
         # Check evidence
-        if de.evidence and not evidence_is_substring(de.evidence, title, description):
+        if not de.evidence or not de.evidence.strip():
+            issues.append("evidence_empty")
+        elif not evidence_is_substring(de.evidence, title, description):
             issues.append(f"evidence_not_found:{de.evidence[:50]}")
         
         if issues:
@@ -119,7 +143,7 @@ def validate_extraction(
     cleaned = ArticleExtractionOutput(
         article_id=extraction.article_id,
         is_market_relevant=extraction.is_market_relevant,
-        summary=extraction.summary,
+        summary=summary,
         actors=valid_actors,
         driver_moves=valid_driver_moves,
         direct_effects=valid_direct_effects,
