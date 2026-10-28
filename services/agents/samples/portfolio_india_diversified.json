@@ -1,13 +1,12 @@
 {
   "user_id": "sample_india_diversified",
-  "description": "10 large NSE companies across 10 sectors. Sample data: quantities and average costs are illustrative, not a real account. current_price is filled from yfinance at run time.",
+  "description": "9 large NSE companies across 9 sectors (telecom dropped: no TKG signal). Sample data: quantities and average costs are illustrative, not a real account. current_price is filled from yfinance at run time.",
   "news_articles_30d_checked_2026_10_28": {
     "NSE:RELIANCE": 13,
     "NSE:INFY": 10,
     "NSE:HDFCBANK": 12,
     "NSE:LT": 12,
     "NSE:MARUTI": 11,
-    "NSE:BHARTIARTL": 7,
     "NSE:SUNPHARMA": 4,
     "NSE:NTPC": 5,
     "NSE:ULTRACEMCO": 6,
@@ -38,11 +37,6 @@
       "ticker": "MARUTI",
       "quantity": 8,
       "average_cost": 11500.0
-    },
-    {
-      "ticker": "BHARTIARTL",
-      "quantity": 50,
-      "average_cost": 1450.0
     },
     {
       "ticker": "SUNPHARMA",

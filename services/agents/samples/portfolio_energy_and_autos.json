@@ -1,0 +1,36 @@
+{
+  "user_id": "sample_energy_and_autos",
+  "description": "6 NSE holdings that exercise the crude-oil chain: oil and gas producers/refiners against autos, paints (consumer durables) and steel. Sample data, illustrative quantities.",
+  "holdings": [
+    {
+      "ticker": "RELIANCE",
+      "quantity": 60,
+      "average_cost": 1250.0
+    },
+    {
+      "ticker": "ONGC",
+      "quantity": 400,
+      "average_cost": 240.0
+    },
+    {
+      "ticker": "BPCL",
+      "quantity": 250,
+      "average_cost": 320.0
+    },
+    {
+      "ticker": "MARUTI",
+      "quantity": 10,
+      "average_cost": 11000.0
+    },
+    {
+      "ticker": "ASIANPAINT",
+      "quantity": 40,
+      "average_cost": 2900.0
+    },
+    {
+      "ticker": "TATASTEEL",
+      "quantity": 600,
+      "average_cost": 140.0
+    }
+  ]
+}
