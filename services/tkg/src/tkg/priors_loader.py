@@ -144,10 +144,36 @@ def validate_priors_against_db(
         raise ValueError(f"Priors validation failed: {len(bad_rows)} bad rows detected against database {schema}")
 
 
+def prune_priors_not_in_csv(
+    session: Session,
+    sector_sens_keys: Set[Tuple[str, str]],
+    security_sens_keys: Set[Tuple[str, str]],
+    link_keys: Set[Tuple[str, str]],
+) -> Dict[str, int]:
+    """
+    Delete prior rows that are no longer in the CSVs, so the DB mirrors the files exactly.
+    Does not commit; the caller commits together with the upserts.
+    """
+    deleted: Dict[str, int] = {}
+    for label, model, cols, keys in (
+        ("sector_sensitivity", SectorSensitivity, ("driver_id", "sector_id"), sector_sens_keys),
+        ("security_sensitivity", SecuritySensitivity, ("driver_id", "security_id"), security_sens_keys),
+        ("sector_links", SectorLink, ("from_sector", "to_sector"), link_keys),
+    ):
+        count = 0
+        for row in session.query(model).all():
+            if tuple(getattr(row, c) for c in cols) not in keys:
+                session.delete(row)
+                count += 1
+        deleted[label] = count
+    return deleted
+
+
 def load_priors_from_csv(session: Session, data_dir: str = None, news_schema: Optional[str] = None) -> Dict[str, Any]:
     """
     Load sensitivity and link priors from CSV files into tkg schema.
     Runs Section 5 validation against live DB before writing.
+    Rows in the DB that are not in the CSVs are deleted (the CSVs are the source of truth).
     """
     if not data_dir:
         curr = os.path.dirname(os.path.abspath(__file__))
@@ -250,6 +276,15 @@ def load_priors_from_csv(session: Session, data_dir: str = None, news_schema: Op
             stats["sector_links"]["reviewed"] += 1
         else:
             stats["sector_links"]["unreviewed"] += 1
+
+    # 7. Remove rows that were dropped from the CSVs
+    session.flush()
+    stats["deleted"] = prune_priors_not_in_csv(
+        session,
+        {(r["driver_id"].strip(), r["sector_id"].strip()) for r in sec_sens_rows},
+        {(r["driver_id"].strip(), r["security_id"].strip()) for r in sec_rows},
+        {(r["from_sector"].strip(), r["to_sector"].strip()) for r in links_rows},
+    )
 
     session.commit()
     logger.info(f"Loaded priors summary: {stats}")

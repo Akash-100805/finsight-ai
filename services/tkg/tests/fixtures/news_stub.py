@@ -284,6 +284,10 @@ ACTIVE_SECURITIES = [
     ("NSE:APOLLOTYRE", "NSE", "APOLLOTYRE", "Apollo Tyres", "automobile_and_auto_components"),
     ("NSE:M&M", "NSE", "M&M", "Mahindra & Mahindra", "automobile_and_auto_components"),
     ("NSE:ESCORTS", "NSE", "ESCORTS", "Escorts Kubota", "capital_goods"),
+    ("NSE:COALINDIA", "NSE", "COALINDIA", "Coal India Limited", "oil_gas_and_consumable_fuels"),
+    ("NSE:IGL", "NSE", "IGL", "Indraprastha Gas Limited", "oil_gas_and_consumable_fuels"),
+    ("NSE:MGL", "NSE", "MGL", "Mahanagar Gas Limited", "oil_gas_and_consumable_fuels"),
+    ("NSE:NMDC", "NSE", "NMDC", "NMDC Limited", "metals_and_mining"),
 ]
 
 

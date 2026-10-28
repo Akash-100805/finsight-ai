@@ -170,6 +170,9 @@ def cmd_priors_load(args):
               f"({stats['security_sensitivity']['reviewed']} reviewed, {stats['security_sensitivity']['unreviewed']} unreviewed)")
         print(f"  Sector Links: {stats['sector_links']['total']} "
               f"({stats['sector_links']['reviewed']} reviewed, {stats['sector_links']['unreviewed']} unreviewed)")
+        d = stats["deleted"]
+        print(f"  Removed (not in CSV): {d['sector_sensitivity']} sector sensitivities, "
+              f"{d['security_sensitivity']} security sensitivities, {d['sector_links']} sector links")
     except Exception as e:
         print(f"Failed to load priors: {e}")
         session.rollback()
