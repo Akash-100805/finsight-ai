@@ -1,0 +1,68 @@
+{
+  "user_id": "sample_india_diversified",
+  "description": "10 large NSE companies across 10 sectors. Sample data: quantities and average costs are illustrative, not a real account. current_price is filled from yfinance at run time.",
+  "news_articles_30d_checked_2026_10_28": {
+    "NSE:RELIANCE": 13,
+    "NSE:INFY": 10,
+    "NSE:HDFCBANK": 12,
+    "NSE:LT": 12,
+    "NSE:MARUTI": 11,
+    "NSE:BHARTIARTL": 7,
+    "NSE:SUNPHARMA": 4,
+    "NSE:NTPC": 5,
+    "NSE:ULTRACEMCO": 6,
+    "NSE:JSWSTEEL": 5
+  },
+  "holdings": [
+    {
+      "ticker": "RELIANCE",
+      "quantity": 40,
+      "average_cost": 1250.0
+    },
+    {
+      "ticker": "INFY",
+      "quantity": 60,
+      "average_cost": 1500.0
+    },
+    {
+      "ticker": "HDFCBANK",
+      "quantity": 80,
+      "average_cost": 950.0
+    },
+    {
+      "ticker": "LT",
+      "quantity": 25,
+      "average_cost": 3300.0
+    },
+    {
+      "ticker": "MARUTI",
+      "quantity": 8,
+      "average_cost": 11500.0
+    },
+    {
+      "ticker": "BHARTIARTL",
+      "quantity": 50,
+      "average_cost": 1450.0
+    },
+    {
+      "ticker": "SUNPHARMA",
+      "quantity": 45,
+      "average_cost": 1650.0
+    },
+    {
+      "ticker": "NTPC",
+      "quantity": 200,
+      "average_cost": 340.0
+    },
+    {
+      "ticker": "ULTRACEMCO",
+      "quantity": 10,
+      "average_cost": 11000.0
+    },
+    {
+      "ticker": "JSWSTEEL",
+      "quantity": 70,
+      "average_cost": 950.0
+    }
+  ]
+}

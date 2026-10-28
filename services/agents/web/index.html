@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FinSight AI — Portfolio Insights (demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090d10; --panel: #10171b; --panel-2: #0c1215; --line: #1d2a31; --text: #d9e5e9; --muted: #7d909a;
+    --accent: #14c8a4; --accent-dim: #0c7a65; --pos: #3ddc97; --neg: #ff5c6a; --neu: #6d7c85; --warn: #e6b34a;
+    --display: "Chakra Petch", "Segoe UI", system-ui, sans-serif; --mono: "JetBrains Mono", Consolas, "Courier New", monospace; --body: "DM Sans", "Segoe UI", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; border-radius: 0; box-shadow: none; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--body); font-size: 15px; line-height: 1.5; }
+  body { padding-bottom: 92px; }
+  h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: .02em; margin: 0; }
+  .num, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-dim); }
+  a:hover { border-bottom-color: var(--accent); }
+  header.top { position: sticky; top: 0; z-index: 5; background: var(--panel-2); border-bottom: 1px solid var(--line); padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: flex-end; }
+  header.top h1 { font-size: 19px; color: var(--accent); flex: 1 1 100%; }
+  header.top h1 span { color: var(--muted); font-weight: 500; }
+  .field { display: flex; flex-direction: column; gap: 4px; min-width: 220px; }
+  .field label, .kicker { font-family: var(--display); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  select, textarea, button, input { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); padding: 8px 10px; }
+  select:focus, textarea:focus, button:focus-visible { outline: 1px solid var(--accent); }
+  button.run { background: var(--accent); color: #04120e; border-color: var(--accent); font-family: var(--display); font-weight: 700; letter-spacing: .06em; padding: 9px 22px; cursor: pointer; }
+  button.run:disabled { background: var(--panel); color: var(--muted); border-color: var(--line); cursor: not-allowed; }
+  details.paste { flex: 1 1 100%; }
+  details.paste summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  details.paste textarea { width: 100%; min-height: 120px; font-family: var(--mono); font-size: 12px; margin-top: 8px; }
+  .modes { display: flex; gap: 16px; font-size: 13px; color: var(--muted); margin-top: 8px; align-items: center; flex-wrap: wrap; }
+  main { max-width: 1180px; margin: 0 auto; padding: 22px 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); padding: 16px 18px; margin-bottom: 16px; }
+  .card.muted { background: var(--panel-2); color: var(--muted); font-size: 13px; }
+  .card h2 { font-size: 15px; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: .08em; }
+  .headline { font-family: var(--display); font-size: 22px; line-height: 1.3; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 0; }
+  .chip { display: inline-block; border: 1px solid var(--line); background: var(--panel-2); padding: 2px 9px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .chip b { color: var(--text); font-weight: 500; font-family: var(--mono); }
+  .chip.accent { border-color: var(--accent-dim); color: var(--accent); }
+  .sig { display: inline-block; min-width: 62px; text-align: center; border: 1px solid var(--line); padding: 2px 6px; font-family: var(--mono); font-size: 12.5px; }
+  .sig.pos { color: var(--pos); border-color: #1d6b4a; background: #0d2119; } .sig.neg { color: var(--neg); border-color: #7a2a33; background: #26111a; }
+  .sig.neu { color: var(--neu); } .sig.na { color: var(--muted); border-style: dashed; cursor: help; }
+  .badge { display: inline-block; padding: 1px 8px; font-size: 11.5px; font-family: var(--display); letter-spacing: .06em; text-transform: uppercase; border: 1px solid var(--line); }
+  .badge.high { color: var(--neg); border-color: #7a2a33; } .badge.medium { color: var(--warn); border-color: #6b5420; } .badge.low { color: var(--neu); }
+  .badge.risk { color: var(--warn); border-color: #6b5420; } .badge.flag { color: var(--accent); border-color: var(--accent-dim); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { font-family: var(--display); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  td .sub { color: var(--muted); font-size: 12px; }
+  .table-wrap { overflow-x: auto; }
+  .stock { border-left: 3px solid var(--accent); }
+  .stock .head { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: baseline; margin-bottom: 8px; }
+  .stock .head h3 { font-size: 18px; } .stock .score { font-family: var(--mono); font-size: 20px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 8px 0; font-size: 13px; color: var(--muted); }
+  .stats b { color: var(--text); font-family: var(--mono); font-weight: 500; }
+  ul.points { margin: 8px 0 0; padding-left: 18px; } ul.points li { margin-bottom: 8px; }
+  .src { font-size: 12.5px; color: var(--muted); margin-top: 2px; } .src .lbl { font-family: var(--display); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; margin-right: 6px; }
+  .summary { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  #error { display: none; background: #2a1016; border: 1px solid var(--neg); color: #ffc9ce; padding: 12px 16px; margin-bottom: 16px; white-space: pre-wrap; }
+  #progress { display: none; }
+  #progress ol { list-style: none; padding: 0; margin: 10px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 6px; }
+  #progress li { border: 1px solid var(--line); padding: 5px 9px; color: var(--muted); font-size: 13px; }
+  #progress li.done { color: var(--accent); border-color: var(--accent-dim); } #progress li.now { color: var(--text); border-color: var(--accent); }
+  #progress li.now::after { content: " …"; }
+  footer.disc { position: fixed; left: 0; right: 0; bottom: 0; z-index: 6; background: var(--panel-2); border-top: 1px solid var(--accent-dim); padding: 10px 20px; font-size: 12.5px; color: var(--muted); }
+  footer.disc b { color: var(--accent); font-family: var(--display); letter-spacing: .08em; margin-right: 8px; }
+  .empty { padding: 18px; border: 1px dashed var(--line); color: var(--muted); }
+  @media (max-width: 720px) { .headline { font-size: 18px; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>FinSight AI — Portfolio Insights <span>(demo)</span></h1>
+  <div class="field">
+    <label for="sample">Sample portfolio</label>
+    <select id="sample"></select>
+  </div>
+  <div class="field" style="min-width:0">
+    <label>&nbsp;</label>
+    <button id="run" class="run" type="button">Run analysis</button>
+  </div>
+  <details class="paste" id="pasteBox">
+    <summary>Upload / paste holdings JSON</summary>
+    <div class="modes">
+      <label><input type="radio" name="mode" value="sample" checked> Use the sample above</label>
+      <label><input type="radio" name="mode" value="paste"> Use the JSON below</label>
+      <input type="file" id="file" accept=".json,application/json">
+    </div>
+    <textarea id="paste" spellcheck="false" placeholder='[{"ticker": "RELIANCE", "quantity": 40, "average_cost": 1250}, {"ticker": "NASDAQ:NVDA", "quantity": 15, "average_cost": 120}]'></textarea>
+    <div class="src">Fields: ticker (NSE symbol, or an exchange-qualified id such as NASDAQ:NVDA), quantity, average_cost (per share, in the listing currency). A list, or an object with a "holdings" list.</div>
+  </details>
+</header>
+
+<main>
+  <div id="error" role="alert"></div>
+  <section id="progress" class="card" aria-live="polite">
+    <h2>Working… <span id="elapsed" class="num">0s</span></h2>
+    <div class="src">Approximate progress indicator, not live status — the analysis usually takes 20–60 seconds.</div>
+    <ol id="stages"></ol>
+  </section>
+  <div id="result"></div>
+  <div id="intro" class="card muted">Pick a sample portfolio (or paste your own holdings) and press <b>Run analysis</b>. The page shows what the news and price signals say about each holding — insights and education, not advice.</div>
+</main>
+
+<footer class="disc"><b>DISCLAIMER</b><span id="disc">FinSight provides insights and education, not investment advice. Signals are generated from public news and price data and may be incomplete or wrong. Consult a SEBI-registered adviser before making investment decisions.</span></footer>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const STAGES = ["Loading holdings", "Prices & FX", "Portfolio scan", "Stage 1 signals", "Fusion", "Deep-dive", "Synthesis", "Compliance"];
+const INR = new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const fmtINR = (x) => INR.format(x);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (x, d = 1) => (x === null || x === undefined ? "n/a" : (x >= 0 ? "+" : "") + (x * 100).toFixed(d) + "%");
+const pct0 = (x) => (x === null || x === undefined ? "n/a" : (x * 100).toFixed(1) + "%");
+const sgn = (x, d = 2) => (x === null || x === undefined ? "n/a" : (x >= 0 ? "+" : "") + x.toFixed(d));
+const safeUrl = (u) => (typeof u === "string" && /^https?:\/\//i.test(u) ? u : null);
+let samples = [], timer = null, stageTimer = null;
+
+function chip(cell) {
+  if (!cell || cell.unavailable_reason) {
+    const why = cell ? (cell.note ? cell.note : cell.unavailable_reason) : "not computed";
+    const label = cell && cell.unavailable_reason === "neutral_sector" ? "neutral" : "n/a";
+    return `<span class="sig na" title="${esc(cell?.unavailable_reason === "neutral_sector" ? "Sector news neutral — not used in the fusion average" : "Unavailable: " + why)}">${label}</span>`;
+  }
+  const s = cell.signal, cls = s > 0.1 ? "pos" : s < -0.1 ? "neg" : "neu";
+  return `<span class="sig ${cls}" title="${esc(cell.rationale)} (confidence ${cell.confidence})">${sgn(s)}</span>`;
+}
+
+async function loadSamples() {
+  try {
+    const r = await fetch("/samples");
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    samples = await r.json();
+    $("sample").innerHTML = samples.map((s) => `<option value="${esc(s.name)}">${esc(s.name.replace(/_/g, " "))} (${s.n_holdings} holdings)</option>`).join("");
+    showSampleInfo();
+  } catch (e) {
+    showError("Could not load the sample portfolios: " + e.message);
+  }
+}
+function showSampleInfo() {
+  const s = samples.find((x) => x.name === $("sample").value);
+  if (s) $("paste").placeholder = JSON.stringify(s.holdings, null, 1);
+  if (s && !$("paste").value) $("paste").value = JSON.stringify(s.holdings, null, 2);
+}
+function showError(msg) { const e = $("error"); e.textContent = msg; e.style.display = "block"; e.scrollIntoView({ block: "nearest" }); }
+function clearError() { $("error").style.display = "none"; $("error").textContent = ""; }
+
+function requestBody() {
+  if (document.querySelector("input[name=mode]:checked").value === "sample") return { sample: $("sample").value };
+  let data;
+  try { data = JSON.parse($("paste").value); } catch (e) { throw new Error("The pasted text is not valid JSON: " + e.message); }
+  const holdings = Array.isArray(data) ? data : data && data.holdings;
+  if (!Array.isArray(holdings)) throw new Error('Paste a JSON list of holdings, or an object with a "holdings" list.');
+  return { holdings };
+}
+function explainError(status, body) {
+  if (body && Array.isArray(body.detail)) return "The holdings were not accepted:\n" + body.detail.map((d) => "• " + (d.loc ? d.loc.filter((x) => x !== "body").join(".") + ": " : "") + (d.msg || "").replace(/^Value error, /, "")).join("\n");
+  if (body && typeof body.detail === "string") return body.detail;
+  return "The request failed (HTTP " + status + ").";
+}
+
+function startProgress() {
+  const t0 = Date.now(); let i = 0;
+  $("progress").style.display = "block";
+  const draw = () => { $("stages").innerHTML = STAGES.map((s, k) => `<li class="${k < i ? "done" : k === i ? "now" : ""}">${esc(s)}</li>`).join(""); };
+  draw();
+  timer = setInterval(() => { $("elapsed").textContent = Math.round((Date.now() - t0) / 1000) + "s"; }, 500);
+  stageTimer = setInterval(() => { if (i < STAGES.length - 1) { i += 1; draw(); } }, 4500);   // approximate: it only stays on the last stage until the answer arrives
+}
+function stopProgress() { clearInterval(timer); clearInterval(stageTimer); $("progress").style.display = "none"; }
+
+async function run() {
+  clearError(); $("result").innerHTML = ""; $("intro").style.display = "none";
+  let body;
+  try { body = requestBody(); } catch (e) { showError(e.message); return; }
+  $("run").disabled = true; startProgress();
+  try {
+    const r = await fetch("/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    let data = null;
+    try { data = await r.json(); } catch (_) { /* not JSON */ }
+    if (!r.ok) { showError(explainError(r.status, data)); return; }
+    render(data);
+  } catch (e) {
+    showError("Could not reach the analysis service: " + e.message);
+  } finally {
+    stopProgress(); $("run").disabled = false;
+  }
+}
+
+function render(d) {
+  const m = d.meta || {};
+  const chips = [`<span class="chip">Duration <b>${m.duration_s ?? "?"}s</b></span>`, `<span class="chip">LLM calls <b>${m.llm_calls ?? "?"}</b></span>`,
+    `<span class="chip">Stock model <b>${esc(m.stock_model || "n/a")}</b></span>`,
+    `<span class="chip ${m.synth_model_used === "template" ? "" : ""}">Synthesis <b>${esc(m.synth_model_used === "template" ? "auto-summary (no LLM)" : m.synth_model_used || "n/a")}</b></span>`];
+  if (m.sector_source === "tkg_lite") chips.push(`<span class="chip accent">Sector signals: news-based estimate (TKG-lite)</span>`);
+  else if (m.sector_source) chips.push(`<span class="chip accent">Sector signals: ${esc(m.sector_source)}</span>`);
+  if (m.fx_rate) chips.push(`<span class="chip">US holdings in INR at USD/INR <b>${fmtINR(m.fx_rate)}</b> (${esc(m.fx_date)})</span>`);
+  const label = d.synthesis_label ? `<div class="card muted"><b>${esc(d.synthesis_label)}</b> — the text below was built by fixed rules from the computed signals, because the language model was unavailable or its output was withheld by the compliance check. The numbers are the same.</div>` : "";
+  let html = `<section class="card"><div class="kicker">Run ${esc(d.run_id)}</div><div class="headline">${esc(d.headline || "Portfolio summary")}</div>
+    <p>${esc(d.portfolio_overview || "")}</p><div class="chips">${chips.join("")}</div></section>${label}`;
+
+  html += `<section class="card"><h2>Holdings</h2><div class="table-wrap"><table><thead><tr><th>Holding</th><th>Sector</th><th class="num">Weight</th>
+    <th>Structural</th><th>News sentiment</th><th>Sector news</th><th>Flags</th></tr></thead><tbody>` +
+    (d.holdings || []).map((h) => h.excluded_reason
+      ? `<tr><td>${esc(h.ticker)}<div class="sub">${esc(h.name || "")}</div></td><td colspan="6" class="sub">Not analysed: ${esc(h.excluded_reason)}</td></tr>`
+      : `<tr><td><b>${esc(h.ticker)}</b><div class="sub">${esc(h.name)}</div></td><td class="sub">${esc((h.sector || "").replace(/_/g, " "))}</td>
+         <td class="num">${pct0(h.weight)}</td><td>${chip(h.structural)}</td><td>${chip(h.sentiment)}</td><td>${chip(h.sector_signal)}</td>
+         <td>${(h.concentration_flags || []).map((f) => `<span class="badge flag">${esc(f)}</span>`).join(" ")}</td></tr>`).join("") +
+    `</tbody></table></div><div class="src" style="margin-top:8px">Signals run from −1 (negative) to +1 (positive); grey means neutral, “n/a” means the data was not available (hover for the reason).</div></section>`;
+
+  html += `<h2 style="margin:22px 0 10px;color:var(--accent);font-size:15px;letter-spacing:.08em;text-transform:uppercase">Shortlist — closer look</h2>`;
+  if (!(d.shortlist || []).length) html += `<div class="empty">No holdings crossed the attention threshold today — signals summary below.</div>`;
+  for (const s of d.shortlist || []) html += stockCard(s);
+
+  if ((d.not_deep_dived || []).length)
+    html += `<section class="card muted"><h2>Not deep-dived</h2>${d.not_deep_dived.map((n) => `<div>${esc(n.name)} <span class="mono">(${esc(n.security_id)}, fused ${sgn(n.fused_value)})</span> — the shortlist is capped at 5.</div>`).join("")}</section>`;
+  html += `<section class="card"><h2>Sectors</h2><p>${esc(d.sector_notes || "")}</p></section>`;
+  const notes = [d.data_notes, ...(d.data_gaps || []).map((g) => "Data gap: " + g), ...(d.errors || []).map((e) => "Error: " + e)].filter(Boolean);
+  html += `<section class="card muted"><h2 style="color:var(--muted)">Data notes</h2>${notes.map((n) => `<div>${esc(n)}</div>`).join("") || "None."}</section>`;
+  $("result").innerHTML = html;
+  if (d.disclaimer) $("disc").textContent = d.disclaimer;
+  $("result").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function stockCard(s) {
+  const p = s.price && !s.price.unavailable_reason ? s.price : null;
+  const stats = p ? `<div class="stats"><span>6m <b>${pct(p.ret_6m)}</b></span><span>1y <b>${pct(p.ret_1y)}</b></span><span>vs benchmark (6m) <b>${pct(p.rel_6m)}</b></span>
+      <span>volatility <b>${pct0(p.vol)}</b></span><span>max drawdown <b>${pct0(p.max_drawdown)}</b></span>
+      ${(p.risk_flags || []).map((f) => `<span class="badge risk">${esc(f.replace(/_/g, " "))}</span>`).join(" ")}</div>`
+    : `<div class="stats"><span>Price check unavailable (${esc(s.price?.unavailable_reason || "n/a")})</span></div>`;
+  let points = "";
+  if (s.recheck && !s.recheck.unavailable_reason) {
+    points = `<ul class="points">` + (s.recheck.key_points || []).map((k) => `<li>${esc(k.text)}` + (k.articles || []).map((a) => {
+      const u = safeUrl(a.url), t = esc(a.title || a.article_id);
+      return `<div class="src"><span class="lbl">Source headline</span>${u ? `<a href="${esc(u)}" target="_blank" rel="noopener noreferrer">${t}</a>` : t}${a.source_id ? ` · ${esc(a.source_id)}` : ""}${a.published_at ? ` · ${esc(String(a.published_at).slice(0, 10))}` : ""}</div>`;
+    }).join("") + `</li>`).join("") + `</ul>`;
+  } else points = `<div class="src">News recheck unavailable (${esc(s.recheck?.unavailable_reason || "n/a")}) — the vote uses the price signal alone.</div>`;
+  return `<section class="card stock"><div class="head"><h3>${esc(s.name)}</h3><span class="mono">${esc(s.security_id)}</span>
+      <span class="badge flag">${esc(s.flag || "")}</span><span class="badge ${esc(s.attention || "low")}">attention: ${esc(s.attention || "n/a")}</span>
+      <span>${esc(s.direction_label || "no combined signal")}</span><span class="score">${sgn(s.combined)}</span>${s.status === "conflicting_signals" ? `<span class="badge risk">conflicting signals</span>` : ""}</div>
+    ${stats}${points}${s.summary ? `<div class="summary">${esc(s.summary)}</div>` : ""}</section>`;
+}
+
+$("run").addEventListener("click", run);
+$("sample").addEventListener("change", () => { $("paste").value = ""; showSampleInfo(); });
+$("paste").addEventListener("input", () => { if ($("paste").value.trim()) document.querySelector("input[name=mode][value=paste]").checked = true; });
+$("file").addEventListener("change", async (ev) => { const f = ev.target.files[0]; if (!f) return; $("paste").value = await f.text(); $("pasteBox").open = true; document.querySelector("input[name=mode][value=paste]").checked = true; });
+loadSamples();
+</script>
+</body>
+</html>

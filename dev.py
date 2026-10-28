@@ -12,6 +12,9 @@ NEWS = ROOT / "services" / "news"
 VENV = NEWS / ".venv"
 VENV_PY = VENV / "Scripts" / "python.exe"
 ENV_FILE = ROOT / ".env"
+AGENTS = ROOT / "services" / "agents"
+AGENTS_VENV = AGENTS / ".venv"
+AGENTS_PY = AGENTS_VENV / "Scripts" / "python.exe"
 
 # Executed inside the news venv (psycopg2 lives there). Never prints URLs.
 DB_CHECK_CODE = r'''
@@ -98,6 +101,41 @@ def run_in_venv(args, input_text=None, extra_env=None):
     env = load_env()
     env.update(extra_env or {})
     return subprocess.run([str(VENV_PY), *args], cwd=NEWS, env=env, input=input_text, text=True).returncode
+
+
+def run_in_agents_venv(args):
+    if not AGENTS_PY.exists():
+        print("Agents virtualenv missing. Run: python dev.py agents-setup")
+        return 1
+    env = load_env()
+    env["PYTHONIOENCODING"] = "utf-8"           # the reports contain the rupee sign; Windows pipes default to cp1252
+    return subprocess.run([str(AGENTS_PY), *args], cwd=AGENTS, env=env, text=True).returncode
+
+
+def cmd_agents_setup():
+    if not AGENTS_PY.exists():
+        rc = subprocess.run(["py", "-3.12", "-m", "venv", str(AGENTS_VENV)]).returncode
+        if rc:
+            return rc
+    rc = subprocess.run([str(AGENTS_PY), "-m", "pip", "install", "-e", str(ROOT / "shared"), "-e", str(AGENTS)]).returncode
+    return rc
+
+
+def cmd_agents_test():
+    return run_in_agents_venv(["-m", "pytest", *sys.argv[2:]])
+
+
+def cmd_agents_run():
+    return run_in_agents_venv(["-W", "ignore", "-m", "finsight.run", *sys.argv[2:]])
+
+
+def cmd_agents_serve():
+    print("FinSight agents demo: http://127.0.0.1:8000  (Ctrl+C to stop)")
+    return run_in_agents_venv(["-W", "ignore", "-m", "finsight.api"])
+
+
+def cmd_agents_smoke():
+    return run_in_agents_venv(["-W", "ignore", "-m", "finsight.smoke", *sys.argv[2:]])
 
 
 def cmd_setup():
@@ -216,6 +254,11 @@ def cmd_report():
 
 
 COMMANDS = {
+    "agents-setup": (cmd_agents_setup, "create services/agents/.venv (py -3.12) and install the agents service + finsight-shared"),
+    "agents-test": (cmd_agents_test, "run pytest in services/agents"),
+    "agents-run": (cmd_agents_run, "agents-run --sample india_diversified|concentrated_it|mixed_us | --file path.json [--target main|test]: run the analysis flow, print the report, save runs/<ts>_<name>.json"),
+    "agents-serve": (cmd_agents_serve, "agents-serve: the demo API and one-page UI on http://127.0.0.1:8000 (local only)"),
+    "agents-smoke": (cmd_agents_smoke, "agents-smoke [--target main|test]: per sample portfolio, holdings with sector, price, sentiment, sector signal, plus one LLM ping per model role"),
     "setup": (cmd_setup, "create services/news/.venv and install dependencies (idempotent)"),
     "db-check": (cmd_db_check, "check both Neon databases: direct endpoint, SSL, Postgres and pgvector versions"),
     "test": (cmd_test, "run pytest in services/news"),
