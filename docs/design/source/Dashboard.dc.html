@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FinSight AI — Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=DM+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#0A0E0D}
+a{color:#2DD4A7}a:hover{color:#6EE7C5}
+@keyframes fsFade{from{opacity:0}to{opacity:1}}
+@keyframes fsBar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0A0E0D; color: #E6EDEA; font-family: 'DM Sans', system-ui, sans-serif">
+
+<header style="border-bottom: 1px solid #1C2724">
+<div style="max-width: 1320px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #E6EDEA">
+<svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><rect x="1" y="1" width="24" height="24" stroke="#2DD4A7" stroke-width="2"></rect><path d="M6 18 L11 12 L15 15 L20 7" stroke="#2DD4A7" stroke-width="2"></path></svg>
+<span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 18px">FinSight<span style="color: #2DD4A7"> AI</span></span>
+</a>
+<nav aria-label="Main" style="display: flex; gap: 4px; flex-wrap: wrap">
+<a href="Builder.dc.html" style="padding: 10px 14px; color: #A9BAB4; text-decoration: none">Portfolio</a>
+<a href="Dashboard.dc.html" style="padding: 10px 14px; color: #E6EDEA; text-decoration: none; border-bottom: 2px solid #2DD4A7">Dashboard</a>
+</nav>
+<div style="flex: 1 1 auto"></div>
+<span style="width: 36px; height: 36px; border: 1px solid #2A3834; display: flex; align-items: center; justify-content: center; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 14px" aria-label="Account">AS</span>
+</div>
+</header>
+
+<main style="max-width: 1320px; margin: 0 auto; padding: 32px 24px 64px; animation: fsFade .5s ease-out both">
+
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between">
+<div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.12em; color: #8A9C96">DASHBOARD</div>
+<h1 style="margin: 8px 0 0; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 34px">My long-term portfolio</h1>
+<p style="margin: 6px 0 0; color: #A9BAB4">Last analysed today at 14:32 · news since then: <span style="font-family: 'JetBrains Mono', monospace; color: #E6EDEA">[n]</span> new articles on your holdings</p>
+</div>
+<div style="display: flex; gap: 10px; flex-wrap: wrap">
+<a href="Builder.dc.html" style="min-height: 46px; padding: 0 18px; display: inline-flex; align-items: center; border: 1px solid #2A3834; color: #E6EDEA; text-decoration: none; border-radius: 2px">Edit portfolio</a>
+<a href="Running.dc.html" style="min-height: 46px; padding: 0 20px; display: inline-flex; align-items: center; background: #2DD4A7; color: #06110E; font-weight: 600; text-decoration: none; border-radius: 2px">Run fresh analysis</a>
+</div>
+</div>
+
+<!-- KPI row -->
+<div style="margin-top: 28px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: #1C2724; border: 1px solid #1C2724">
+<div style="background: #0F1513; padding: 18px 20px"><div style="font-size: 12px; letter-spacing: 0.06em; color: #8A9C96">COST BASIS · INDIA</div><div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 26px">₹1,39,750</div></div>
+<div style="background: #0F1513; padding: 18px 20px"><div style="font-size: 12px; letter-spacing: 0.06em; color: #8A9C96">COST BASIS · US</div><div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 26px">$950</div></div>
+<div style="background: #0F1513; padding: 18px 20px"><div style="font-size: 12px; letter-spacing: 0.06em; color: #8A9C96">HOLDINGS</div><div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 26px">4 <span style="font-size: 14px; color: #8A9C96">in 3 sectors</span></div></div>
+<div style="background: #0F1513; padding: 18px 20px"><div style="font-size: 12px; letter-spacing: 0.06em; color: #8A9C96">FLAGGED LAST RUN</div><div style="margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 26px; color: #2DD4A7">2</div></div>
+</div>
+
+<div style="margin-top: 24px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<!-- holdings + signal history -->
+<section aria-label="Holdings" style="flex: 999 1 640px; min-width: 0; border: 1px solid #1C2724; background: #0F1513">
+<div style="padding: 16px 20px; border-bottom: 1px solid #1C2724; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+<h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 18px">Holdings and signal history</h2>
+<div style="display: flex; gap: 14px; font-size: 12px; color: #A9BAB4; flex-wrap: wrap">
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; background: #2DD4A7"></span>Closer look</span>
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; background: #F0A35E"></span>Watch</span>
+<span style="display: inline-flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border: 1px solid #3A4A45"></span>Not flagged</span>
+</div>
+</div>
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 680px; border-collapse: collapse; font-size: 14px">
+<thead>
+<tr style="text-align: left; color: #8A9C96; font-size: 12px; letter-spacing: 0.06em">
+<th scope="col" style="padding: 12px 20px; font-weight: 500">HOLDING</th>
+<th scope="col" style="padding: 12px 8px; font-weight: 500">SECTOR</th>
+<th scope="col" style="padding: 12px 8px; font-weight: 500; text-align: right">QTY</th>
+<th scope="col" style="padding: 12px 8px; font-weight: 500; text-align: right">WEIGHT</th>
+<th scope="col" style="padding: 12px 8px; font-weight: 500">LAST 5 RUNS</th>
+<th scope="col" style="padding: 12px 20px; font-weight: 500">LATEST</th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="4">
+<tr style="border-top: 1px solid #16201D">
+<td style="padding: 14px 20px"><div style="font-weight: 500">{{r.name}}</div><div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A9C96">{{r.symbol}}</div></td>
+<td style="padding: 14px 8px; color: #A9BAB4">{{r.sector}}</td>
+<td style="padding: 14px 8px; text-align: right; font-family: 'JetBrains Mono', monospace">{{r.qty}}</td>
+<td style="padding: 14px 8px; text-align: right; font-family: 'JetBrains Mono', monospace">{{r.weight}}</td>
+<td style="padding: 14px 8px"><div style="display: flex; gap: 4px" role="img" aria-label="{{r.historyLabel}}">
+<sc-for list="{{r.history}}" as="h" hint-placeholder-count="5"><span style="{{h}}"></span></sc-for>
+</div></td>
+<td style="padding: 14px 20px"><span style="{{r.latestStyle}}">{{r.latest}}</span></td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+</section>
+
+<!-- sector exposure -->
+<section aria-label="Sector exposure" style="flex: 1 1 340px; min-width: 0; border: 1px solid #1C2724; background: #0F1513; padding: 18px 20px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px">
+<h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 18px">Sector exposure</h2>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A9C96">TKG-lite view</span>
+</div>
+<div style="margin-top: 18px; display: flex; flex-direction: column; gap: 16px">
+<sc-for list="{{sectors}}" as="s" hint-placeholder-count="3">
+<div>
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px"><span>{{s.label}}</span><span style="font-family: 'JetBrains Mono', monospace">{{s.pct}}</span></div>
+<div style="margin-top: 6px; height: 6px; background: #1C2724"><div style="{{s.bar}}"></div></div>
+<div style="margin-top: 6px; font-size: 12px; color: #8A9C96">Sector news: <span style="{{s.toneStyle}}">{{s.tone}}</span></div>
+</div>
+</sc-for>
+</div>
+<p style="margin: 18px 0 0; font-size: 12px; color: #8A9C96; line-height: 1.5">Weights use prices from the last run. US holdings converted at that run’s USD→INR rate.</p>
+</section>
+</div>
+
+<!-- saved runs -->
+<section aria-label="Saved runs" style="margin-top: 24px; border: 1px solid #1C2724; background: #0F1513">
+<div style="padding: 16px 20px; border-bottom: 1px solid #1C2724">
+<h2 style="margin: 0; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 18px">Saved runs</h2>
+</div>
+<div style="display: flex; flex-wrap: wrap">
+<div role="listbox" aria-label="Runs" style="flex: 1 1 300px; min-width: 0; border-right: 1px solid #1C2724">
+<sc-for list="{{runs}}" as="u" hint-placeholder-count="5">
+<button role="option" aria-selected="{{u.selected}}" onClick="{{u.pick}}" style="{{u.style}}">
+<span><span style="display: block; font-weight: 500">{{u.when}}</span><span style="display: block; margin-top: 2px; font-size: 12px; color: #8A9C96">{{u.sub}}</span></span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #2DD4A7">{{u.count}}</span>
+</button>
+</sc-for>
+</div>
+<div style="flex: 999 1 480px; min-width: 0; padding: 20px">
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: #8A9C96">{{run.title}}</div>
+<div style="margin-top: 14px; display: flex; flex-direction: column; gap: 12px">
+<sc-for list="{{run.items}}" as="it" hint-placeholder-count="2">
+<div style="padding: 14px 16px; border: 1px solid #1C2724; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: center">
+<span style="font-weight: 500">{{it.name}}</span>
+<span style="{{it.style}}">{{it.label}}</span>
+</div>
+</sc-for>
+<sc-if value="{{run.empty}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 14px 16px; border: 1px dashed #2A3834; color: #8A9C96">No holdings stood out in this run.</div>
+</sc-if>
+</div>
+<a href="Results.dc.html" style="margin-top: 16px; display: inline-flex; align-items: center; min-height: 44px; font-weight: 600; text-decoration: none">Open full results →</a>
+</div>
+</div>
+</section>
+
+<p style="margin: 28px 0 0; font-size: 12px; color: #8A9C96; line-height: 1.6; max-width: 820px">Insights, not investment advice. FinSight AI summarises news and market signals for information only and is not a SEBI-registered investment adviser.</p>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1500}}'>
+class Component extends DCLogic {
+constructor(p) { super(p); this.state = { run: 0 }; }
+renderVals() {
+const T = '#2DD4A7', O = '#F0A35E';
+const sq = (k) => 'width: 14px; height: 14px; box-sizing: border-box; ' + (k === 'c' ? 'background: ' + T + ';' : k === 'w' ? 'background: ' + O + ';' : 'border: 1px solid #3A4A45;');
+const pill = (k) => 'font-family: \'JetBrains Mono\', monospace; font-size: 12px; padding: 4px 8px; ' + (k === 'c' ? 'border: 1px solid ' + T + '; color: ' + T + ';' : k === 'w' ? 'border: 1px solid ' + O + '; color: ' + O + ';' : 'border: 1px solid #2A3834; color: #8A9C96;');
+const lab = { c: 'CLOSER LOOK', w: 'WATCH', n: 'NOT FLAGGED' };
+const holdings = [
+{ name: 'Infosys', symbol: 'NSE:INFY', sector: 'Information Technology', qty: 40, weight: '26%', hist: 'nncnc' },
+{ name: 'HDFC Bank', symbol: 'NSE:HDFCBANK', sector: 'Financial Services', qty: 25, weight: '18%', hist: 'nwnnw' },
+{ name: 'Reliance Industries', symbol: 'NSE:RELIANCE', sector: 'Oil, Gas &amp; Fuels', qty: 15, weight: '19%', hist: 'cnnnn' },
+{ name: 'Apple', symbol: 'NASDAQ:AAPL', sector: 'Information Technology', qty: 5, weight: '36%', hist: 'nnnnn' }
+];
+const rows = holdings.map(h => {
+const last = h.hist[h.hist.length - 1];
+return { name: h.name, symbol: h.symbol, sector: h.sector.replace('&amp;', '&'), qty: h.qty, weight: h.weight,
+history: h.hist.split('').map(sq),
+historyLabel: 'Last five runs, oldest first: ' + h.hist.split('').map(k => lab[k].toLowerCase()).join(', '),
+latest: lab[last], latestStyle: pill(last) };
+});
+const sectors = [['Information Technology', 62, 'Mildly positive', T], ['Oil, Gas & Fuels', 19, 'Neutral', '#8A9C96'], ['Financial Services', 18, 'Leaning negative', O]]
+.map((s, i) => ({ label: s[0], pct: s[1] + '%', tone: s[2], toneStyle: 'color: ' + s[3] + ';',
+bar: 'height: 6px; background: #2DD4A7; transform-origin: left; animation: fsBar .7s ' + (200 + i * 120) + 'ms ease-out both; width: ' + s[1] + '%;' }));
+const runsData = [
+{ when: 'Today, 14:32', sub: 'Sector view: TKG-lite', flagged: [['Infosys', 'c'], ['HDFC Bank', 'w']] },
+{ when: 'Yesterday, 18:05', sub: 'Sector view: TKG-lite', flagged: [] },
+{ when: '[date], 09:40', sub: 'Sector view: TKG-lite', flagged: [['Infosys', 'c']] },
+{ when: '[date], 20:15', sub: 'Sector view: TKG-lite', flagged: [['HDFC Bank', 'w']] },
+{ when: '[date], 11:02', sub: 'Sector view: TKG-lite', flagged: [['Reliance Industries', 'c']] }
+];
+const runs = runsData.map((r, i) => {
+const on = this.state.run === i;
+return { when: r.when, sub: r.sub, count: r.flagged.length + ' flagged', selected: on ? 'true' : 'false',
+style: 'all: unset; box-sizing: border-box; width: 100%; min-height: 60px; padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #16201D; ' + (on ? 'background: #16201D; box-shadow: inset 2px 0 0 #2DD4A7;' : ''),
+pick: () => this.setState({ run: i }) };
+});
+const cur = runsData[this.state.run];
+return {
+rows, sectors, runs,
+run: { title: cur.when.toUpperCase() + ' · WHAT STOOD OUT', empty: cur.flagged.length === 0,
+items: cur.flagged.map(f => ({ name: f[0], label: lab[f[1]], style: pill(f[1]) })) }
+};
+}
+}
+</script>
+</body>
+</html>

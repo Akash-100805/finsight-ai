@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FinSight AI — Analysing</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=DM+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#0A0E0D}
+a{color:#2DD4A7}a:hover{color:#6EE7C5}
+@keyframes fsPulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes fsShimmer{from{background-position:-400px 0}to{background-position:400px 0}}
+@keyframes fsRise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0A0E0D; color: #E6EDEA; font-family: 'DM Sans', system-ui, sans-serif">
+
+<header style="border-bottom: 1px solid #1C2724">
+<div style="max-width: 1320px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #E6EDEA">
+<svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><rect x="1" y="1" width="24" height="24" stroke="#2DD4A7" stroke-width="2"></rect><path d="M6 18 L11 12 L15 15 L20 7" stroke="#2DD4A7" stroke-width="2"></path></svg>
+<span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 18px">FinSight<span style="color: #2DD4A7"> AI</span></span>
+</a>
+<div style="flex: 1 1 auto"></div>
+<a href="Builder.dc.html" style="min-height: 40px; display: inline-flex; align-items: center; padding: 0 14px; border: 1px solid #2A3834; color: #A9BAB4; text-decoration: none; font-size: 14px; border-radius: 2px">Cancel run</a>
+</div>
+</header>
+
+<main style="max-width: 1320px; margin: 0 auto; padding: 40px 24px 64px; display: flex; flex-wrap: wrap; gap: 48px">
+
+<!-- progress -->
+<section aria-label="Run progress" style="flex: 1 1 420px; min-width: 0">
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.12em; color: #2DD4A7">STEP 2 OF 2 · ANALYSE</div>
+<h1 style="margin: 10px 0 0; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 36px">{{headline}}</h1>
+<p style="margin: 8px 0 0; color: #A9BAB4">My long-term portfolio · 4 holdings · usually takes 1–2 minutes</p>
+
+<div style="margin-top: 28px; display: flex; align-items: center; gap: 16px">
+<div style="flex: 1; height: 4px; background: #1C2724" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{pct}}" aria-label="Overall progress"><div style="{{barStyle}}"></div></div>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #A9BAB4; min-width: 48px; text-align: right">{{elapsed}}</span>
+</div>
+
+<ol style="list-style: none; margin: 28px 0 0; padding: 0; border-left: 1px solid #1C2724" aria-live="polite">
+<sc-for list="{{stages}}" as="s" hint-placeholder-count="8">
+<li style="position: relative; padding: 0 0 22px 28px">
+<span style="{{s.dot}}" aria-hidden="true"></span>
+<div style="{{s.titleStyle}}">{{s.title}}</div>
+<div style="margin-top: 3px; font-size: 13px; color: #8A9C96">{{s.detail}}</div>
+<sc-if value="{{s.isActive}}" hint-placeholder-val="{{ false }}">
+<div style="margin-top: 6px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #2DD4A7; animation: fsPulse 1.2s ease-in-out infinite">{{s.live}}</div>
+</sc-if>
+</li>
+</sc-for>
+</ol>
+</section>
+
+<!-- preview skeleton -->
+<section aria-label="Results preview" style="flex: 1 1 520px; min-width: 0">
+<div style="border: 1px solid #1C2724; background: #0F1513; padding: 24px">
+<div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: #8A9C96">YOUR RESULTS WILL APPEAR HERE</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A9C96">{{foundLabel}}</span>
+</div>
+<div style="margin-top: 20px; display: flex; flex-direction: column; gap: 14px">
+<sc-for list="{{skeletons}}" as="k" hint-placeholder-count="3">
+<div style="border: 1px solid #1C2724; padding: 18px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; gap: 12px">
+<div style="width: 38%; height: 18px; background: linear-gradient(90deg, #16201D 0, #1F2B28 50%, #16201D 100%); background-size: 800px 100%; animation: fsShimmer 1.6s linear infinite"></div>
+<div style="width: 22%; height: 18px; background: #16201D"></div>
+</div>
+<div style="width: 92%; height: 10px; background: #16201D"></div>
+<div style="width: 76%; height: 10px; background: #16201D"></div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<div style="height: 6px; background: #16201D"></div><div style="height: 6px; background: #16201D"></div><div style="height: 6px; background: #16201D"></div>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+<div style="margin-top: 20px; border: 1px solid #2DD4A7; padding: 20px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between; animation: fsRise .5s ease-out both">
+<div>
+<div style="font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 20px">Your results are ready</div>
+<div style="margin-top: 4px; font-size: 14px; color: #A9BAB4">2 holdings stood out · checked for advice language</div>
+</div>
+<a href="Results.dc.html" style="min-height: 48px; padding: 0 22px; display: inline-flex; align-items: center; background: #2DD4A7; color: #06110E; font-weight: 600; text-decoration: none; border-radius: 2px">Reveal results</a>
+</div>
+</sc-if>
+<p style="margin: 20px 0 0; font-size: 12px; color: #8A9C96">You can leave this page. The run continues and appears in your dashboard when finished.</p>
+</section>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"stepMs":{"editor":"range","default":1400,"min":400,"max":4000,"step":100,"unit":"ms"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+constructor(p) { super(p); this.state = { step: 0, ticks: 0 }; }
+componentDidMount() {
+this.timer = setInterval(() => {
+const ms = this.props.stepMs ?? 1400;
+const t = this.state.ticks + 1;
+const step = Math.min(8, Math.floor(t * 250 / ms));
+this.setState({ ticks: t, step });
+if (step >= 8) clearInterval(this.timer);
+}, 250);
+}
+componentWillUnmount() { clearInterval(this.timer); }
+renderVals() {
+const defs = [
+['Loading your holdings', 'Portfolio, quantities and average costs', 'reading 4 holdings'],
+['Fetching prices', 'Latest prices and the USD→INR rate', 'NSE + NASDAQ quotes'],
+['Scanning the portfolio', 'Weights, concentration, sector exposure', 'computing weights'],
+['Reading the signals', 'Structure, news tone and sector view (TKG-lite)', 'matching news to holdings'],
+['Building the shortlist', 'Combining signals; up to five holdings', 'ranking holdings'],
+['Second check', 'Recent price action and a fresh read of the news', 'checking 2 holdings'],
+['Writing insights', 'One write-up per shortlisted holding', 'drafting'],
+['Compliance check', 'Screens for advice language, adds the disclaimer', 'screening wording']
+];
+const step = this.state.step;
+const stages = defs.map((d, i) => {
+const done = i < step, active = i === step;
+const dot = 'position: absolute; left: -6px; top: 4px; width: 11px; height: 11px; box-sizing: border-box; ' +
+(done ? 'background: #2DD4A7; border: 1px solid #2DD4A7;' : active ? 'background: #0A0E0D; border: 2px solid #2DD4A7; animation: fsPulse 1.2s ease-in-out infinite;' : 'background: #0A0E0D; border: 1px solid #3A4A45;');
+const titleStyle = 'font-weight: 600; font-size: 16px; color: ' + (done ? '#C3D0CB' : active ? '#E6EDEA' : '#6F817B') + ';';
+return { title: d[0], detail: d[1], live: d[2] + '…', isActive: active, dot, titleStyle };
+});
+const done = step >= 8;
+const pct = Math.round(step / 8 * 100);
+const secs = Math.floor(this.state.ticks / 4);
+const shown = done ? 2 : 3;
+return {
+stages, done, pct,
+barStyle: 'height: 4px; background: #2DD4A7; transition: width .4s ease; width: ' + pct + '%;',
+elapsed: Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0'),
+headline: done ? 'Analysis complete' : 'Analysing your portfolio',
+foundLabel: step >= 5 ? '2 shortlisted' : '—',
+skeletons: Array.from({ length: shown }, (_, i) => ({ i }))
+};
+}
+}
+</script>
+</body>
+</html>

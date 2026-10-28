@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FinSight AI — Results</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=DM+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#0A0E0D}
+a{color:#2DD4A7}a:hover{color:#6EE7C5}
+@keyframes fsFade{from{opacity:0}to{opacity:1}}
+@keyframes fsRise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes fsSlide{from{opacity:0;transform:translateX(24px)}to{opacity:1;transform:none}}
+@keyframes fsBar{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion: reduce){*{animation:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0A0E0D; color: #E6EDEA; font-family: 'DM Sans', system-ui, sans-serif">
+
+<header style="border-bottom: 1px solid #1C2724">
+<div style="max-width: 1320px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #E6EDEA">
+<svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><rect x="1" y="1" width="24" height="24" stroke="#2DD4A7" stroke-width="2"></rect><path d="M6 18 L11 12 L15 15 L20 7" stroke="#2DD4A7" stroke-width="2"></path></svg>
+<span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 18px">FinSight<span style="color: #2DD4A7"> AI</span></span>
+</a>
+<nav aria-label="Main" style="display: flex; gap: 4px; flex-wrap: wrap">
+<a href="Builder.dc.html" style="padding: 10px 14px; color: #A9BAB4; text-decoration: none">Portfolio</a>
+<a href="Dashboard.dc.html" style="padding: 10px 14px; color: #A9BAB4; text-decoration: none">Dashboard</a>
+</nav>
+<div style="flex: 1 1 auto"></div>
+<button onClick="{{replay}}" style="min-height: 40px; padding: 0 14px; background: transparent; border: 1px solid #2A3834; color: #A9BAB4; font: 500 14px 'DM Sans', sans-serif; border-radius: 2px; cursor: pointer">Replay reveal</button>
+</div>
+</header>
+
+<sc-if value="{{show}}" hint-placeholder-val="{{ true }}">
+<main style="max-width: 1320px; margin: 0 auto; padding: 36px 24px 48px">
+
+<!-- beat 1: headline -->
+<div style="animation: fsFade .6s ease-out both">
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.12em; color: #2DD4A7">RUN COMPLETE · MY LONG-TERM PORTFOLIO</div>
+<h1 style="margin: 10px 0 0; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: clamp(30px, 3.4vw, 44px); line-height: 1.1">2 of your 4 holdings are worth a closer look.</h1>
+</div>
+
+<!-- beat 2: run strip -->
+<div style="margin-top: 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); border: 1px solid #1C2724; animation: fsFade .6s .35s ease-out both">
+<div style="padding: 14px 18px; border-right: 1px solid #1C2724"><div style="font-size: 12px; color: #8A9C96">Holdings scanned</div><div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 20px">4</div></div>
+<div style="padding: 14px 18px; border-right: 1px solid #1C2724"><div style="font-size: 12px; color: #8A9C96">Shortlisted</div><div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 20px; color: #2DD4A7">2</div></div>
+<div style="padding: 14px 18px; border-right: 1px solid #1C2724"><div style="font-size: 12px; color: #8A9C96">News window</div><div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 20px">30 days</div></div>
+<div style="padding: 14px 18px"><div style="font-size: 12px; color: #8A9C96">Sector view</div><div style="margin-top: 4px; font-family: 'JetBrains Mono', monospace; font-size: 20px">TKG-lite</div></div>
+</div>
+
+<div style="margin-top: 28px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<!-- beat 3: cards -->
+<section aria-label="Shortlisted holdings" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<sc-for list="{{cards}}" as="c" hint-placeholder-count="2">
+<button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="{{c.style}}">
+<div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
+<div style="display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap">
+<span style="font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 26px">{{c.name}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A9C96">{{c.symbol}} · {{c.weight}} of portfolio</span>
+</div>
+<span style="{{c.pillStyle}}">{{c.pill}}</span>
+</div>
+<p style="margin: 14px 0 0; font-size: 15px; line-height: 1.6; color: #C3D0CB">{{c.insight}}</p>
+<div style="margin-top: 18px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px">
+<sc-for list="{{c.signals}}" as="s" hint-placeholder-count="3">
+<div>
+<div style="display: flex; justify-content: space-between; gap: 6px; font-size: 12px"><span style="color: #8A9C96">{{s.label}}</span><span style="{{s.toneStyle}}">{{s.tone}}</span></div>
+<div style="margin-top: 7px; height: 5px; background: #1C2724"><div style="{{s.bar}}"></div></div>
+</div>
+</sc-for>
+</div>
+<div style="margin-top: 16px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 13px; color: #8A9C96">
+<span>{{c.checkLine}}</span>
+<span style="color: #2DD4A7">View evidence →</span>
+</div>
+</button>
+</sc-for>
+
+<!-- beat 4: the rest -->
+<div style="{{restStyle}}">
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: #8A9C96">NOT SHORTLISTED · NO STRONG SIGNAL THIS RUN</div>
+<div style="margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap">
+<span style="padding: 8px 12px; border: 1px solid #1C2724; font-size: 14px">Reliance Industries <span style="font-family: 'JetBrains Mono', monospace; color: #8A9C96">· 19%</span></span>
+<span style="padding: 8px 12px; border: 1px solid #1C2724; font-size: 14px">Apple <span style="font-family: 'JetBrains Mono', monospace; color: #8A9C96">· 36%</span></span>
+</div>
+</div>
+</section>
+
+<!-- evidence panel -->
+<aside aria-label="Evidence" style="{{panelStyle}}">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 12px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.08em; color: #8A9C96">EVIDENCE</span>
+<span style="font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 18px">{{sel.name}}</span>
+</div>
+
+<h2 style="margin: 22px 0 0; font-size: 13px; font-weight: 600; color: #C3D0CB">How the signals combined</h2>
+<div style="margin-top: 10px; display: flex; flex-direction: column; gap: 1px; background: #1C2724; border: 1px solid #1C2724">
+<sc-for list="{{sel.signals}}" as="s" hint-placeholder-count="3">
+<div style="background: #0F1513; padding: 12px 14px; display: flex; justify-content: space-between; gap: 12px; font-size: 14px">
+<span>{{s.label}}</span><span style="{{s.toneStyle}}">{{s.tone}}</span>
+</div>
+</sc-for>
+</div>
+
+<h2 style="margin: 22px 0 0; font-size: 13px; font-weight: 600; color: #C3D0CB">Second check</h2>
+<div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; color: #A9BAB4">
+<sc-for list="{{sel.checks}}" as="k" hint-placeholder-count="2">
+<div style="display: flex; gap: 10px; align-items: flex-start">
+<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style="margin-top: 3px; flex: none"><path d="M2 7l3 3 7-7" stroke="#2DD4A7" stroke-width="1.8"></path></svg>
+<span>{{k}}</span>
+</div>
+</sc-for>
+</div>
+
+<h2 style="margin: 22px 0 0; font-size: 13px; font-weight: 600; color: #C3D0CB">Source headlines</h2>
+<div style="margin-top: 10px; display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{sel.headlines}}" as="h" hint-placeholder-count="3">
+<a href="#" style="display: block; padding: 12px 14px; border: 1px solid #1C2724; text-decoration: none; color: #E6EDEA">
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.08em; color: #8A9C96">SOURCE HEADLINE</div>
+<div style="margin-top: 5px; font-size: 14px; line-height: 1.45">{{h.title}}</div>
+<div style="margin-top: 5px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A9C96">{{h.meta}}</div>
+</a>
+</sc-for>
+</div>
+
+<h2 style="margin: 22px 0 0; font-size: 13px; font-weight: 600; color: #C3D0CB">Sector drivers <span style="font-family: 'JetBrains Mono', monospace; font-weight: 400; color: #8A9C96">· TKG-lite</span></h2>
+<div style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap">
+<sc-for list="{{sel.drivers}}" as="d" hint-placeholder-count="2">
+<span style="padding: 6px 10px; border: 1px solid #2A3834; font-size: 13px; color: #C3D0CB">{{d}}</span>
+</sc-for>
+</div>
+</aside>
+</div>
+
+<!-- beat 5: next steps + disclaimer -->
+<div style="{{footStyle}}">
+<p style="margin: 0; flex: 1 1 420px; font-size: 13px; color: #A9BAB4; line-height: 1.6"><strong style="color: #E6EDEA">Insights, not investment advice.</strong> FinSight AI summarises news and market signals for information only. It is not a SEBI-registered investment adviser. Consider your own goals and do your own research before acting.</p>
+<a href="Dashboard.dc.html" style="min-height: 48px; padding: 0 22px; display: inline-flex; align-items: center; gap: 10px; background: #2DD4A7; color: #06110E; font-weight: 600; text-decoration: none; border-radius: 2px">Go to dashboard
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8"></path></svg></a>
+</div>
+</main>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"staggerMs":{"editor":"range","default":180,"min":0,"max":600,"step":20,"unit":"ms","section":"Reveal"},"$preview":{"width":1440,"height":1400}}'>
+class Component extends DCLogic {
+constructor(p) { super(p); this.state = { show: true, sel: 0 }; }
+componentWillUnmount() { clearTimeout(this.t); }
+renderVals() {
+const stagger = this.props.staggerMs ?? 180;
+const base = 700;
+const pos = '#2DD4A7', neg = '#F0A35E', neu = '#8A9C96';
+const sig = (label, tone, kind, w, delay) => ({
+label, tone,
+toneStyle: 'font-family: \'JetBrains Mono\', monospace; color: ' + (kind === 'pos' ? pos : kind === 'neg' ? neg : neu) + ';',
+bar: 'height: 5px; transform-origin: left; animation: fsBar .7s ' + delay + 'ms ease-out both; width: ' + w + '%; background: ' + (kind === 'pos' ? pos : kind === 'neg' ? neg : '#3A4A45') + ';'
+});
+const data = [
+{ name: 'Infosys', symbol: 'NSE:INFY', weight: '26%', pill: 'WORTH A CLOSER LOOK', kind: 'pos',
+insight: 'Recent coverage of Infosys has leaned cautious, while the wider IT sector view is mildly positive. As one of your larger Indian positions, news on it moves your overall picture more than most.',
+sigs: [['Structural', 'Large position', 'neu', 64], ['News tone', 'Leaning negative', 'neg', 58], ['Sector', 'Mildly positive', 'pos', 41]],
+checkLine: 'Second check: price trend and news re-read both agree',
+checks: ['Recent price action is in line with the news tone', 'A fresh read of the headlines agrees with the first pass'],
+headlines: [{ title: '[Headline from the news feed]', meta: '[Publisher] · [2 days ago]' }, { title: '[Headline from the news feed]', meta: '[Publisher] · [5 days ago]' }, { title: '[Headline from the news feed]', meta: '[Publisher] · [9 days ago]' }],
+drivers: ['US tech spending', 'Rupee vs dollar'] },
+{ name: 'HDFC Bank', symbol: 'NSE:HDFCBANK', weight: '18%', pill: 'WATCH', kind: 'neg',
+insight: 'News on HDFC Bank has been mixed, and the two checks did not fully agree. It is shown as one to watch rather than one with a clear direction.',
+sigs: [['Structural', 'Moderate position', 'neu', 40], ['News tone', 'Mixed', 'neu', 30], ['Sector', 'Leaning negative', 'neg', 46]],
+checkLine: 'Second check: signals disagree, shown as Watch',
+checks: ['Recent price action does not match the news tone', 'Flagged as a conflict instead of forcing a direction'],
+headlines: [{ title: '[Headline from the news feed]', meta: '[Publisher] · [1 day ago]' }, { title: '[Headline from the news feed]', meta: '[Publisher] · [6 days ago]' }],
+drivers: ['RBI policy rate', 'Credit growth'] }
+];
+const cards = data.map((d, i) => {
+const delay = base + i * stagger;
+const on = this.state.sel === i;
+return {
+name: d.name, symbol: d.symbol, weight: d.weight, pill: d.pill, insight: d.insight, checkLine: d.checkLine,
+pressed: on ? 'true' : 'false',
+style: 'all: unset; box-sizing: border-box; display: block; cursor: pointer; padding: 24px; background: #0F1513; border: 1px solid ' + (on ? '#2DD4A7' : '#1C2724') + '; animation: fsRise .6s ' + delay + 'ms cubic-bezier(.2,.7,.2,1) both;',
+pillStyle: 'font-family: \'JetBrains Mono\', monospace; font-size: 12px; padding: 4px 8px; border: 1px solid ' + (d.kind === 'pos' ? pos : neg) + '; color: ' + (d.kind === 'pos' ? pos : neg) + ';',
+signals: d.sigs.map((s, j) => sig(s[0], s[1], s[2], s[3], delay + 300 + j * 90)),
+pick: () => this.setState({ sel: i })
+};
+});
+const s = data[this.state.sel];
+const afterCards = base + data.length * stagger + 200;
+return {
+show: this.state.show,
+cards,
+sel: { name: s.name, signals: s.sigs.map(x => sig(x[0], x[1], x[2], x[3], 0)), checks: s.checks, headlines: s.headlines, drivers: s.drivers },
+panelStyle: 'flex: 1 1 360px; min-width: 0; border: 1px solid #1C2724; background: #0D1211; padding: 22px; animation: fsSlide .6s ' + (afterCards) + 'ms ease-out both;',
+restStyle: 'padding: 18px; border: 1px dashed #2A3834; animation: fsFade .6s ' + afterCards + 'ms ease-out both;',
+footStyle: 'margin-top: 32px; padding: 20px; border: 1px solid #1C2724; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; animation: fsFade .6s ' + (afterCards + 300) + 'ms ease-out both;',
+replay: () => { this.setState({ show: false, sel: 0 }); this.t = setTimeout(() => this.setState({ show: true }), 60); }
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>FinSight AI — Build your portfolio</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&amp;family=DM+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap">
+<style>
+body{margin:0;background:#0A0E0D}
+a{color:#2DD4A7}a:hover{color:#6EE7C5}
+input::placeholder{color:#6F817B}
+input:focus{outline:2px solid #2DD4A7;outline-offset:-1px}
+@keyframes fsIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
+</style>
+</helmet>
+<div style="min-height: 100vh; background: #0A0E0D; color: #E6EDEA; font-family: 'DM Sans', system-ui, sans-serif">
+
+<header style="border-bottom: 1px solid #1C2724">
+<div style="max-width: 1320px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 20px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 10px; text-decoration: none; color: #E6EDEA">
+<svg width="22" height="22" viewBox="0 0 26 26" fill="none" aria-hidden="true"><rect x="1" y="1" width="24" height="24" stroke="#2DD4A7" stroke-width="2"></rect><path d="M6 18 L11 12 L15 15 L20 7" stroke="#2DD4A7" stroke-width="2"></path></svg>
+<span style="font-family: 'Chakra Petch', sans-serif; font-weight: 700; font-size: 18px">FinSight<span style="color: #2DD4A7"> AI</span></span>
+</a>
+<nav aria-label="Main" style="display: flex; gap: 4px; flex-wrap: wrap">
+<a href="Builder.dc.html" style="padding: 10px 14px; color: #E6EDEA; text-decoration: none; border-bottom: 2px solid #2DD4A7">Portfolio</a>
+<a href="Dashboard.dc.html" style="padding: 10px 14px; color: #A9BAB4; text-decoration: none">Dashboard</a>
+</nav>
+<div style="flex: 1 1 auto"></div>
+<span style="width: 36px; height: 36px; border: 1px solid #2A3834; display: flex; align-items: center; justify-content: center; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 14px" aria-label="Account">AS</span>
+</div>
+</header>
+
+<main style="max-width: 1320px; margin: 0 auto; padding: 36px 24px 120px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; justify-content: space-between">
+<div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.12em; color: #2DD4A7">STEP 1 OF 2 · BUILD</div>
+<h1 style="margin: 10px 0 0; font-family: 'Chakra Petch', sans-serif; font-weight: 600; font-size: 36px">Build your portfolio</h1>
+<p style="margin: 8px 0 0; color: #A9BAB4">Add what you hold, how many shares, and your average cost. Then run the analysis.</p>
+</div>
+<div style="display: flex; gap: 10px; flex-wrap: wrap">
+<button style="min-height: 44px; padding: 0 16px; background: transparent; border: 1px solid #2A3834; color: #E6EDEA; font: 500 14px 'DM Sans', sans-serif; border-radius: 2px; cursor: pointer">Import CSV</button>
+<button style="min-height: 44px; padding: 0 16px; background: transparent; border: 1px solid #2A3834; color: #E6EDEA; font: 500 14px 'DM Sans', sans-serif; border-radius: 2px; cursor: pointer">Start from a sample</button>
+</div>
+</div>
+
+<div style="margin-top: 32px; display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+
+<!-- SEARCH / CATALOGUE -->
+<section aria-label="Find stocks" style="flex: 1 1 340px; min-width: 0; border: 1px solid #1C2724; background: #0F1513">
+<div style="padding: 18px; border-bottom: 1px solid #1C2724">
+<label for="fs-q" style="font-size: 13px; color: #A9BAB4">Search NSE and US stocks</label>
+<div style="margin-top: 8px; position: relative">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" style="position: absolute; left: 14px; top: 15px"><circle cx="7" cy="7" r="5" stroke="#8A9C96" stroke-width="1.5"></circle><path d="M11 11l3 3" stroke="#8A9C96" stroke-width="1.5"></path></svg>
+<input id="fs-q" type="search" value="{{query}}" onChange="{{onQuery}}" placeholder="Company or ticker — e.g. TCS" style="width: 100%; box-sizing: border-box; min-height: 46px; padding: 0 14px 0 40px; background: #0A0E0D; border: 1px solid #2A3834; color: #E6EDEA; font: 15px 'DM Sans', sans-serif; border-radius: 2px">
+</div>
+<div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap">
+<sc-for list="{{markets}}" as="m" hint-placeholder-count="3">
+<button onClick="{{m.pick}}" aria-pressed="{{m.pressed}}" style="{{m.style}}">{{m.label}}</button>
+</sc-for>
+</div>
+</div>
+<ul style="list-style: none; margin: 0; padding: 0; max-height: 560px; overflow-y: auto">
+<sc-for list="{{results}}" as="r" hint-placeholder-count="8">
+<li style="display: flex; align-items: center; gap: 12px; padding: 12px 18px; border-bottom: 1px solid #16201D">
+<div style="flex: 1 1 auto; min-width: 0">
+<div style="font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{r.name}}</div>
+<div style="margin-top: 2px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A9C96">{{r.symbol}} · {{r.sectorLabel}}</div>
+</div>
+<sc-if value="{{r.added}}" hint-placeholder-val="{{ false }}">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #2DD4A7; padding: 0 6px">ADDED</span>
+</sc-if>
+<sc-if value="{{r.notAdded}}" hint-placeholder-val="{{ true }}">
+<button onClick="{{r.add}}" aria-label="Add {{r.name}}" style="min-width: 44px; min-height: 44px; background: transparent; border: 1px solid #2A3834; color: #2DD4A7; border-radius: 2px; cursor: pointer; display: flex; align-items: center; justify-content: center">
+<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M7 1v12M1 7h12" stroke="currentColor" stroke-width="1.8"></path></svg>
+</button>
+</sc-if>
+</li>
+</sc-for>
+</ul>
+</section>
+
+<!-- PORTFOLIO -->
+<section aria-label="Your portfolio" style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 24px">
+<div style="border: 1px solid #1C2724; background: #0F1513">
+<div style="padding: 16px 20px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; border-bottom: 1px solid #1C2724">
+<label for="fs-pname" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Portfolio name</label>
+<input id="fs-pname" type="text" value="My long-term portfolio" style="flex: 1 1 220px; min-height: 40px; padding: 0 10px; background: transparent; border: 1px solid transparent; color: #E6EDEA; font: 600 18px 'Chakra Petch', sans-serif">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #8A9C96">{{countLabel}}</span>
+</div>
+<div style="overflow-x: auto">
+<table style="width: 100%; min-width: 640px; border-collapse: collapse; font-size: 14px">
+<thead>
+<tr style="text-align: left; color: #8A9C96; font-size: 12px; letter-spacing: 0.06em">
+<th scope="col" style="padding: 12px 20px; font-weight: 500">HOLDING</th>
+<th scope="col" style="padding: 12px 8px; font-weight: 500">QUANTITY</th>
+<th scope="col" style="padding: 12px 8px; font-weight: 500">AVG COST</th>
+<th scope="col" style="padding: 12px 8px; font-weight: 500; text-align: right">INVESTED</th>
+<th scope="col" style="padding: 12px 20px"><span style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">Remove</span></th>
+</tr>
+</thead>
+<tbody>
+<sc-for list="{{holdings}}" as="h" hint-placeholder-count="4">
+<tr style="border-top: 1px solid #16201D; animation: fsIn .35s ease-out both">
+<td style="padding: 12px 20px">
+<div style="font-weight: 500">{{h.name}}</div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8A9C96">{{h.symbol}}</div>
+</td>
+<td style="padding: 12px 8px">
+<div style="display: inline-flex; border: 1px solid #2A3834">
+<button onClick="{{h.dec}}" aria-label="Decrease quantity of {{h.name}}" style="width: 40px; min-height: 44px; background: transparent; border: none; color: #A9BAB4; font-size: 18px; cursor: pointer">−</button>
+<input type="number" min="1" value="{{h.qty}}" onChange="{{h.setQty}}" aria-label="Quantity of {{h.name}}" style="width: 64px; text-align: center; background: #0A0E0D; border: none; border-left: 1px solid #2A3834; border-right: 1px solid #2A3834; color: #E6EDEA; font: 14px 'JetBrains Mono', monospace">
+<button onClick="{{h.inc}}" aria-label="Increase quantity of {{h.name}}" style="width: 40px; min-height: 44px; background: transparent; border: none; color: #A9BAB4; font-size: 18px; cursor: pointer">+</button>
+</div>
+</td>
+<td style="padding: 12px 8px">
+<div style="display: inline-flex; align-items: center; border: 1px solid #2A3834; background: #0A0E0D">
+<span style="padding-left: 10px; color: #8A9C96; font-family: 'JetBrains Mono', monospace">{{h.cur}}</span>
+<input type="number" min="0" step="0.05" value="{{h.cost}}" onChange="{{h.setCost}}" aria-label="Average cost of {{h.name}}" style="width: 96px; min-height: 44px; padding: 0 10px 0 6px; background: transparent; border: none; color: #E6EDEA; font: 14px 'JetBrains Mono', monospace">
+</div>
+</td>
+<td style="padding: 12px 8px; text-align: right; font-family: 'JetBrains Mono', monospace">{{h.investedLabel}}</td>
+<td style="padding: 12px 20px; text-align: right">
+<button onClick="{{h.remove}}" aria-label="Remove {{h.name}}" style="width: 44px; min-height: 44px; background: transparent; border: none; color: #8A9C96; cursor: pointer">
+<svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.6"></path></svg>
+</button>
+</td>
+</tr>
+</sc-for>
+</tbody>
+</table>
+</div>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 48px 20px; text-align: center; color: #8A9C96">No holdings yet. Search on the left and press + to add a stock.</div>
+</sc-if>
+</div>
+
+<!-- live summary -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 24px">
+<div style="border: 1px solid #1C2724; background: #0F1513; padding: 20px">
+<div style="font-size: 12px; letter-spacing: 0.06em; color: #8A9C96">COST BASIS</div>
+<div style="margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 30px">{{totalInr}}</div>
+<div style="margin-top: 6px; font-size: 13px; color: #8A9C96">{{usdNote}}</div>
+</div>
+<div style="border: 1px solid #1C2724; background: #0F1513; padding: 20px">
+<div style="font-size: 12px; letter-spacing: 0.06em; color: #8A9C96">SECTOR MIX · BY COST</div>
+<div style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{sectors}}" as="s" hint-placeholder-count="3">
+<div>
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span>{{s.label}}</span><span style="font-family: 'JetBrains Mono', monospace; color: #A9BAB4">{{s.pct}}</span></div>
+<div style="margin-top: 5px; height: 5px; background: #1C2724"><div style="{{s.bar}}"></div></div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+
+<!-- sticky run bar -->
+<div style="position: sticky; bottom: 0; border-top: 1px solid #1C2724; background: #0A0E0D">
+<div style="max-width: 1320px; margin: 0 auto; padding: 14px 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center">
+<p style="margin: 0; flex: 1 1 320px; font-size: 12px; color: #8A9C96; line-height: 1.5">Insights, not investment advice. Live prices and the USD→INR rate are fetched when the run starts.</p>
+<button style="min-height: 48px; padding: 0 18px; background: transparent; border: 1px solid #2A3834; color: #E6EDEA; font: 500 15px 'DM Sans', sans-serif; border-radius: 2px; cursor: pointer">Save portfolio</button>
+<sc-if value="{{canRun}}" hint-placeholder-val="{{ true }}">
+<a href="Running.dc.html" style="min-height: 48px; padding: 0 26px; display: inline-flex; align-items: center; gap: 10px; background: #2DD4A7; color: #06110E; font-weight: 600; font-size: 16px; text-decoration: none; border-radius: 2px">Run analysis
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8"></path></svg></a>
+</sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}">
+<button disabled style="min-height: 48px; padding: 0 26px; background: #1C2724; color: #6F817B; border: none; font: 600 16px 'DM Sans', sans-serif; border-radius: 2px">Add a holding to run</button>
+</sc-if>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1080}}'>
+class Component extends DCLogic {
+constructor(p) {
+super(p);
+this.catalogue = [
+{ symbol: 'NSE:INFY', name: 'Infosys', sector: 'Information Technology', mkt: 'IN' },
+{ symbol: 'NSE:TCS', name: 'Tata Consultancy Services', sector: 'Information Technology', mkt: 'IN' },
+{ symbol: 'NSE:HDFCBANK', name: 'HDFC Bank', sector: 'Financial Services', mkt: 'IN' },
+{ symbol: 'NSE:ICICIBANK', name: 'ICICI Bank', sector: 'Financial Services', mkt: 'IN' },
+{ symbol: 'NSE:RELIANCE', name: 'Reliance Industries', sector: 'Oil, Gas & Fuels', mkt: 'IN' },
+{ symbol: 'NSE:ITC', name: 'ITC', sector: 'FMCG', mkt: 'IN' },
+{ symbol: 'NSE:BHARTIARTL', name: 'Bharti Airtel', sector: 'Telecommunication', mkt: 'IN' },
+{ symbol: 'NSE:SUNPHARMA', name: 'Sun Pharmaceutical', sector: 'Healthcare', mkt: 'IN' },
+{ symbol: 'NSE:MARUTI', name: 'Maruti Suzuki', sector: 'Automobile', mkt: 'IN' },
+{ symbol: 'NSE:ULTRACEMCO', name: 'UltraTech Cement', sector: 'Construction Materials', mkt: 'IN' },
+{ symbol: 'NASDAQ:AAPL', name: 'Apple', sector: 'Information Technology', mkt: 'US' },
+{ symbol: 'NASDAQ:MSFT', name: 'Microsoft', sector: 'Information Technology', mkt: 'US' }
+];
+this.state = {
+query: '', market: 'all',
+holdings: [
+{ symbol: 'NSE:INFY', qty: 40, cost: 1450 },
+{ symbol: 'NSE:HDFCBANK', qty: 25, cost: 1620 },
+{ symbol: 'NSE:RELIANCE', qty: 15, cost: 2750 },
+{ symbol: 'NASDAQ:AAPL', qty: 5, cost: 190 }
+]
+};
+}
+fmt(n) { return Math.round(n).toLocaleString('en-IN'); }
+upd(sym, patch) {
+this.setState({ holdings: this.state.holdings.map(h => h.symbol === sym ? Object.assign({}, h, patch) : h) });
+}
+renderVals() {
+const st = this.state;
+const bySym = {}; this.catalogue.forEach(c => { bySym[c.symbol] = c; });
+const held = new Set(st.holdings.map(h => h.symbol));
+const q = st.query.trim().toLowerCase();
+const results = this.catalogue
+.filter(c => st.market === 'all' || c.mkt === st.market)
+.filter(c => !q || c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q))
+.map(c => ({ name: c.name, symbol: c.symbol, sectorLabel: c.sector, added: held.has(c.symbol), notAdded: !held.has(c.symbol),
+add: () => this.setState({ holdings: st.holdings.concat([{ symbol: c.symbol, qty: 1, cost: 0 }]) }) }));
+const pill = (on) => "min-height: 36px; padding: 0 14px; font: 500 13px 'DM Sans', sans-serif; border-radius: 2px; cursor: pointer; " + (on ? 'background: #2DD4A7; color: #06110E; border: 1px solid #2DD4A7;' : 'background: transparent; color: #A9BAB4; border: 1px solid #2A3834;');
+const markets = [['all', 'All'], ['IN', 'India · NSE'], ['US', 'US']].map(([k, l]) => ({ label: l, pressed: st.market === k ? 'true' : 'false', style: pill(st.market === k), pick: () => this.setState({ market: k }) }));
+let inr = 0, usd = 0; const sec = {};
+const PREVIEW_FX = 84;
+const holdings = st.holdings.map(h => {
+const c = bySym[h.symbol]; const isUs = c.mkt === 'US'; const inv = h.qty * h.cost;
+if (isUs) usd += inv; else inr += inv;
+const inrEq = isUs ? inv * PREVIEW_FX : inv;
+sec[c.sector] = (sec[c.sector] || 0) + inrEq;
+return { name: c.name, symbol: c.symbol, qty: h.qty, cost: h.cost, cur: isUs ? '$' : '₹',
+investedLabel: (isUs ? '$' : '₹') + this.fmt(inv),
+inc: () => this.upd(h.symbol, { qty: h.qty + 1 }),
+dec: () => this.upd(h.symbol, { qty: Math.max(1, h.qty - 1) }),
+setQty: (e) => this.upd(h.symbol, { qty: Math.max(1, parseInt(e.target.value || '1', 10)) }),
+setCost: (e) => this.upd(h.symbol, { cost: Math.max(0, parseFloat(e.target.value || '0')) }),
+remove: () => this.setState({ holdings: st.holdings.filter(x => x.symbol !== h.symbol) }) };
+});
+const tot = Object.values(sec).reduce((a, b) => a + b, 0) || 1;
+const sectors = Object.entries(sec).sort((a, b) => b[1] - a[1]).map(([k, v]) => {
+const p = Math.round(v / tot * 100);
+return { label: k, pct: p + '%', bar: 'height: 5px; background: #2DD4A7; width: ' + p + '%;' };
+});
+const n = st.holdings.length;
+return {
+query: st.query, onQuery: (e) => this.setState({ query: e.target.value }),
+markets, results, holdings, sectors,
+countLabel: n + (n === 1 ? ' holding' : ' holdings'),
+isEmpty: n === 0, canRun: n > 0,
+totalInr: '₹' + this.fmt(inr),
+usdNote: usd > 0 ? '+ $' + this.fmt(usd) + ' in US holdings, converted at run time' : 'Indian holdings only'
+};
+}
+}
+</script>
+</body>
+</html>
