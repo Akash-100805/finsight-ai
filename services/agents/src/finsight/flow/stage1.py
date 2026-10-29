@@ -9,6 +9,7 @@ import pandas as pd
 from finsight.core.fusion import fuse_and_flag
 from finsight.core.valuation import compute_valuation
 from finsight.data.common import Unavailable
+from finsight.data.sector_signal import is_indian_security
 from finsight.flow import scoring as sc
 from finsight.flow.deps import Deps
 from finsight.flow.models import unavailable_dict, verdict
@@ -94,13 +95,35 @@ def sector_verdict(sector: str | None, signals: dict, source: str) -> dict:
                     **({"paths": sig["explanations"], "as_of": sig.get("as_of")} if sig.get("explanations") else {})})
 
 
+def combine_sources(used: set[str], default: str) -> str:
+    """One label for the run: tkg, tkg_lite, or tkg+tkg_lite when Indian holdings use the TKG and the rest use tkg_lite."""
+    if not used:
+        return default
+    return "+".join(sorted(used, key=lambda x: (x != "tkg", x)))
+
+
 def stage1_sector(state: AnalysisState, deps: Deps) -> dict:
+    """Sector signal per holding. With SECTOR_PROVIDER=tkg only Indian (NSE/BSE) holdings use the TKG; the others use tkg_lite.
+    The provider used is recorded per holding. Company-level TKG scores are attached as evidence only (they never enter fusion)."""
     tickers = included_tickers(state)
-    sectors = sorted({state.holding_info[t]["sector"] for t in tickers if state.holding_info[t]["sector"]})
-    signals = deps.sector_provider.sector_signals(sectors) if sectors else {}        # ONE call for all sectors; SectorProviderError -> node failure
-    source = deps.sector_provider.source                                              # read AFTER the call: the fallback provider reports what it actually used
-    return {"stage1_sector": {t: sector_verdict(state.holding_info[t]["sector"], signals, source) for t in tickers}, "sector_signal_source": source,
-            "sector_fallback_reason": getattr(deps.sector_provider, "fallback_reason", None)}
+    info = state.holding_info
+    provider = deps.sector_provider
+    lite = getattr(provider, "lite", None)                    # only the tkg fallback wrapper has a separate tkg_lite provider
+    indian = [t for t in tickers if is_indian_security(info[t]["security_id"])] if lite is not None else list(tickers)
+    other = [t for t in tickers if t not in indian]
+    sectors_of = lambda ts: sorted({info[t]["sector"] for t in ts if info[t]["sector"]})
+    signals = provider.sector_signals(sectors_of(indian)) if sectors_of(indian) else {}   # ONE call for all Indian sectors; SectorProviderError -> node failure
+    source = provider.source                                                              # read AFTER the call: the fallback provider reports what it actually used
+    lite_signals = lite.sector_signals(sectors_of(other)) if lite is not None and sectors_of(other) else {}
+    per_ticker = {t: (source if t in indian else lite.source) for t in tickers}
+    out = {"stage1_sector": {t: sector_verdict(info[t]["sector"], signals if t in indian else lite_signals, per_ticker[t]) for t in tickers},
+           "sector_signal_source": combine_sources(set(per_ticker.values()), source), "sector_signal_sources": per_ticker,
+           "sector_fallback_reason": getattr(provider, "fallback_reason", None), "tkg_company_evidence": {}}
+    company_impacts = getattr(provider, "company_impacts", None)
+    if callable(company_impacts) and any(v == "tkg" for v in per_ticker.values()):
+        by_security = company_impacts([info[t]["security_id"] for t in tickers if per_ticker[t] == "tkg"])
+        out["tkg_company_evidence"] = {t: by_security[info[t]["security_id"]] for t in tickers if info[t]["security_id"] in by_security}
+    return out
 
 
 def fusion(state: AnalysisState, deps: Deps) -> dict:

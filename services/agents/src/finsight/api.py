@@ -134,6 +134,8 @@ def build_response(state: AnalysisState, run_id: str, generated_at: str | None =
         holdings.append({"security_id": info["security_id"], "ticker": h.ticker, "name": info["name"], "sector": info["sector"],
                          "weight": round(m.weight, 4) if m else None, "structural": cell(state.stage1_structural.get(h.ticker)),
                          "sentiment": cell(state.stage1_sentiment.get(h.ticker)), "sector_signal": cell(state.stage1_sector.get(h.ticker)),
+                         "sector_source": state.sector_signal_sources.get(h.ticker),
+                         "tkg_company": state.tkg_company_evidence.get(h.ticker),
                          "concentration_flags": flag_labels(state, h.ticker, info["sector"])})
     by_verdict = {v.ticker: v for v in state.stage2_verdicts or []}
     shortlist = []

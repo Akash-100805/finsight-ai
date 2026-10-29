@@ -450,7 +450,7 @@ def test_parallel_stage1_nodes_each_write_only_their_own_fields():
     s, deps = state_after_scan()
     assert set(stage1.stage1_structural(s, deps)) == {"stage1_structural"}
     assert set(stage1.stage1_sentiment(s, deps)) == {"stage1_sentiment", "article_index"}
-    assert set(stage1.stage1_sector(s, deps)) == {"stage1_sector", "sector_signal_source", "sector_fallback_reason"}
+    assert set(stage1.stage1_sector(s, deps)) == {"stage1_sector", "sector_signal_source", "sector_signal_sources", "sector_fallback_reason", "tkg_company_evidence"}
 
 
 def test_a_sector_provider_error_is_recorded_and_the_other_signals_still_work(monkeypatch):

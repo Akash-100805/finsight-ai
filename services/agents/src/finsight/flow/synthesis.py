@@ -108,6 +108,8 @@ def template_synthesis(state: AnalysisState) -> SynthesisOutput:
         stocks.append(SynthStock(security_id=info.get("security_id", v.ticker), summary=sc.limit_words("; ".join(parts), 60), evidence_article_ids=ids))
     sector_note = ("Sector signals are a news-based estimate (tkg_lite)." if state.sector_signal_source == "tkg_lite" else
                    "Sector signals come from the temporal knowledge graph (provisional)." if state.sector_signal_source == "tkg" else
+                   "Sector signals for Indian holdings come from the temporal knowledge graph (provisional); the other holdings use a news-based estimate (tkg_lite)."
+                   if state.sector_signal_source == "tkg+tkg_lite" else
                    f"Sector signals come from {state.sector_signal_source or 'no source'}.")
     return SynthesisOutput(
         headline=f"{n_in} holdings analysed, {len(state.shortlist or [])} flagged for a closer look",

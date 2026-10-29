@@ -6,6 +6,10 @@
   weight = recency_weight x source_reliability x confidence; confidence = min(1, n/20); needs n >= SECTOR_MIN_ARTICLES.
 * TkgProvider (SECTOR_PROVIDER="tkg"): calls tkg.sector_impacts(sector_ids, window_days) as finsight_agents. It raises on an error or a snapshot older than
   TKG_MAX_AGE_HOURS; FallbackSectorProvider (what get_sector_provider returns for "tkg") then logs a warning and uses tkg_lite for that run and says so.
+  The TKG covers Indian (NSE/BSE) securities only: the analysis flow gives non-Indian holdings the tkg_lite view. Company-level TKG scores are
+  attached as evidence only (TkgProvider.company_impacts); they never enter fusion.
+* This service reads the TKG through its SQL contract only (docs/TKG_OUTPUT_CONTRACT.md) and imports no TKG code: relation names come from
+  finsight_shared.tkg_vocab, driver labels from tkg.drivers, headlines from tkg.v_events.
 """
 from __future__ import annotations
 
@@ -15,6 +19,8 @@ from typing import Any, Callable, Literal, Protocol
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+
+from finsight_shared.tkg_vocab import RELATIONS
 
 from finsight.data.common import Unavailable
 from finsight.data.db import get_news_engine
@@ -73,8 +79,18 @@ class TkgStaleError(SectorProviderError):
     """The latest completed TKG snapshot is older than TKG_MAX_AGE_HOURS."""
 
 
-def humanize_driver(driver_id: str) -> str:
-    return driver_id.split(":", 1)[-1].replace("_", " ").title()
+INDIAN_EXCHANGES = ("NSE", "BSE")
+
+
+def is_indian_security(security_id: str | None) -> bool:
+    """The TKG's priors and news coverage are Indian: only NSE/BSE securities use the TKG sector view."""
+    return bool(security_id) and security_id.split(":", 1)[0].upper() in INDIAN_EXCHANGES
+
+
+def relation_arrow(relation: str | None) -> str:
+    """Direction of a driver move, from the sign in the shared TKG vocabulary (finsight_shared.tkg_vocab)."""
+    rel = RELATIONS.get(relation or "")
+    return "↑" if rel and rel.sign > 0 else ("↓" if rel and rel.sign < 0 else "")
 
 
 class TkgProvider:
@@ -82,7 +98,8 @@ class TkgProvider:
 
     Row -> the tkg_lite signal shape {score, confidence, n, source, evidence_article_ids} + {explanations, top_paths, as_of}; status 'no_signal' is an
     Unavailable exactly like tkg_lite's insufficient news (excluded from fusion). Errors and stale snapshots RAISE; the fallback to tkg_lite lives in
-    FallbackSectorProvider, never here.
+    FallbackSectorProvider, never here. Driver labels come from tkg.drivers and headlines from tkg.v_events.title (the TKG output contract);
+    nothing is guessed or reconstructed from other schemas.
     """
     source = "tkg"
 
@@ -108,53 +125,56 @@ class TkgProvider:
                 "FROM tkg.sector_impacts(CAST(:s AS text[]), :d)"), {"s": list(sector_ids), "d": days}).mappings()]
 
     def _driver_labels(self, ids: set[str]) -> dict[str, str]:
-        labels = {i: humanize_driver(i) for i in ids}
+        """driver_id -> label from tkg.drivers (granted to the agents' login by the contract)."""
         if not ids or self._module is not None:
-            return labels
-        try:                                              # finsight_agents may lack SELECT on tkg.drivers: the humanised id is the fallback
+            return {i: i for i in ids}
+        try:
             engine = self._engine or get_news_engine(self._target)
             with engine.connect() as conn:
-                labels.update({r["driver_id"]: r["label"] for r in conn.execute(
-                    text("SELECT driver_id, label FROM tkg.drivers WHERE driver_id = ANY(:i)"), {"i": list(ids)}).mappings()})
+                labels = {r["driver_id"]: r["label"] for r in conn.execute(
+                    text("SELECT driver_id, label FROM tkg.drivers WHERE driver_id = ANY(:i)"), {"i": list(ids)}).mappings()}
         except Exception as exc:
-            logger.info("tkg.drivers not readable (%s); using driver ids as labels", type(exc).__name__)
+            raise SectorProviderError(f"tkg.drivers is not readable: {type(exc).__name__}") from exc
+        missing = ids - set(labels)
+        if missing:
+            raise SectorProviderError(f"tkg.drivers has no label for {sorted(missing)}")
         return labels
 
     def _event_titles(self, event_ids: set[str]) -> dict[str, str]:
-        """event_id -> headline: the news article title when readable, else the TKG event summary (tkg.v_events has no title column)."""
+        """event_id -> headline: tkg.v_events.title (the news article title), else the event summary."""
         if not event_ids or self._module is not None:
             return {}
         try:
             engine = self._engine or get_news_engine(self._target)
             with engine.connect() as conn:
-                ev = list(conn.execute(text("SELECT event_id::text AS event_id, article_id::text AS article_id, summary FROM tkg.v_events WHERE event_id::text = ANY(:e)"),
-                                       {"e": list(event_ids)}).mappings())
-            titles: dict[str, str] = {}
-            try:
-                with engine.connect() as conn:
-                    titles = {r["article_id"]: r["title"] for r in conn.execute(
-                        text("SELECT article_id::text AS article_id, title FROM news.v_articles WHERE article_id::text = ANY(:a)"),
-                        {"a": list({e["article_id"] for e in ev})}).mappings()}
-            except Exception as exc:
-                logger.info("news.v_articles titles not readable (%s); using TKG event summaries", type(exc).__name__)
-            return {e["event_id"]: titles.get(e["article_id"]) or e["summary"] for e in ev}
+                rows = list(conn.execute(
+                    text("SELECT event_id::text AS event_id, title, summary FROM tkg.v_events WHERE event_id::text = ANY(:e)"),
+                    {"e": list(event_ids)}).mappings())
         except Exception as exc:
-            logger.info("tkg.v_events not readable (%s)", type(exc).__name__)
-            return {}
+            raise SectorProviderError(f"tkg.v_events is not readable: {type(exc).__name__}") from exc
+        return {r["event_id"]: (r["title"] or r["summary"] or "") for r in rows}
 
-    def _explanations(self, paths: list[dict]) -> tuple[list[str], list[str]]:
+    def _path_texts(self, paths: list[dict]) -> tuple[list[str], list[str]]:
+        """The top paths as readable sentences with real headlines, plus the article ids behind them."""
         top = sorted((p for p in paths or [] if isinstance(p, dict)), key=lambda p: -abs(float(p.get("contrib") or 0)))[:TOP_PATHS]
         labels = self._driver_labels({p["driver_id"] for p in top if p.get("driver_id")})
         titles = self._event_titles({str(p["event_id"]) for p in top if p.get("event_id")})
         texts, articles = [], []
         for p in top:
-            if p.get("type") == "driver" and p.get("driver_id"):
-                headline = titles.get(str(p.get("event_id"))) or p.get("summary") or "event"
-                texts.append(f"{headline} -> {labels[p['driver_id']]} ({p.get('relation')}, {p.get('magnitude')}) -> {float(p.get('contrib') or 0):+.2f}")
-                if p.get("article_id") and str(p["article_id"]) not in articles:
-                    articles.append(str(p["article_id"]))
+            headline = titles.get(str(p.get("event_id"))) or p.get("summary") or "(headline unavailable)"
+            contrib = float(p.get("contrib") or 0)
+            kind = p.get("type")
+            if kind == "driver" and p.get("driver_id"):
+                texts.append(f"{headline} -> {labels[p['driver_id']]} {relation_arrow(p.get('relation'))} ({p.get('magnitude')}) -> {contrib:+.2f}")
+            elif kind == "driver_override" and p.get("driver_id"):
+                texts.append(f"{headline} -> {labels[p['driver_id']]} {relation_arrow(p.get('relation'))} ({p.get('magnitude')}) -> "
+                             f"company sensitivity {float(p.get('sensitivity') or 0):+.2f} = {contrib:+.2f}")
+            elif kind == "direct":
+                texts.append(f"{headline} -> {p.get('relation')} -> {contrib:+.2f}")
             else:
-                texts.append(str(p.get("explanation") or f"{p.get('from_sector')} ({p.get('link')}) -> {p.get('to_sector')} = {float(p.get('contrib') or 0):+.2f}"))
+                texts.append(str(p.get("explanation") or f"{p.get('from_sector')} ({p.get('link')}) -> {p.get('to_sector')} = {contrib:+.2f}"))
+            if p.get("article_id") and str(p["article_id"]) not in articles:
+                articles.append(str(p["article_id"]))
         return texts, articles
 
     def sector_signals(self, sector_ids: list[str], window_days: int | None = None) -> dict[str, dict | Unavailable]:
@@ -189,20 +209,55 @@ class TkgProvider:
             if not -1.0 <= score <= 1.0 or not 0.0 <= confidence <= 1.0:
                 raise SectorProviderError(f"tkg.sector_impacts result for {sid} is out of range (score {score}, confidence {confidence})")
             paths = item.get("top_paths") or []
-            explanations, article_ids = self._explanations(paths) if self._module is None else ([str(p) for p in paths][:TOP_PATHS], [])
+            explanations, article_ids = self._path_texts(paths) if self._module is None else ([str(p) for p in paths][:TOP_PATHS], [])
             out[sid] = {"score": score, "confidence": confidence, "n": int(item.get("n_events", 0)), "source": "tkg",
                         "evidence_article_ids": article_ids, "top_paths": paths, "explanations": explanations,
                         "as_of": item["as_of"].isoformat() if isinstance(item.get("as_of"), datetime) else None}
         return out
 
+    def company_impacts(self, security_ids: list[str], window_days: int | None = None) -> dict[str, dict]:
+        """Company-level TKG evidence for held Indian securities (tkg.v_security_impacts_latest).
+
+        The TKG reports the via-sector and the direct score separately and never merges them (guide 7.5); this is EVIDENCE ONLY and
+        does not enter fusion. A security appears only when the TKG has at least one direct event or company override for it.
+        """
+        if not security_ids or self._module is not None:
+            return {}
+        days = self._settings.NEWS_WINDOW_DAYS if window_days is None else window_days
+        try:
+            engine = self._engine or get_news_engine(self._target)
+            with engine.connect() as conn:
+                rows = [dict(r) for r in conn.execute(text(
+                    "SELECT security_id, as_of, via_sector_score, direct_score, direct_confidence, n_direct_events, top_paths "
+                    "FROM tkg.v_security_impacts_latest WHERE security_id = ANY(:s) AND window_days = :d"),
+                    {"s": list(security_ids), "d": days}).mappings()]
+        except Exception as exc:
+            raise SectorProviderError(f"tkg.v_security_impacts_latest is not readable: {type(exc).__name__}") from exc
+        out: dict[str, dict] = {}
+        for r in rows:
+            if not r.get("n_direct_events"):
+                continue
+            texts, article_ids = self._path_texts(r.get("top_paths") or [])
+            out[r["security_id"]] = {
+                "direct_score": float(r["direct_score"]), "direct_confidence": float(r["direct_confidence"]),
+                "via_sector_score": float(r["via_sector_score"]) if r.get("via_sector_score") is not None else None,
+                "n_direct_events": int(r["n_direct_events"]), "paths": texts, "evidence_article_ids": article_ids,
+                "as_of": r["as_of"].isoformat() if isinstance(r.get("as_of"), datetime) else None}
+        return out
+
 
 class FallbackSectorProvider:
     """SECTOR_PROVIDER=tkg as the user runs it: try the TKG; on any error or a stale snapshot log a warning and use tkg_lite for THIS run.
-    `source` is the provider that actually produced the last result; `fallback_reason` says why tkg_lite was used (None otherwise)."""
+    `source` is the provider that actually produced the last result; `fallback_reason` says why tkg_lite was used (None otherwise).
+    `lite` is the tkg_lite provider, used directly for non-Indian holdings (the TKG covers Indian securities only)."""
 
     def __init__(self, primary: SectorSignalProvider, fallback: SectorSignalProvider) -> None:
         self.primary, self.fallback = primary, fallback
         self.source, self.fallback_reason = primary.source, None
+
+    @property
+    def lite(self) -> SectorSignalProvider:
+        return self.fallback
 
     def sector_signals(self, sector_ids: list[str], window_days: int | None = None) -> dict[str, dict | Unavailable]:
         try:
@@ -214,6 +269,17 @@ class FallbackSectorProvider:
             logger.warning("TKG sector view unavailable (%s); using tkg_lite for this run", self.fallback_reason)
             self.source = self.fallback.source
             return self.fallback.sector_signals(sector_ids, window_days)
+
+    def company_impacts(self, security_ids: list[str], window_days: int | None = None) -> dict[str, dict]:
+        """Company evidence only when the TKG itself produced this run's sector view; never raises (evidence is optional)."""
+        impacts = getattr(self.primary, "company_impacts", None)
+        if self.source != self.primary.source or not callable(impacts):
+            return {}
+        try:
+            return impacts(security_ids, window_days)
+        except Exception as exc:
+            logger.warning("TKG company evidence unavailable (%s); continuing without it", type(exc).__name__)
+            return {}
 
 
 def get_sector_provider(settings: Settings | None = None, target: Literal["main", "test"] = "main", **kwargs) -> SectorSignalProvider:

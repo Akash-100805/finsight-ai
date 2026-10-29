@@ -199,6 +199,7 @@ function render(d) {
     `<span class="chip">Stock model <b>${esc(m.stock_model || "n/a")}</b></span>`,
     `<span class="chip ${m.synth_model_used === "template" ? "" : ""}">Synthesis <b>${esc(m.synth_model_used === "template" ? "auto-summary (no LLM)" : m.synth_model_used || "n/a")}</b></span>`];
   if (m.sector_source === "tkg") chips.push(`<span class="chip accent">Sector view: TKG (provisional)</span>`);
+  else if (m.sector_source === "tkg+tkg_lite") chips.push(`<span class="chip accent" title="Indian holdings use the TKG (provisional); other holdings use the news-based estimate">Sector view: TKG + TKG-lite</span>`);
   else if (m.sector_source === "tkg_lite") chips.push(`<span class="chip accent"${m.sector_fallback_reason ? ` title="TKG unavailable, fell back: ${esc(m.sector_fallback_reason)}"` : ""}>Sector view: TKG-lite</span>`);
   else if (m.sector_source) chips.push(`<span class="chip accent">Sector view: ${esc(m.sector_source)}</span>`);
   if (m.fx_rate) chips.push(`<span class="chip">US holdings in INR at USD/INR <b>${fmtINR(m.fx_rate)}</b> (${esc(m.fx_date)})</span>`);
