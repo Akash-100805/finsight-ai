@@ -3,11 +3,10 @@ TKG Models — SQLAlchemy ORM models for all tkg.* tables.
 These represent the TKG's own schema; it reads news.* but only writes here.
 """
 import uuid
-import datetime
 from sqlalchemy import (
     Column, String, Text, Float, Integer, Boolean, DateTime,
     CheckConstraint, Index, ForeignKey, JSON,
-    UniqueConstraint, TypeDecorator
+    TypeDecorator, func
 )
 from sqlalchemy.dialects.postgresql import ARRAY, UUID as PG_UUID
 from tkg.database import Base
@@ -172,7 +171,7 @@ class ProcessedArticle(Base):
     last_error = Column(Text, nullable=True)
     prompt_version = Column(String, nullable=True)
     model = Column(String, nullable=True)
-    processed_at = Column(DateTime, nullable=True)
+    processed_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class Event(Base):
@@ -181,18 +180,19 @@ class Event(Base):
     __table_args__ = (
         Index("ix_events_occurred_at", "occurred_at"),
         Index("ix_events_story_id", "story_id"),
+        Index("ix_events_event_type", "event_type"),
         {"schema": SCHEMA},
     )
 
     event_id = Column(CompatUUID, primary_key=True, default=uuid.uuid4)
     article_id = Column(CompatUUID, nullable=False)
-    occurred_at = Column(DateTime, nullable=False)  # = article's published_at
+    occurred_at = Column(DateTime(timezone=True), nullable=False)  # = article's published_at
     category = Column(String, nullable=True)
     event_type = Column(String, nullable=True)
     summary = Column(Text, nullable=True)  # ≤25 words, factual
     actors = Column(CompatArray, nullable=True)
     story_id = Column(CompatUUID, nullable=True)  # similarity group
-    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class EventDriverMove(Base):
@@ -242,7 +242,7 @@ class SectorImpactSnapshot(Base):
     run_id = Column(CompatUUID, primary_key=True)
     sector_id = Column(String, primary_key=True)
     window_days = Column(Integer, primary_key=True)
-    as_of = Column(DateTime, nullable=False)
+    as_of = Column(DateTime(timezone=True), nullable=False)
     score = Column(Float, nullable=False, default=0.0)
     confidence = Column(Float, nullable=False, default=0.0)
     attention = Column(Float, nullable=False, default=0.0)
@@ -260,7 +260,7 @@ class SecurityImpactSnapshot(Base):
     run_id = Column(CompatUUID, primary_key=True)
     security_id = Column(String, primary_key=True)
     window_days = Column(Integer, primary_key=True)
-    as_of = Column(DateTime, nullable=False)
+    as_of = Column(DateTime(timezone=True), nullable=False)
     via_sector_score = Column(Float, nullable=True)
     direct_score = Column(Float, nullable=True)
     direct_confidence = Column(Float, nullable=True)
@@ -275,8 +275,8 @@ class Run(Base):
     __table_args__ = {"schema": SCHEMA}
 
     run_id = Column(CompatUUID, primary_key=True, default=uuid.uuid4)
-    started_at = Column(DateTime, nullable=False, default=datetime.datetime.utcnow)
-    finished_at = Column(DateTime, nullable=True)
+    started_at = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    finished_at = Column(DateTime(timezone=True), nullable=True)
     status = Column(String, nullable=False, default="running")
     articles_seen = Column(Integer, default=0)
     processed = Column(Integer, default=0)
@@ -287,6 +287,11 @@ class Run(Base):
     llm_tokens_out = Column(Integer, default=0)
     db_size_mb = Column(Float, nullable=True)
     error_summary = Column(Text, nullable=True)
+    llm_requests = Column(Integer, default=0)
+    rate_limited = Column(Boolean, default=False)
+    articles_skipped_purged = Column(Integer, default=0)
+    request_budget = Column(Integer, nullable=True)
+    disrupts_excluded = Column(Integer, default=0)
 
 
 class LLMCall(Base):
@@ -303,5 +308,5 @@ class LLMCall(Base):
     tokens_out = Column(Integer, default=0)
     latency_ms = Column(Integer, nullable=True)
     status = Column(String, nullable=False, default="ok")
-    created_at = Column(DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 

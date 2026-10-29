@@ -83,8 +83,12 @@ def assign_story_groups(session: Session, as_of: Optional[datetime] = None) -> i
     ]
     if changed:
         session.execute(
-            text("UPDATE tkg.events SET story_id = :story_id WHERE event_id = :event_id"),
-            changed,
+            text("""
+                UPDATE tkg.events e SET story_id = v.story_id
+                FROM unnest(CAST(:event_ids AS uuid[]), CAST(:story_ids AS uuid[])) AS v(event_id, story_id)
+                WHERE e.event_id = v.event_id
+            """),
+            {"event_ids": [c["event_id"] for c in changed], "story_ids": [c["story_id"] for c in changed]},
         )
     session.commit()
     logger.info(

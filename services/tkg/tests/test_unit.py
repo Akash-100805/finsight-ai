@@ -2,22 +2,19 @@
 Unit tests for TKG components (section 12.1).
 No network or external API calls.
 """
-import pytest
 import math
-from datetime import datetime, timedelta
 
 from tkg.vocab import (
-    is_valid_driver, is_valid_actor, is_valid_relation,
-    DRIVERS, ACTORS, RELATIONS, MAGNITUDE_MAP
+    is_valid_driver, is_valid_actor, is_valid_relation
 )
 from finsight_shared.sectors import ALL_SECTOR_IDS
-from tkg.input.eligibility import is_eligible, get_skip_reason
+from tkg.input.eligibility import is_eligible
 from tkg.llm.validation import (
-    evidence_is_substring, normalize_whitespace, validate_extraction
+    evidence_is_substring, validate_extraction
 )
-from tkg.llm.schemas import ArticleExtractionOutput, DriverMoveOutput, DirectEffectOutput
+from tkg.llm.schemas import ArticleExtractionOutput, DirectEffectOutput
 from tkg.graph.scoring import (
-    compute_recency_weight, compute_driver_contribution,
+    compute_driver_contribution,
     compute_direct_contribution, aggregate_score, aggregate_confidence,
     generate_explanation
 )

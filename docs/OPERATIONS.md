@@ -35,3 +35,21 @@ Use this instead of the loop if you want runs after a reboot without a window.
 - `python dev.py securities-refresh --target main` refreshes the security master (weekly is enough); `python dev.py sources-sync` re-reads `config/sources.yaml`.
 - Consumers connect as `finsight_agents` (see `docs/NEWS_OUTPUT_CONTRACT.md`). Rotate its password with `python dev.py agents-role` (rewrites the two `AGENTS_*` lines in `.env`; values are never printed).
 - Tests: `python dev.py test` (normal), `python dev.py test -m models` (real models), `python dev.py test -m challenge` (accuracy cases).
+
+## TKG: one run, the loop, and both loops together
+```powershell
+python tkg_dev.py process --target main                 # one TKG run (extract events, rebuild the graph, write the snapshots)
+python tkg_dev.py process --target main --no-llm        # re-score the existing events only (no LLM calls)
+python tkg_dev.py run-loop --target main                # a run every 30 minutes (first one after 2), logs\tkg_loop.log, Ctrl+C stops it
+python tkg_dev.py run-loop --target main --interval-minutes 30 --initial-delay-minutes 2 --max-requests 20
+python dev.py run-all --target main --interval 30       # the news loop AND the TKG loop, two supervised processes, Ctrl+C stops both
+```
+The TKG loop shares nothing with the news loop except the database; a failed iteration is logged and the loop continues. `run-all` restarts a
+loop that crashes (exponential backoff 15 s up to 5 min); a loop that exits cleanly is not restarted. A second TKG run started while one is in
+progress exits at once (advisory lock); a failure of the lock check itself aborts the run with a non-zero exit.
+
+Gemini free-tier quota resets at midnight Pacific (about 12:30 IST). The TKG counts every HTTP request against `TKG_LLM_RPD`; when the API
+answers 429 the run stops calling the LLM, leaves that batch unprocessed (not failed) and still recomputes the snapshots.
+
+Schema changes use Alembic (`python tkg_dev.py migrate --target test|main`; version table `tkg.alembic_version`). A database created before
+Alembic is stamped once: `python tkg_dev.py migrate --target main --stamp 0001`. Downgrades are refused on main.

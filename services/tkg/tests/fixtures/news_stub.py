@@ -2,18 +2,23 @@
 News Stub Fixtures — provides realistic simulated news data matching the upstream news contract.
 Used for testing the TKG end-to-end without live external dependencies.
 """
-import os
 import uuid
-import json
 from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from tkg.settings import settings
-from finsight_shared.sectors import ALL_SECTOR_IDS, NSE_SECTORS, MACRO_SECTOR_ID
+from finsight_shared.sectors import ALL_SECTOR_IDS
 
 NOW = datetime.now(timezone.utc)
+
+
+def _basis(i: int, dim: int = 768) -> List[float]:
+    """Unit basis vector: distinct stub articles are orthogonal (cosine 0), identical ones are 1."""
+    v = [0.0] * dim
+    v[i] = 1.0
+    return v
 
 # Realistic stub articles covering macro, commodity, monetary policy, and corporate events
 STUB_ARTICLES = [
@@ -32,7 +37,7 @@ STUB_ARTICLES = [
         "sectors": ["financial_services", "realty", "automobile_and_auto_components"],
         "article_sentiment_score": -0.4,
         "recency_weight": 0.98,
-        "embedding": [0.05] * 768,
+        "embedding": _basis(1),
         "expected_extraction": {
             "is_market_relevant": True,
             "summary": "RBI hikes repo rate by 25 bps to 6.75% to curb inflation",
@@ -73,7 +78,7 @@ STUB_ARTICLES = [
         "sectors": ["oil_gas_and_consumable_fuels"],
         "article_sentiment_score": 0.6,
         "recency_weight": 0.95,
-        "embedding": [0.12] * 768,
+        "embedding": _basis(2),
         "expected_extraction": {
             "is_market_relevant": True,
             "summary": "OPEC+ agrees on 1 million bpd crude oil output cut",
@@ -114,7 +119,7 @@ STUB_ARTICLES = [
         "sectors": ["information_technology"],
         "article_sentiment_score": -0.3,
         "recency_weight": 0.50,
-        "embedding": [0.08] * 768,
+        "embedding": _basis(3),
         "expected_extraction": {
             "is_market_relevant": True,
             "summary": "Rupee drops to record low against US dollar amidst FPI outflows",
@@ -155,7 +160,7 @@ STUB_ARTICLES = [
         "sectors": ["fast_moving_consumer_goods", "chemicals"],
         "article_sentiment_score": 0.7,
         "recency_weight": 0.98,
-        "embedding": [0.20] * 768,
+        "embedding": _basis(4),
         "expected_extraction": {
             "is_market_relevant": True,
             "summary": "IMD forecasts above-normal monsoon rains boosting farm outlook",
@@ -196,7 +201,7 @@ STUB_ARTICLES = [
         "sectors": [],
         "article_sentiment_score": 0.0,
         "recency_weight": 0.80,
-        "embedding": [0.0] * 768,
+        "embedding": _basis(5),
         "expected_extraction": {
             "is_market_relevant": False,
             "summary": "Celebrity couple visits Switzerland for a weekend holiday",
@@ -291,192 +296,227 @@ ACTIVE_SECURITIES = [
 ]
 
 
-def setup_stub_news_schema(session: Session):
-    """
-    Creates stub news schema and views/tables in the test database.
-    Supports both SQLite (in-memory) and Postgres (TEST project only).
-    """
+STUB_SCHEMA = "news_stub"
+
+
+def _assert_test_db(session: Session) -> None:
+    """Stub tables may only be created on the TEST database."""
     bind = session.get_bind()
-    is_sqlite = bind.dialect.name == "sqlite"
+    if bind.dialect.name != "postgresql":
+        raise RuntimeError("The news stub needs the Postgres TEST database (SQLite is no longer supported)")
+    test_url = settings.TKG_TEST_DATABASE_URL
+    main_url = settings.TKG_DATABASE_URL
+    actual = bind.url.render_as_string(hide_password=False)
 
-    # Step 7.2 Safety Check: Refuse to run against main/production Postgres DB!
-    if not is_sqlite:
-        db_url = str(bind.url)
-        main_url = settings.TKG_DATABASE_URL
-        if main_url and db_url == main_url:
-            raise RuntimeError("CRITICAL: Refusing to create stub tables on main/production database!")
+    def normalized(u):
+        return (u or "").replace("postgresql+psycopg2://", "postgresql://")
 
-    schema_name = os.getenv("TKG_NEWS_SCHEMA", "news_stub" if not is_sqlite else "news")
+    if main_url and normalized(actual) == normalized(main_url):
+        raise RuntimeError("CRITICAL: Refusing to create stub tables on the main database!")
+    if not test_url or normalized(actual) != normalized(test_url):
+        raise RuntimeError("The news stub may only be created on TKG_TEST_DATABASE_URL")
 
-    id_col = "id INTEGER PRIMARY KEY AUTOINCREMENT" if is_sqlite else "id SERIAL PRIMARY KEY"
-    uuid_type = "TEXT" if is_sqlite else "UUID"
-    double_type = "FLOAT" if is_sqlite else "DOUBLE PRECISION"
-    array_type = "TEXT" if is_sqlite else "TEXT[]"
 
-    # 1. sectors table
+def create_stub_tables(session: Session) -> None:
+    """Create the stub news tables (news_stub.*) on the TEST database. Idempotent."""
+    _assert_test_db(session)
+    s = STUB_SCHEMA
+
     session.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS {schema_name}.sectors (
+        CREATE TABLE IF NOT EXISTS {s}.sectors (
             sector_id VARCHAR PRIMARY KEY,
             label VARCHAR NOT NULL
-        );
-    """))
-
-    # Populate sectors table
-    for sid in ALL_SECTOR_IDS:
-        session.execute(
-            text(f"INSERT INTO {schema_name}.sectors (sector_id, label) VALUES (:sid, :label) ON CONFLICT (sector_id) DO NOTHING"),
-            {"sid": sid, "label": sid.replace("_", " ").title()}
-        )
-
-    # 2. securities table
+        )"""))
     session.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS {schema_name}.securities (
+        CREATE TABLE IF NOT EXISTS {s}.securities (
             security_id VARCHAR PRIMARY KEY,
-            exchange VARCHAR,
-            symbol VARCHAR,
-            name VARCHAR,
-            sector VARCHAR,
+            exchange VARCHAR, symbol VARCHAR, name VARCHAR, sector VARCHAR,
             is_active BOOLEAN DEFAULT TRUE
-        );
-    """))
-
-    # Populate active securities
-    for sec_id, ex, sym, name, sec in ACTIVE_SECURITIES:
-        session.execute(
-            text(f"""
-                INSERT INTO {schema_name}.securities (security_id, exchange, symbol, name, sector, is_active)
-                VALUES (:sec_id, :ex, :sym, :name, :sec, TRUE)
-                ON CONFLICT (security_id) DO UPDATE SET is_active = TRUE
-            """),
-            {"sec_id": sec_id, "ex": ex, "sym": sym, "name": name, "sec": sec}
-        )
-
-    # 3. v_articles table
+        )"""))
     session.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS {schema_name}.v_articles (
-            article_id {uuid_type} PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS {s}.v_articles (
+            article_id UUID PRIMARY KEY,
+            source_id VARCHAR,
+            url TEXT,
             title TEXT NOT NULL,
             description TEXT,
             published_at TIMESTAMP WITH TIME ZONE NOT NULL,
             category VARCHAR NOT NULL,
             event_type VARCHAR NOT NULL,
             source_type VARCHAR NOT NULL,
-            source_reliability {double_type},
+            source_reliability DOUBLE PRECISION,
             geo_scope VARCHAR,
-            countries {array_type},
-            securities {array_type},
-            sectors {array_type},
-            article_sentiment_score {double_type},
-            recency_weight {double_type}
-        );
-    """))
-
-    # 4. v_security_news table
+            countries TEXT[],
+            securities TEXT[],
+            sectors TEXT[],
+            article_sentiment_score DOUBLE PRECISION,
+            recency_weight DOUBLE PRECISION
+        )"""))
+    session.execute(text(f"ALTER TABLE {s}.v_articles ADD COLUMN IF NOT EXISTS source_id VARCHAR"))
+    session.execute(text(f"ALTER TABLE {s}.v_articles ADD COLUMN IF NOT EXISTS url TEXT"))
     session.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS {schema_name}.v_security_news (
-            {id_col},
-            article_id {uuid_type} NOT NULL,
+        CREATE TABLE IF NOT EXISTS {s}.v_security_news (
+            id SERIAL PRIMARY KEY,
+            article_id UUID NOT NULL,
             security_id VARCHAR NOT NULL,
-            exchange VARCHAR,
-            symbol VARCHAR,
-            sector VARCHAR,
-            role VARCHAR,
-            confidence {double_type} NOT NULL,
-            finbert_score {double_type},
-            finbert_label VARCHAR,
-            sentiment_method VARCHAR
-        );
-    """))
-
-    # 5. v_sector_news table
+            exchange VARCHAR, symbol VARCHAR, sector VARCHAR, role VARCHAR,
+            confidence DOUBLE PRECISION NOT NULL,
+            finbert_score DOUBLE PRECISION, finbert_label VARCHAR, sentiment_method VARCHAR
+        )"""))
     session.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS {schema_name}.v_sector_news (
-            {id_col},
-            article_id {uuid_type} NOT NULL,
+        CREATE TABLE IF NOT EXISTS {s}.v_sector_news (
+            id SERIAL PRIMARY KEY,
+            article_id UUID NOT NULL,
             sector VARCHAR NOT NULL,
-            confidence {double_type} NOT NULL,
+            confidence DOUBLE PRECISION NOT NULL,
             method VARCHAR
-        );
-    """))
-
-    # 6. article_embeddings table
+        )"""))
+    # The real table holds halfvec(768); story grouping runs pgvector's <=> on it.
+    emb_type = session.execute(text(
+        "SELECT format_type(a.atttypid, a.atttypmod) FROM pg_attribute a "
+        f"WHERE a.attrelid = to_regclass('{s}.article_embeddings') AND a.attname = 'embedding'"
+    )).scalar()
+    if emb_type is not None and emb_type != "halfvec(768)":
+        session.execute(text(f"DROP TABLE {s}.article_embeddings"))
     session.execute(text(f"""
-        CREATE TABLE IF NOT EXISTS {schema_name}.article_embeddings (
-            article_id {uuid_type} PRIMARY KEY,
-            embedding {array_type}
-        );
-    """))
-
-    # Populate stub articles
-    for a in STUB_ARTICLES:
-        aid_val = str(a["article_id"]) if is_sqlite else a["article_id"]
-        countries_val = json.dumps(a["countries"]) if is_sqlite else a["countries"]
-        secs_val = json.dumps(a["securities"]) if is_sqlite else a["securities"]
-        sects_val = json.dumps(a["sectors"]) if is_sqlite else a["sectors"]
-
-        session.execute(text(f"""
-            INSERT INTO {schema_name}.v_articles 
-                (article_id, title, description, published_at, category, event_type, 
-                 source_type, source_reliability, geo_scope, countries, securities, sectors,
-                 article_sentiment_score, recency_weight)
-            VALUES 
-                (:aid, :title, :desc, :pub_at, :cat, :etype, :stype, :srel, :gscope, :countries, :secs, :sects, :sent, :rw)
-            ON CONFLICT (article_id) DO NOTHING;
-        """), {
-            "aid": aid_val,
-            "title": a["title"],
-            "desc": a["description"],
-            "pub_at": a["published_at"],
-            "cat": a["category"],
-            "etype": a["event_type"],
-            "stype": a["source_type"],
-            "srel": a["source_reliability"],
-            "gscope": a["geo_scope"],
-            "countries": countries_val,
-            "secs": secs_val,
-            "sects": sects_val,
-            "sent": a["article_sentiment_score"],
-            "rw": a["recency_weight"],
-        })
-
-        if a.get("embedding"):
-            emb_val = json.dumps(a["embedding"]) if is_sqlite else a["embedding"]
-            session.execute(text(f"""
-                INSERT INTO {schema_name}.article_embeddings (article_id, embedding)
-                VALUES (:aid, :emb)
-                ON CONFLICT (article_id) DO NOTHING;
-            """), {"aid": aid_val, "emb": emb_val})
-
-    for s in STUB_SECURITY_NEWS:
-        aid_val = str(s["article_id"]) if is_sqlite else s["article_id"]
-        session.execute(text(f"""
-            INSERT INTO {schema_name}.v_security_news 
-                (article_id, security_id, exchange, symbol, sector, role, confidence, finbert_score, finbert_label, sentiment_method)
-            VALUES 
-                (:aid, :sec_id, :ex, :sym, :sec, :role, :conf, :fscore, :flabel, :smeth);
-        """), {
-            "aid": aid_val,
-            "sec_id": s["security_id"],
-            "ex": s["exchange"],
-            "sym": s["symbol"],
-            "sec": s["sector"],
-            "role": s["role"],
-            "conf": s["confidence"],
-            "fscore": s["finbert_score"],
-            "flabel": s["finbert_label"],
-            "smeth": s["sentiment_method"],
-        })
-
-    for sc in STUB_SECTOR_NEWS:
-        aid_val = str(sc["article_id"]) if is_sqlite else sc["article_id"]
-        session.execute(text(f"""
-            INSERT INTO {schema_name}.v_sector_news (article_id, sector, confidence, method)
-            VALUES (:aid, :sec, :conf, :meth);
-        """), {
-            "aid": aid_val,
-            "sec": sc["sector"],
-            "conf": sc["confidence"],
-            "meth": sc["method"],
-        })
-
+        CREATE TABLE IF NOT EXISTS {s}.article_embeddings (
+            article_id UUID PRIMARY KEY,
+            embedding halfvec(768)
+        )"""))
     session.commit()
+
+
+def reset_stub_news(session: Session) -> None:
+    """Empty the stub article tables (securities and sectors are reference data and stay)."""
+    session.rollback()
+    session.execute(text(
+        f"TRUNCATE {STUB_SCHEMA}.v_articles, {STUB_SCHEMA}.v_security_news, "
+        f"{STUB_SCHEMA}.v_sector_news, {STUB_SCHEMA}.article_embeddings"))
+    session.commit()
+
+
+def _vec(values: List[float]) -> str:
+    return "[" + ",".join(f"{v:.6f}" for v in values) + "]"
+
+
+def _bulk_insert(session: Session, table: str, columns: List[str], rows: List[Dict[str, Any]],
+                 casts: Dict[str, str] | None = None, suffix: str = "") -> None:
+    """One multi-row INSERT (a single round trip; the TEST database is remote and slow per statement)."""
+    if not rows:
+        return
+    casts = casts or {}
+    params: Dict[str, Any] = {}
+    values = []
+    for i, row in enumerate(rows):
+        placeholders = []
+        for col in columns:
+            key = f"{col}_{i}"
+            params[key] = row.get(col)
+            placeholders.append(f"CAST(:{key} AS {casts[col]})" if col in casts else f":{key}")
+        values.append("(" + ", ".join(placeholders) + ")")
+    session.execute(
+        text(f"INSERT INTO {table} ({', '.join(columns)}) VALUES {', '.join(values)} {suffix}"), params)
+
+
+_ARTICLE_COLS = ["article_id", "source_id", "url", "title", "description", "published_at", "category",
+                 "event_type", "source_type", "source_reliability", "geo_scope", "countries", "securities",
+                 "sectors", "article_sentiment_score", "recency_weight"]
+_SEC_COLS = ["article_id", "security_id", "exchange", "symbol", "sector", "role", "confidence",
+             "finbert_score", "finbert_label", "sentiment_method"]
+
+
+def _article_row(article: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "article_id": article["article_id"],
+        "source_id": article.get("source_id", "stub_source"),
+        "url": article.get("url", f"https://stub.example/{article['article_id']}"),
+        "title": article["title"],
+        "description": article.get("description"),
+        "published_at": article["published_at"],
+        "category": article.get("category", "markets"),
+        "event_type": article.get("event_type", "other"),
+        "source_type": article.get("source_type", "publisher"),
+        "source_reliability": article.get("source_reliability", 0.85),
+        "geo_scope": article.get("geo_scope", "india"),
+        "countries": article.get("countries", ["IN"]),
+        "securities": article.get("securities", []),
+        "sectors": article.get("sectors", []),
+        "article_sentiment_score": article.get("article_sentiment_score", 0.0),
+        "recency_weight": article.get("recency_weight", 1.0),
+    }
+
+
+def _sec_row(article_id, sec: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "article_id": article_id, "security_id": sec["security_id"], "exchange": sec.get("exchange", "NSE"),
+        "symbol": sec.get("symbol", sec["security_id"].split(":")[-1]), "sector": sec.get("sector"),
+        "role": sec.get("role", "mentioned"), "confidence": sec.get("confidence", 0.9),
+        "finbert_score": sec.get("finbert_score", 0.0), "finbert_label": sec.get("finbert_label", "neutral"),
+        "sentiment_method": sec.get("sentiment_method", "company_reference"),
+    }
+
+
+def insert_stub_articles(
+    session: Session,
+    articles: List[Dict[str, Any]],
+    security_links: Dict[Any, List[Dict[str, Any]]] | None = None,
+    sector_links: Dict[Any, List[Dict[str, Any]]] | None = None,
+) -> None:
+    """Insert articles (+ embeddings, security and sector links) with one statement per table. No commit."""
+    security_links = security_links or {}
+    sector_links = sector_links or {}
+    s = STUB_SCHEMA
+    _bulk_insert(session, f"{s}.v_articles", _ARTICLE_COLS, [_article_row(a) for a in articles],
+                 suffix="ON CONFLICT (article_id) DO NOTHING")
+    _bulk_insert(
+        session, f"{s}.article_embeddings", ["article_id", "embedding"],
+        [{"article_id": a["article_id"], "embedding": _vec(a["embedding"])} for a in articles if a.get("embedding")],
+        casts={"embedding": "halfvec"}, suffix="ON CONFLICT (article_id) DO NOTHING")
+    _bulk_insert(session, f"{s}.v_security_news", _SEC_COLS,
+                 [_sec_row(a["article_id"], sec) for a in articles for sec in security_links.get(a["article_id"], [])])
+    _bulk_insert(session, f"{s}.v_sector_news", ["article_id", "sector", "confidence", "method"],
+                 [{"article_id": a["article_id"], "sector": sc["sector"], "confidence": sc.get("confidence", 0.9),
+                   "method": sc.get("method", "text_classifier")}
+                  for a in articles for sc in sector_links.get(a["article_id"], [])])
+
+
+def insert_stub_article(
+    session: Session,
+    article: Dict[str, Any],
+    security_links: List[Dict[str, Any]] | None = None,
+    sector_links: List[Dict[str, Any]] | None = None,
+) -> None:
+    """Insert one article. No commit."""
+    aid = article["article_id"]
+    insert_stub_articles(session, [article], {aid: security_links or []}, {aid: sector_links or []})
+
+
+def ensure_stub_reference_data(session: Session) -> None:
+    """Sectors and active securities (reference data; idempotent)."""
+    create_stub_tables(session)
+    s = STUB_SCHEMA
+    _bulk_insert(session, f"{s}.sectors", ["sector_id", "label"],
+                 [{"sector_id": sid, "label": sid.replace("_", " ").title()} for sid in ALL_SECTOR_IDS],
+                 suffix="ON CONFLICT (sector_id) DO NOTHING")
+    _bulk_insert(session, f"{s}.securities", ["security_id", "exchange", "symbol", "name", "sector", "is_active"],
+                 [{"security_id": a, "exchange": b, "symbol": c, "name": d, "sector": e, "is_active": True}
+                  for a, b, c, d, e in ACTIVE_SECURITIES],
+                 suffix="ON CONFLICT (security_id) DO UPDATE SET is_active = TRUE")
+    session.commit()
+
+
+def insert_standard_stub_articles(session: Session) -> None:
+    """The standard stub articles (replaces any previous stub articles)."""
+    reset_stub_news(session)
+    insert_stub_articles(
+        session, STUB_ARTICLES,
+        {a["article_id"]: [x for x in STUB_SECURITY_NEWS if x["article_id"] == a["article_id"]] for a in STUB_ARTICLES},
+        {a["article_id"]: [x for x in STUB_SECTOR_NEWS if x["article_id"] == a["article_id"]] for a in STUB_ARTICLES},
+    )
+    session.commit()
+
+
+def setup_stub_news_schema(session: Session) -> None:
+    """(Re)create the stub news data on the TEST database: reference tables plus the standard articles."""
+    ensure_stub_reference_data(session)
+    insert_standard_stub_articles(session)

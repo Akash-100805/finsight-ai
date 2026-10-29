@@ -4,7 +4,6 @@ Enforces strict Section 5 validation against live DB tables (news.sectors, news.
 """
 import os
 import csv
-import sys
 import logging
 from typing import Dict, Any, Tuple, List, Set, Optional
 from sqlalchemy.orm import Session

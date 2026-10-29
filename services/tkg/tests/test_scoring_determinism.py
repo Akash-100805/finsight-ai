@@ -1,186 +1,75 @@
 """
-Determinism and Deduplication tests for TKG scoring engine (section 12.1 and 12.2).
+Determinism and story-dedup tests for the TKG scoring engine (guide 12.1 / 12.2) on the Postgres TEST database.
 """
+import json
 import uuid
-import datetime
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
-from tkg.database import Base
-from tkg.models import (
-    Driver, Actor, SectorSensitivity, SecuritySensitivity, SectorLink,
-    Event, EventDriverMove, EventDirectEffect, SectorImpactSnapshot, SecurityImpactSnapshot
-)
+import pytest
+from sqlalchemy import text
+
 from tkg.graph.builder import TKGGraph
 from tkg.graph.scoring import compute_sector_impacts, compute_security_impacts
-from tkg.priors_loader import load_vocab_tables
+from tkg.llm.client import FakeLLMClient
+from tkg.processing.runner import run_processing
+from helpers import AS_OF, seed_event, fake_responses_from_stub
+
+pytestmark = pytest.mark.db
+
+CRUDE_UP = {"driver_id": "drv:crude_oil_price", "relation": "MOVES_UP", "magnitude": "high", "confidence": 0.9}
 
 
-from sqlalchemy.pool import StaticPool
-from sqlalchemy import text
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from fixtures.news_stub import setup_stub_news_schema
-
-
-def create_in_memory_db():
-    """Create a temporary SQLite in-memory database with attached tkg schema for isolated scoring tests."""
-    engine = create_engine(
-        "sqlite:///:memory:",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool
-    )
-    with engine.connect() as conn:
-        conn.connection.execute("ATTACH DATABASE ':memory:' AS tkg")
-        conn.connection.execute("ATTACH DATABASE ':memory:' AS news")
-        conn.commit()
-
-    Base.metadata.create_all(engine)
-    session_factory = sessionmaker(bind=engine)
-    session = session_factory()
-    setup_stub_news_schema(session)
-    return engine, session
-
-
-
-def test_snapshot_determinism():
-    """Given identical events and priors, two scoring computations must yield identical snapshots."""
-    engine, session = create_in_memory_db()
-
-    # Seed vocab
-    load_vocab_tables(session)
-
-    # Seed prior: crude -> paints = -0.70
-    session.add(SectorSensitivity(
-        driver_id="drv:crude_oil_price",
-        sector_id="chemicals",
-        sensitivity=-0.70,
-        rationale="Chemicals feedstock input costs",
-        reviewed=True
-    ))
-    session.commit()
-
-    # Add an event
-    as_of = datetime.datetime(2026, 10, 25, 12, 0, 0)
-    event_id = uuid.uuid4()
-    art_id = uuid.uuid4()
-    session.execute(
-        text("INSERT INTO news.v_articles (article_id, title, published_at, category, event_type, source_type, source_reliability, geo_scope, article_sentiment_score, recency_weight) VALUES (:aid, 'Crude oil surges', :pub, 'commodities_energy', 'commodity_price_move', 'mainstream_news', 0.85, 'global', 0.5, 0.9)"),
-        {"aid": str(art_id), "pub": as_of - datetime.timedelta(days=1)}
-    )
-    session.commit()
-
-    session.add(Event(
-        event_id=event_id,
-        article_id=art_id,
-        occurred_at=as_of - datetime.timedelta(days=1),
-        category="commodities_energy",
-        event_type="commodity_price_move",
-        summary="Crude oil surges following OPEC decision",
-    ))
-    session.add(EventDriverMove(
-        event_id=event_id,
-        driver_id="drv:crude_oil_price",
-        relation="MOVES_UP",
-        magnitude="high",
-        confidence=0.90,
-        evidence="Crude oil surges",
-    ))
-    session.commit()
-
-    # Compute run 1
-    graph1 = TKGGraph()
-    graph1.rebuild(session, as_of=as_of)
-    impacts1 = compute_sector_impacts(session, graph1, as_of=as_of, window_days=30)
-
-    # Compute run 2
-    graph2 = TKGGraph()
-    graph2.rebuild(session, as_of=as_of)
-    impacts2 = compute_sector_impacts(session, graph2, as_of=as_of, window_days=30)
-
-    # Verify determinism
-    assert len(impacts1) == len(impacts2)
-    for sid in impacts1:
-        assert impacts1[sid]["score"] == impacts2[sid]["score"]
-        assert impacts1[sid]["confidence"] == impacts2[sid]["confidence"]
-        assert impacts1[sid]["status"] == impacts2[sid]["status"]
-
-
-def test_story_deduplication():
-    """
-    Two events reporting the same story (same story_id) within 72h
-    must only count the single strongest contribution for scoring.
-    """
-    engine, session = create_in_memory_db()
-    load_vocab_tables(session)
-
-    session.add(SectorSensitivity(
-        driver_id="drv:crude_oil_price",
-        sector_id="chemicals",
-        sensitivity=-0.70,
-        reviewed=True
-    ))
-    session.commit()
-
-    as_of = datetime.datetime(2026, 10, 25, 12, 0, 0)
-    story_uuid = uuid.uuid4()
-
-    # Event 1: weaker source
-    eid1 = uuid.uuid4()
-    aid1 = uuid.uuid4()
-    session.execute(
-        text("INSERT INTO news.v_articles (article_id, title, published_at, category, event_type, source_type, source_reliability, geo_scope, article_sentiment_score, recency_weight) VALUES (:aid, 'Oil up slightly', :pub, 'commodities_energy', 'commodity_price_move', 'mainstream_news', 0.70, 'global', 0.2, 0.9)"),
-        {"aid": str(aid1), "pub": as_of - datetime.timedelta(days=1)}
-    )
-    session.add(Event(
-        event_id=eid1,
-        article_id=aid1,
-        occurred_at=as_of - datetime.timedelta(days=1),
-        category="commodities_energy",
-        summary="Oil up slightly",
-        story_id=story_uuid,
-    ))
-    session.add(EventDriverMove(
-        event_id=eid1,
-        driver_id="drv:crude_oil_price",
-        relation="MOVES_UP",
-        magnitude="low",  # 0.33
-        confidence=0.60,
-    ))
-
-    # Event 2: stronger report of the exact same story
-    eid2 = uuid.uuid4()
-    aid2 = uuid.uuid4()
-    session.execute(
-        text("INSERT INTO news.v_articles (article_id, title, published_at, category, event_type, source_type, source_reliability, geo_scope, article_sentiment_score, recency_weight) VALUES (:aid, 'Major oil rally', :pub, 'commodities_energy', 'commodity_price_move', 'mainstream_news', 0.90, 'global', 0.6, 0.9)"),
-        {"aid": str(aid2), "pub": as_of - datetime.timedelta(days=1)}
-    )
-    session.add(Event(
-        event_id=eid2,
-        article_id=aid2,
-        occurred_at=as_of - datetime.timedelta(days=1),
-        category="commodities_energy",
-        summary="Major oil rally after OPEC agreement",
-        story_id=story_uuid,
-    ))
-    session.add(EventDriverMove(
-        event_id=eid2,
-        driver_id="drv:crude_oil_price",
-        relation="MOVES_UP",
-        magnitude="high",  # 1.0
-        confidence=0.90,
-    ))
-    session.commit()
-
+def _impacts(session, window=30):
     graph = TKGGraph()
-    graph.rebuild(session, as_of=as_of)
-    impacts = compute_sector_impacts(session, graph, as_of=as_of, window_days=30)
+    graph.rebuild(session, as_of=AS_OF)
+    sectors = compute_sector_impacts(session, graph, as_of=AS_OF, window_days=window)
+    securities = compute_security_impacts(session, graph, AS_OF, window, sectors)
+    return sectors, securities
 
-    # Score should only reflect the single strongest event for the story, not double-counting
-    chem_data = impacts.get("chemicals")
-    assert chem_data is not None
-    assert chem_data["status"] == "signal"
-    # Because only the stronger instance is counted, the score magnitude matches a single high event
-    assert chem_data["score"] < 0
 
+def test_scoring_is_deterministic(pg_session):
+    seed_event(pg_session, title="Crude oil surges", driver_moves=[CRUDE_UP], embedding_index=1)
+    first = _impacts(pg_session)
+    second = _impacts(pg_session)
+    assert json.dumps(first, sort_keys=True, default=str) == json.dumps(second, sort_keys=True, default=str)
+    assert first[0]["chemicals"]["status"] == "signal"
+
+
+def test_story_deduplication_counts_once(pg_session):
+    story = uuid.uuid4()
+    seed_event(pg_session, title="Oil up slightly", source_reliability=0.7, story_id=story, embedding_index=1,
+               driver_moves=[{**CRUDE_UP, "magnitude": "low", "confidence": 0.6}])
+    seed_event(pg_session, title="Major oil rally", source_reliability=0.9, story_id=story, embedding_index=2,
+               driver_moves=[CRUDE_UP])
+    both = _impacts(pg_session)[0]["chemicals"]
+
+    pg_session.execute(text("TRUNCATE tkg.event_driver_moves, tkg.events CASCADE"))
+    pg_session.commit()
+    seed_event(pg_session, title="Major oil rally", source_reliability=0.9, embedding_index=2,
+               driver_moves=[CRUDE_UP])
+    only_strong = _impacts(pg_session)[0]["chemicals"]
+
+    assert both["score"] == only_strong["score"] < 0
+    assert both["n_events"] == 1
+
+
+def test_two_identical_runs_give_identical_snapshots(pg_session_stub):
+    session = pg_session_stub
+    client = FakeLLMClient(responses=fake_responses_from_stub())
+    run_processing(db_session=session, llm_client=client)
+    as_of_fixed = session.execute(text("SELECT max(as_of) FROM tkg.sector_impact_snapshots")).scalar()
+    run2 = run_processing(db_session=session, llm_client=client, no_llm=True, as_of=as_of_fixed)
+    run3 = run_processing(db_session=session, llm_client=client, no_llm=True, as_of=as_of_fixed)
+
+    def dump(run_id):
+        rows = session.execute(text(
+            "SELECT sector_id, window_days, score, confidence, attention, status, n_events, top_paths "
+            "FROM tkg.sector_impact_snapshots WHERE run_id = :r ORDER BY sector_id, window_days"),
+            {"r": run_id}).all()
+        sec = session.execute(text(
+            "SELECT security_id, window_days, via_sector_score, direct_score, direct_confidence, top_paths "
+            "FROM tkg.security_impact_snapshots WHERE run_id = :r ORDER BY security_id, window_days"),
+            {"r": run_id}).all()
+        return json.dumps([[str(c) for c in r] for r in rows] + [[str(c) for c in r] for r in sec])
+
+    assert dump(run2["run_id"]) == dump(run3["run_id"])
+    assert len(dump(run2["run_id"])) > 100

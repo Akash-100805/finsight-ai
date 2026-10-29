@@ -23,14 +23,19 @@ CATEGORIES = [
 AGES_DAYS = [0, 1, 3, 30, 90]
 
 
+pytestmark = pytest.mark.db
+
+
 def test_recency_weight_comparison_with_db():
     """
     Step 6.5: Compare local recency function with news.recency_weight(published_at, category)
     for every category at ages 0, 1, 3, 30 and 90 days (tolerance 1e-6).
     """
-    db_url = settings.TKG_TEST_DATABASE_URL or settings.TKG_DATABASE_URL
-    if not db_url or "sqlite" in db_url:
-        pytest.skip("Postgres DB URL not configured; skipping live DB recency function test")
+    db_url = settings.TKG_TEST_DATABASE_URL
+    if not db_url:
+        pytest.skip("TKG_TEST_DATABASE_URL not configured; skipping live DB recency function test")
+    if db_url == settings.TKG_DATABASE_URL:
+        pytest.fail("TKG_TEST_DATABASE_URL equals TKG_DATABASE_URL; refusing to run against main")
 
     engine = get_engine(db_url)
     as_of = datetime.now(timezone.utc)

@@ -307,7 +307,8 @@ def compute_sector_impacts(
     reliability, purged = _load_reliability(
         session, news_schema, sorted({str(ev["article_id"]) for ev in events})
     )
-    report["articles_skipped_purged"] = report.get("articles_skipped_purged", 0) + len(purged)
+    report.setdefault("_purged", set()).update(purged)
+    report["articles_skipped_purged"] = len(report["_purged"])
 
     live_events = [ev for ev in events if str(ev["article_id"]) not in purged]
     event_ids = [str(ev["event_id"]) for ev in live_events]
@@ -347,6 +348,11 @@ def compute_sector_impacts(
         for dm in moves_by_event.get(eid, []):
             if dm["relation"] not in RELATIONS:
                 raise ValueError(f"Unknown relation '{dm['relation']}' on driver move of event {eid}")
+            if dm["relation"] not in ("MOVES_UP", "MOVES_DOWN"):
+                # DISRUPTS (legacy rows) is not a valid driver relation: excluded and counted
+                report.setdefault("_driver_disrupts", set()).add((eid, dm["driver_id"], dm["relation"]))
+                report["driver_disrupts_excluded"] = len(report["_driver_disrupts"])
+                continue
             sign = RELATIONS[dm["relation"]].sign
             for sid, sens in sens_by_driver.get(dm["driver_id"], []):
                 contrib = compute_driver_contribution(sign, dm["magnitude"], sens, w_e, dm["confidence"])
@@ -443,7 +449,9 @@ def compute_security_impacts(
 
     article_ids = sorted({str(r["article_id"]) for r in list(effect_rows) + list(move_rows)})
     reliability, purged = _load_reliability(session, news_schema, article_ids)
-    report["articles_skipped_purged_security"] = report.get("articles_skipped_purged_security", 0) + len(purged)
+    report.setdefault("_purged", set()).update(purged)
+    report["articles_skipped_purged"] = len(report["_purged"])
+    report.setdefault("_override_disrupts", set())
     report.setdefault("override_disrupts_excluded", 0)
 
     security_ids = sorted({r["target_id"] for r in effect_rows} | set(override_drivers.keys()))
@@ -483,7 +491,8 @@ def compute_security_impacts(
             continue
         if r["relation"] not in ("MOVES_UP", "MOVES_DOWN"):
             # DISRUPTS (legacy rows) is not a valid driver relation: excluded and counted
-            report["override_disrupts_excluded"] += 1
+            report["_override_disrupts"].add((str(r["event_id"]), r["driver_id"], r["relation"]))
+            report["override_disrupts_excluded"] = len(report["_override_disrupts"])
             continue
         sign = RELATIONS[r["relation"]].sign
         eid = str(r["event_id"])

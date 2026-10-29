@@ -4,7 +4,7 @@ Connects to the Neon Postgres database (schema tkg).
 """
 import logging
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker, declarative_base, Session
+from sqlalchemy.orm import sessionmaker, declarative_base
 
 from tkg.settings import settings
 

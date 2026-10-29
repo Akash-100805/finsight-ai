@@ -6,9 +6,10 @@ Cross-platform (macOS, Linux, Windows PowerShell).
 Usage:
   python tkg_dev.py setup
   python tkg_dev.py db-check
-  python tkg_dev.py migrate --target main|test
+  python tkg_dev.py migrate --target main|test [--revision head] [--stamp REV] [--downgrade REV (test only)]
   python tkg_dev.py priors-load --target main|test
-  python tkg_dev.py process --target main|test [--max-requests N] [--dry-run]
+  python tkg_dev.py process --target main|test [--max-requests N] [--dry-run] [--no-llm]
+  python tkg_dev.py run-loop [--target main|test] [--interval-minutes 30] [--initial-delay-minutes 2]
   python tkg_dev.py report
   python tkg_dev.py test
 """
@@ -17,6 +18,7 @@ import os
 import argparse
 import logging
 import subprocess
+import time
 
 # Ensure services/tkg/src and shared are in python path
 repo_root = os.path.dirname(os.path.abspath(__file__))
@@ -99,44 +101,62 @@ def cmd_db_check(args):
             print(f"  Error: {res.get('error')}")
 
 
-def cmd_migrate(args):
-    """Run SQL migrations against target database (idempotent)."""
-    target = getattr(args, "target", "main")
-    url = get_target_url(target)
+def alembic_config(target: str, url: str):
+    """Alembic config for services/tkg: URL and news schema are passed in, never stored in the ini."""
+    from alembic.config import Config
+    cfg = Config(os.path.join(repo_root, "services", "tkg", "alembic.ini"))
+    cfg.attributes["url"] = url
+    cfg.set_main_option("news_schema", "news" if target == "main" else "news_stub")
+    return cfg
 
-    print(f"=== Running Migrations on {target} DB ===")
-    migration_file = os.path.join(repo_root, "services", "tkg", "migrations", "0001_initial.sql")
-    if not os.path.exists(migration_file):
-        print(f"Error: Migration file not found: {migration_file}")
+
+def cmd_migrate(args):
+    """Run Alembic (version table tkg.alembic_version) against the target database."""
+    from alembic import command
+    target = getattr(args, "target", "main")
+    revision = getattr(args, "revision", None) or "head"
+    stamp = getattr(args, "stamp", None)
+    downgrade = getattr(args, "downgrade", None)
+    url = get_target_url(target)
+    cfg = alembic_config(target, url)
+
+    if downgrade is not None and target != "test":
+        print("Refusing to downgrade the main database; downgrades are test-only.")
         sys.exit(1)
 
-    with open(migration_file, "r", encoding="utf-8") as f:
-        sql = f.read()
-
+    print(f"=== Alembic on {target} DB ===")
     engine = get_engine(url)
     try:
-        # Check idempotency via schema_migrations
         with engine.connect() as conn:
-            has_table = conn.execute(text(
-                "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'tkg' AND table_name = 'schema_migrations')"
-            )).scalar()
-            if has_table:
-                already_applied = conn.execute(text(
-                    "SELECT 1 FROM tkg.schema_migrations WHERE filename = '0001_initial.sql'"
-                )).scalar()
-                if already_applied:
-                    print("Migration 0001_initial.sql already applied. Skipping.")
-                    return
-
-        with engine.begin() as conn:
-            raw_conn = conn.connection
-            cursor = raw_conn.cursor()
-            cursor.execute(sql)
-            cursor.close()
-        print("Migration 0001_initial.sql applied successfully!")
+            has_version = conn.execute(text(
+                "SELECT to_regclass('tkg.alembic_version') IS NOT NULL")).scalar()
+            has_legacy = conn.execute(text(
+                "SELECT to_regclass('tkg.events') IS NOT NULL")).scalar()
+        if stamp is not None:
+            command.stamp(cfg, stamp)
+            print(f"Stamped {target} at revision {stamp} (no SQL run).")
+        elif not has_version and has_legacy:
+            print("The tkg schema exists but has no tkg.alembic_version (pre-Alembic database).\n"
+                  "Stamp it at the baseline first: python tkg_dev.py migrate --target "
+                  f"{target} --stamp 0001")
+            sys.exit(1)
+        if downgrade is not None:
+            command.downgrade(cfg, downgrade)
+            print(f"Downgraded to {downgrade}.")
+        elif stamp is None or revision != "head":
+            command.upgrade(cfg, revision)
+            print(f"Upgraded to {revision}.")
+        elif stamp is not None:
+            command.upgrade(cfg, "head")
+            print("Upgraded to head.")
+        command.current(cfg, verbose=False)
+    except SystemExit:
+        raise
     except Exception as e:
-        print(f"Migration failed: {e}")
+        print(f"Migration failed: {type(e).__name__}: {str(e)[:300]}")
         sys.exit(1)
+    finally:
+        engine.dispose()
 
 
 def cmd_priors_load(args):
@@ -201,6 +221,9 @@ def cmd_process(args):
     session = factory()
     try:
         stats = run_processing(db_session=session, dry_run=dry_run, max_requests=max_requests, no_llm=no_llm)
+        if stats.get("status") == "skipped_lock_held":
+            print("Another TKG run holds the advisory lock; nothing done.")
+            return
         print("Run completed successfully!")
         print(f"  Run ID: {stats.get('run_id')}")
         print(f"  Articles Seen: {stats.get('articles_seen')}")
@@ -214,15 +237,73 @@ def cmd_process(args):
         print(f"  LLM Requests: {stats.get('llm_requests')}")
         print(f"  LLM Tokens (In/Out): {stats.get('llm_tokens_in')} / {stats.get('llm_tokens_out')}")
         print(f"  Snapshots Written: {stats.get('snapshots_written')}")
+        print(f"  Request budget: {stats.get('request_budget')}  rate_limited: {stats.get('rate_limited')}")
+        if stats.get("llm_unavailable"):
+            print(f"  {stats['llm_unavailable']}")
+        print(f"  Validation drops: {stats.get('validation_drops')}")
         print(f"  Articles skipped (purged): {stats.get('articles_skipped_purged')}")
-        print(f"  Company overrides excluded (DISRUPTS): {stats.get('override_disrupts_excluded')}")
+        print(f"  DISRUPTS excluded (driver paths / company overrides): "
+              f"{stats.get('driver_disrupts_excluded')} / {stats.get('override_disrupts_excluded')}")
         print(f"  DB Size (MB): {stats.get('db_size_mb')}")
         print(f"  Duration (s): {stats.get('duration_s', 'N/A')}")
     except Exception as e:
-        print(f"Processing run failed: {e}")
+        print(f"Processing run failed: {type(e).__name__}: {str(e)[:300]}")
         sys.exit(1)
     finally:
         session.close()
+        engine.dispose()
+
+
+def cmd_run_loop(args):
+    """Run `process` every N minutes in the foreground (Ctrl+C exits cleanly; one failure never stops the loop)."""
+    target = getattr(args, "target", "main")
+    interval = float(args.interval_minutes)
+    initial_delay = float(args.initial_delay_minutes)
+    max_requests = getattr(args, "max_requests", None)
+    url = get_target_url(target)
+    os.environ["TKG_NEWS_SCHEMA"] = "news" if target == "main" else "news_stub"
+
+    os.makedirs(os.path.join(repo_root, "logs"), exist_ok=True)
+    file_handler = logging.FileHandler(os.path.join(repo_root, "logs", "tkg_loop.log"), encoding="utf-8")
+    file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(name)s: %(message)s"))
+    logging.getLogger().addHandler(file_handler)
+    log = logging.getLogger("tkg_dev.run_loop")
+
+    def sleep_until(deadline: float):
+        while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            time.sleep(min(remaining, 1.0))
+
+    log.info("TKG run-loop starting: target=%s interval=%.1f min initial_delay=%.1f min",
+             target, interval, initial_delay)
+    iteration = 0
+    try:
+        sleep_until(time.monotonic() + initial_delay * 60)
+        while True:
+            iteration += 1
+            started = time.monotonic()
+            engine = get_engine(url)
+            session = get_session_factory(engine)()
+            try:
+                stats = run_processing(db_session=session, max_requests=max_requests)
+                log.info(
+                    "iteration %d: status=%s run=%s articles_seen=%s processed=%s events=%s failed=%s "
+                    "llm_requests=%s rate_limited=%s snapshots=%s duration_s=%s",
+                    iteration, stats.get("status"), stats.get("run_id"), stats.get("articles_seen"),
+                    stats.get("processed"), stats.get("events_created"), stats.get("failed"),
+                    stats.get("llm_requests"), stats.get("rate_limited"), stats.get("snapshots_written"),
+                    stats.get("duration_s"),
+                )
+            except Exception as exc:
+                log.error("iteration %d FAILED: %s: %s", iteration, type(exc).__name__, str(exc)[:300])
+            finally:
+                session.close()
+                engine.dispose()
+            sleep_until(started + interval * 60)
+    except KeyboardInterrupt:
+        log.info("TKG run-loop stopped by user after %d iteration(s)", iteration)
 
 
 def cmd_report(args):
@@ -252,11 +333,7 @@ def cmd_report(args):
 
 def cmd_test(args):
     """Run pytest suite."""
-    pytest_bin = os.path.join(repo_root, "services", "tkg", ".venv", "bin", "pytest")
-    if not os.path.exists(pytest_bin):
-        pytest_bin = "pytest"
-    
-    cmd = [pytest_bin, "services/tkg/tests", "-v"]
+    cmd = [sys.executable, "-m", "pytest", "services/tkg/tests", "-v"]
     if getattr(args, "marker", None):
         cmd.extend(["-m", args.marker])
     
@@ -277,6 +354,9 @@ def main():
     # migrate
     migrate_p = subparsers.add_parser("migrate", help="Run database migrations")
     migrate_p.add_argument("--target", choices=["main", "test"], default="main", help="Target database")
+    migrate_p.add_argument("--revision", default="head", help="Upgrade to this revision (default head)")
+    migrate_p.add_argument("--stamp", default=None, help="Record this revision without running SQL (pre-Alembic databases)")
+    migrate_p.add_argument("--downgrade", default=None, help="Downgrade to this revision (test database only)")
 
     # priors-load
     priors_p = subparsers.add_parser("priors-load", help="Load sensitivity priors from CSV")
@@ -288,6 +368,13 @@ def main():
     proc_p.add_argument("--max-requests", type=int, default=None, help="Override per-run request budget")
     proc_p.add_argument("--dry-run", action="store_true", help="Do not commit writes to DB")
     proc_p.add_argument("--no-llm", action="store_true", help="Re-score existing events only: no LLM calls, no article reads")
+
+    # run-loop
+    loop_p = subparsers.add_parser("run-loop", help="Run process every N minutes in the foreground")
+    loop_p.add_argument("--target", choices=["main", "test"], default="main", help="Target database")
+    loop_p.add_argument("--interval-minutes", type=float, default=30, help="Minutes between iterations (default 30)")
+    loop_p.add_argument("--initial-delay-minutes", type=float, default=2, help="Wait before the first iteration (default 2)")
+    loop_p.add_argument("--max-requests", type=int, default=None, help="Override per-run request budget")
 
     # report
     rep_p = subparsers.add_parser("report", help="Show TKG status report")
@@ -305,6 +392,7 @@ def main():
         "migrate": cmd_migrate,
         "priors-load": cmd_priors_load,
         "process": cmd_process,
+        "run-loop": cmd_run_loop,
         "report": cmd_report,
         "test": cmd_test,
     }

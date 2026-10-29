@@ -12,7 +12,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from tkg.settings import settings
-from tkg.input.eligibility import is_eligible, get_skip_reason
 
 logger = logging.getLogger("tkg.input")
 
@@ -24,10 +23,10 @@ class NewsReader:
         self.session = session
         self.news_schema = settings.TKG_NEWS_SCHEMA
 
-    def get_unprocessed_articles(self, limit: int = 500) -> List[Dict[str, Any]]:
+    def get_unprocessed_articles(self, limit: int = 500, since: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """
-        Fetch articles from news.v_articles that haven't been processed yet,
-        ordered oldest first (FIFO for backlog clearing).
+        Fetch articles from news.v_articles that haven't been processed yet, oldest first, only those
+        published at or after `since` (the largest scoring window). Older ones are left untouched.
         """
         query = text(f"""
             SELECT 
@@ -40,19 +39,20 @@ class NewsReader:
             FROM {self.news_schema}.v_articles a
             LEFT JOIN tkg.processed_articles pa ON a.article_id = pa.article_id
             WHERE pa.article_id IS NULL
-            ORDER BY a.published_at DESC
+              AND (CAST(:since AS TIMESTAMPTZ) IS NULL OR a.published_at >= :since)
+            ORDER BY a.published_at ASC, a.article_id
             LIMIT :limit
         """)
         try:
-            result = self.session.execute(query, {"limit": limit})
+            result = self.session.execute(query, {"limit": limit, "since": since})
             rows = result.mappings().all()
             return [dict(r) for r in rows]
         except Exception as e:
             logger.error(f"Failed to read {self.news_schema}.v_articles: {e}")
             raise
 
-    def get_pending_articles(self, limit: int = 500) -> List[Dict[str, Any]]:
-        """Fetch articles that are in 'pending' or 'failed' (attempts < 3) status."""
+    def get_pending_articles(self, limit: int = 500, since: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """Fetch articles in 'pending' or 'failed' (attempts < 3) status, oldest first, within the window."""
         query = text(f"""
             SELECT 
                 a.article_id, a.title, a.description,
@@ -64,11 +64,12 @@ class NewsReader:
             FROM {self.news_schema}.v_articles a
             JOIN tkg.processed_articles pa ON a.article_id = pa.article_id
             WHERE pa.status IN ('pending', 'failed') AND pa.attempts < 3
-            ORDER BY a.published_at ASC
+              AND (CAST(:since AS TIMESTAMPTZ) IS NULL OR a.published_at >= :since)
+            ORDER BY a.published_at ASC, a.article_id
             LIMIT :limit
         """)
         try:
-            result = self.session.execute(query, {"limit": limit})
+            result = self.session.execute(query, {"limit": limit, "since": since})
             rows = result.mappings().all()
             return [dict(r) for r in rows]
         except Exception as e:
@@ -130,7 +131,8 @@ class NewsReader:
                         if str(k) == str(aid):
                             res[k].append(dict(r))
         except Exception as e:
-            logger.warning(f"Could not read {self.news_schema}.v_security_news in batch: {e}")
+            logger.error(f"Could not read {self.news_schema}. in batch: {type(e).__name__}")
+            raise
         return res
 
     def get_batch_linked_sectors(self, article_ids: List[UUID]) -> Dict[UUID, List[Dict[str, Any]]]:
@@ -154,7 +156,8 @@ class NewsReader:
                         if str(k) == str(aid):
                             res[k].append(dict(r))
         except Exception as e:
-            logger.warning(f"Could not read {self.news_schema}.v_sector_news in batch: {e}")
+            logger.error(f"Could not read {self.news_schema}. in batch: {type(e).__name__}")
+            raise
         return res
 
     def get_security_details(self, security_id: str) -> Optional[Dict[str, Any]]:

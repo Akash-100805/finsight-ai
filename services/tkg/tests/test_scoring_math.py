@@ -1,6 +1,6 @@
 """
-Challenge Scenarios Test Suite (section 12.3).
-Committed before LLM prompt tuning to prevent overfitting or moving goalposts.
+Scoring-maths scenario tests: pure unit tests of the deterministic maths and validation (no LLM, no database).
+The real-LLM challenge set is tests/challenge/tkg_cases.yaml, run by test_challenge_llm.py (marker llm).
 
 Tests:
   1. Clear-direction cases (economic cause -> sector/security effect direction)
@@ -8,10 +8,9 @@ Tests:
   3. No-signal cases (sports, entertainment, celebrity news)
 """
 import pytest
-from tkg.vocab import is_valid_driver, is_valid_relation
-from tkg.llm.validation import validate_extraction, evidence_is_substring
+from tkg.llm.validation import validate_extraction
 from tkg.llm.schemas import ArticleExtractionOutput, DriverMoveOutput, DirectEffectOutput
-from tkg.graph.scoring import compute_driver_contribution, compute_direct_contribution, aggregate_score
+from tkg.graph.scoring import compute_driver_contribution
 
 
 # ─────────────────────────────────────────────

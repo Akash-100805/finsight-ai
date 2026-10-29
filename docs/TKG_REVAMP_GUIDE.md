@@ -1,4 +1,3 @@
-<USER_REQUEST>
 # FinSight AI — TKG Component Revamp: Build Guide
 
 Version 1.1 · 27 Oct 2026 · Owner: Akash (product and architecture) · Builder: Daksh

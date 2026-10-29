@@ -253,6 +253,92 @@ def cmd_report():
     return run_in_venv(["-m", "src.news.pipeline.cli_ops", "report", "--target", target, *rest])
 
 
+TKG_PY = ROOT / "services" / "tkg" / ".venv" / "Scripts" / "python.exe"
+
+
+def _loop_specs(target, interval):
+    """The two loop commands run-all supervises: (name, argv, cwd)."""
+    return [
+        ("news", [str(VENV_PY), "-m", "src.news.pipeline.run_loop", "--target", target, "--interval", str(interval)], NEWS),
+        ("tkg", [str(TKG_PY), str(ROOT / "tkg_dev.py"), "run-loop", "--target", target,
+                 "--interval-minutes", str(interval), "--initial-delay-minutes", "2"], ROOT),
+    ]
+
+
+def supervise(specs, env, poll_seconds=2.0, backoff_start=15, backoff_max=300, stable_after=600, clock=None, sleep=None,
+              popen=subprocess.Popen, log=print):
+    """Run every spec as a child process and keep them alive: a non-zero exit is restarted with exponential backoff
+    (reset once a child has run for `stable_after` seconds); a clean exit (code 0) is not restarted.
+    Returns when every child has stopped cleanly or on KeyboardInterrupt (children are terminated first)."""
+    import time as _time
+    clock, sleep = clock or _time.monotonic, sleep or _time.sleep
+    state = {name: {"argv": argv, "cwd": cwd, "proc": None, "started": 0.0, "failures": 0, "restart_at": 0.0, "done": False}
+             for name, argv, cwd in specs}
+
+    def start(name):
+        st = state[name]
+        st["proc"], st["started"] = popen(st["argv"], cwd=st["cwd"], env=env), clock()
+        log(f"[run-all] started {name} (pid {st['proc'].pid})")
+
+    try:
+        for name in state:
+            start(name)
+        while not all(st["done"] for st in state.values()):
+            sleep(poll_seconds)
+            now = clock()
+            for name, st in state.items():
+                if st["done"]:
+                    continue
+                if st["proc"] is None:
+                    if now >= st["restart_at"]:
+                        start(name)
+                    continue
+                code = st["proc"].poll()
+                if code is None:
+                    continue
+                st["proc"] = None
+                if code == 0:
+                    st["done"] = True
+                    log(f"[run-all] {name} stopped cleanly")
+                    continue
+                if now - st["started"] >= stable_after:
+                    st["failures"] = 0
+                st["failures"] += 1
+                wait = min(backoff_max, backoff_start * 2 ** (st["failures"] - 1))
+                st["restart_at"] = now + wait
+                log(f"[run-all] {name} exited with code {code}; restarting in {wait}s (failure {st['failures']})")
+    except KeyboardInterrupt:
+        log("[run-all] Ctrl+C: stopping both loops")
+    finally:
+        for st in state.values():
+            proc = st["proc"]
+            if proc is not None and proc.poll() is None:
+                proc.terminate()
+        for st in state.values():
+            proc = st["proc"]
+            if proc is not None:
+                try:
+                    proc.wait(timeout=20)
+                except Exception:
+                    proc.kill()
+    return 0
+
+
+def cmd_run_all():
+    """run-all [--interval 30] [--target main|test]: the news loop and the TKG loop together, as two supervised processes."""
+    target, rest = _target_args(sys.argv[2:])
+    interval = rest[rest.index("--interval") + 1] if "--interval" in rest and rest.index("--interval") + 1 < len(rest) else "30"
+    missing = [p for p in (VENV_PY, TKG_PY) if not p.exists()]
+    if missing:
+        print("Virtualenv missing: " + ", ".join(str(m.parent.parent.parent.name) for m in missing)
+              + ". Run: python dev.py setup (news) and create services/tkg/.venv (see docs/OPERATIONS.md).")
+        return 1
+    env = load_env()
+    env["PYTHONIOENCODING"] = "utf-8"
+    print(f"[run-all] target={target} interval={interval} min; logs: logs/ingest.log and logs/tkg_loop.log; Ctrl+C stops both")
+    return supervise(_loop_specs(target, interval), env)
+
+
 COMMANDS = {
     "agents-setup": (cmd_agents_setup, "create services/agents/.venv (py -3.12) and install the agents service + finsight-shared"),
     "agents-test": (cmd_agents_test, "run pytest in services/agents"),
@@ -265,6 +351,7 @@ COMMANDS = {
     "migrate": (cmd_migrate, "run alembic upgrade head (--target main|test, default main)"),
     "ingest": (cmd_ingest, "ingest [--target main|test] [--sources a,b] [--ignore-interval] | --from-jsonl <file|all>: fetch, enrich, store, embed, post-embed, report"),
     "run-loop": (cmd_run_loop, "run-loop [--interval 30] [--target main|test]: run ingest every N minutes in the foreground (logs/ingest.log); Ctrl+C stops it"),
+    "run-all": (cmd_run_all, "run-all [--interval 30] [--target main|test]: the news loop and the TKG loop together as two supervised processes (restart on crash with backoff); Ctrl+C stops both"),
     "agents-role": (cmd_agents_role, "create/rotate the read-only login finsight_agents on both Neon projects and write AGENTS_DATABASE_URL / AGENTS_TEST_DATABASE_URL to .env (values never printed)"),
     "purge": (cmd_purge, "purge [--target main|test]: set raw_payload to NULL on articles older than RAW_PAYLOAD_RETENTION_DAYS"),
     "securities-refresh": (cmd_securities_refresh, "load NSE/BSE/US securities, sectors and aliases (--target main|test, --offline, --refresh-bse-industry)"),

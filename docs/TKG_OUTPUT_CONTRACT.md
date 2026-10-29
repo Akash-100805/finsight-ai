@@ -132,6 +132,10 @@ View providing granular drilldown into causal events and their structured paths.
 |---|---|---|
 | `event_id` | `UUID` | Unique event identifier |
 | `article_id` | `UUID` | Source article ID in `news.v_articles` |
+| `title` | `TEXT` | The article headline (from `news.v_articles`); NULL only if the article was purged, then use `summary` |
+| `url` | `TEXT` | The article URL |
+| `source_id` | `VARCHAR` | The article's source (e.g. `et_markets`) |
+| `published_at` | `TIMESTAMPTZ` | The article's publication time |
 | `occurred_at` | `TIMESTAMPTZ` | Event timestamp (= article `published_at`) |
 | `category` | `VARCHAR` | Macro, commodities, company, etc. |
 | `event_type` | `VARCHAR` | Earnings, policy_rate_decision, mna, etc. |
@@ -179,3 +183,31 @@ FROM tkg.v_sector_impacts_latest,
      jsonb_array_elements(top_paths) AS path
 WHERE sector_id = 'textiles' AND window_days = 30;
 ```
+
+---
+
+## 5. Standalone API: `GET /graph/export?window=30`
+
+Everything a graph view needs, in one response (the TKG standalone dashboard is folded into the product UI step; this is its data source).
+
+```json
+{
+  "as_of": "2026-10-29T06:00:00+00:00",          // when the export was built
+  "snapshot_as_of": "2026-10-29T05:30:00+00:00", // as_of of the latest COMPLETED sector snapshot for `window`, or null
+  "window_days": 30,
+  "node_count": 0, "edge_count": 0,
+  "nodes": [ { "id": "drv:crude_oil_price", "type": "driver", "label": "Crude Oil Price", "group": "commodities" },
+             { "id": "oil_gas_and_consumable_fuels", "type": "sector", "label": "Oil, Gas & Consumable Fuels" },
+             { "id": "act:rbi", "type": "actor", "label": "Reserve Bank of India" },
+             { "id": "NSE:ONGC", "type": "security", "label": "NSE:ONGC" } ],
+  "edges": [ { "source": "drv:crude_oil_price", "target": "chemicals", "relation": "sensitivity",
+               "sign": -1, "weight": -0.65, "reviewed": true } ]
+}
+```
+
+* `nodes[].type` is `sector`, `driver`, `actor` or `security` (securities appear when they have a company override); `label` is always set;
+  `group` is present on drivers only.
+* `edges[].relation` is `sensitivity` (driver to sector), `security_override` (driver to security) or the sector-link type
+  (`supplier_of`, sector to sector). `sign` is -1, 0 or +1 and always equals the sign of `weight`; `weight` is in -1..1;
+  `reviewed` is the prior's review flag. Edge direction is `source` to `target` (the driver or the supplying sector is the source).
+* Scores per sector are not in this response: read `GET /sectors/impacts` or `tkg.v_sector_impacts_latest`.

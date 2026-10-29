@@ -20,12 +20,11 @@ class TKGSettings(BaseSettings):
     TKG_LLM_PROVIDER: str = "gemini"
     GEMINI_API_KEY: str = ""
     TKG_LLM_MODEL: str  # NO default: startup fails if missing
-    TKG_LLM_RPD: int = 1500  # requests per day from AI Studio
-    TKG_LLM_RPM: int = 30    # requests per minute
+    TKG_LLM_RPD: int   # requests per day from AI Studio: NO default, startup fails if missing
+    TKG_LLM_RPM: int   # requests per minute: NO default, startup fails if missing
     TKG_LLM_SAFETY_FRACTION: float = 0.8
     TKG_LLM_BATCH_SIZE: int = 8
     TKG_LLM_MAX_OUTPUT_TOKENS: int = 4096
-    TKG_PROMPT_VERSION: str = "v1"
 
     # ---------- Run schedule ----------
     TKG_RUN_INTERVAL_MINUTES: int = 30

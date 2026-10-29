@@ -4,7 +4,7 @@ NetworkX is a compute tool only (T3): the graph is rebuilt from DB tables
 on start and after each processing run. Nothing important exists only in memory.
 """
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, List, Optional
 from datetime import datetime, timezone
 
 import networkx as nx
@@ -61,9 +61,10 @@ class TKGGraph:
                 rev = bool(row["reviewed"])
                 self._sector_sensitivities[(did, sid)] = sens
                 self._reviewed_flags[(did, sid)] = rev
-                self.graph.add_edge(did, sid, type="sensitivity", weight=sens, reviewed=rev)
-        except Exception as e:
-            logger.warning(f"Could not load sector sensitivities: {e}")
+                self.graph.add_edge(did, sid, type="sensitivity", relation="sensitivity", weight=sens, reviewed=rev)
+        except Exception:
+            logger.error("Graph rebuild failed while loading priors")
+            raise
 
         # 5. Load security sensitivity overrides: driver -> security
         try:
@@ -77,10 +78,11 @@ class TKGGraph:
                 rev = bool(row["reviewed"])
                 self._security_sensitivities[(did, sec_id)] = sens
                 self._reviewed_flags[(did, sec_id)] = rev
-                self.graph.add_node(sec_id, type="security")
-                self.graph.add_edge(did, sec_id, type="security_override", weight=sens, reviewed=rev)
-        except Exception as e:
-            logger.warning(f"Could not load security sensitivities: {e}")
+                self.graph.add_node(sec_id, type="security", label=sec_id)
+                self.graph.add_edge(did, sec_id, type="security_override", relation="security_override", weight=sens, reviewed=rev)
+        except Exception:
+            logger.error("Graph rebuild failed while loading priors")
+            raise
 
         # 6. Load sector links: sector -> sector (one hop)
         self._sector_links = []
@@ -102,9 +104,10 @@ class TKGGraph:
                     "reviewed": rev,
                 })
                 self._reviewed_flags[(fs, ts)] = rev
-                self.graph.add_edge(fs, ts, type="sector_link", link=link_type, weight=w, reviewed=rev)
-        except Exception as e:
-            logger.warning(f"Could not load sector links: {e}")
+                self.graph.add_edge(fs, ts, type="sector_link", relation=link_type, link=link_type, weight=w, reviewed=rev)
+        except Exception:
+            logger.error("Graph rebuild failed while loading priors")
+            raise
 
         logger.info(
             f"Graph rebuilt: {self.graph.number_of_nodes()} nodes, "

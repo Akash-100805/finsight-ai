@@ -19,12 +19,16 @@ dependencies = [
     "numpy>=1.24.0",
     "python-dotenv>=1.0.0",
     "pyyaml>=6.0",
+    "alembic>=1.13",
+    "tzdata>=2024.1",
+    "finsight-shared",   # local package: pip install -e shared first (the same way services/news and services/agents use it)
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "ruff>=0.5",
 ]
 
 [tool.setuptools.packages.find]
@@ -34,7 +38,15 @@ where = ["src"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 markers = [
-    "db: tests that need Neon TEST database",
-    "llm: real LLM challenge tests",
+    "db: tests that need the Neon TEST database (never main)",
+    "llm: real LLM challenge tests (need GEMINI_API_KEY)",
 ]
 filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 130
+extend-exclude = [".venv", "alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501", "E701", "E702", "E741"]
