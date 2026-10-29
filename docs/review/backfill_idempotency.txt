@@ -1,0 +1,25 @@
+2026-10-30 00:35:59,358 [INFO] tkg.processing.runner: Processing run 7640cc39-3229-4314-b5d3-c4d21ba58890: budget = 200 LLM requests
+2026-10-30 00:35:59,722 [INFO] tkg.processing.runner: Eligible articles to extract: 0
+2026-10-30 00:36:00,420 [INFO] tkg.graph.stories: Story grouping: 257 events -> 240 stories (0 story_id changes)
+2026-10-30 00:36:01,126 [INFO] tkg.graph.builder: Graph rebuilt: 99 nodes, 146 edges
+2026-10-30 00:36:06,901 [INFO] tkg.processing.runner: Processing run 7640cc39-3229-4314-b5d3-c4d21ba58890 completed successfully in 12.5s
+=== Executing TKG Processing Run on main DB (dry_run=False, max_requests=200) ===
+Run completed successfully!
+  Run ID: 7640cc39-3229-4314-b5d3-c4d21ba58890
+  Articles Seen: 0
+  Articles Processed: 0
+  Articles Skipped Ineligible: 0
+  Articles Not Relevant: 0
+  Articles Failed: 0
+  Events Created: 0
+  Driver Moves Created: 0
+  Direct Effects Created: 0
+  LLM Requests: 0
+  LLM Tokens (In/Out): 0 / 0
+  Snapshots Written: 46
+  Request budget: 200  rate_limited: False
+  Validation drops: {}
+  Articles skipped (purged): 0
+  DISRUPTS excluded (driver paths / company overrides): 0 / 0
+  DB Size (MB): 2.55
+  Duration (s): 12.45

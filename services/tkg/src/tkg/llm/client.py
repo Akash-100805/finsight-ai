@@ -170,6 +170,22 @@ class GeminiClient(LLMClient):
             return "", metadata
         return parts[0].get("text", ""), metadata
 
+    TRANSIENT_STATUSES = {"http_500", "http_502", "http_503", "http_504", "timeout", "http_error"}
+    TRANSIENT_RETRIES = 2
+    TRANSIENT_BACKOFF_SECONDS = (5.0, 15.0)
+
+    def _call_api_transient(self, system_prompt: str, user_prompt: str, calls: List[dict]) -> tuple[str, dict]:
+        """_call_api with up to TRANSIENT_RETRIES retries on a 5xx or timeout. Every HTTP request is appended to `calls`."""
+        for attempt in range(self.TRANSIENT_RETRIES + 1):
+            text, meta = self._call_api(system_prompt, user_prompt)
+            calls.append(dict(meta))
+            if meta["status"] not in self.TRANSIENT_STATUSES or attempt == self.TRANSIENT_RETRIES:
+                return text, meta
+            wait = self.TRANSIENT_BACKOFF_SECONDS[min(attempt, len(self.TRANSIENT_BACKOFF_SECONDS) - 1)]
+            logger.warning("Gemini transient failure (%s); retrying in %.0fs", meta["status"], wait)
+            time.sleep(wait)
+        return text, meta
+
     def _parse_response(self, text: str) -> List[ArticleExtractionOutput]:
         """Parse raw JSON response into ArticleExtractionOutput models."""
         if not text:
@@ -233,8 +249,8 @@ class GeminiClient(LLMClient):
         system_prompt = get_system_prompt()
         user_prompt = build_user_prompt(articles)
 
-        response_text, first = self._call_api(system_prompt, user_prompt)
-        calls = [dict(first)]
+        calls: List[dict] = []
+        response_text, first = self._call_api_transient(system_prompt, user_prompt, calls)
         meta = dict(first)
         meta["calls"] = calls
         if first["status"] != "ok":
@@ -254,8 +270,7 @@ class GeminiClient(LLMClient):
             "with the exact schema specified. Previous response:\n"
             f"{response_text[:500]}\n\nOriginal request:\n{user_prompt}"
         )
-        response_text2, second = self._call_api(system_prompt, repair_prompt)
-        calls.append(dict(second))
+        response_text2, second = self._call_api_transient(system_prompt, repair_prompt, calls)
         for k in ("tokens_in", "tokens_out", "latency_ms"):
             meta[k] += second.get(k, 0)
         if second["status"] != "ok":

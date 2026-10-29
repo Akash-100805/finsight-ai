@@ -1,0 +1,100 @@
+
+[CLEAR_DIRECTION] cases=18 rate=90.5% target>=90%
+CD-01    PASS  [RBI hikes repo rate by 25 bps]  llm=ok
+           extracted: drv:in_repo_rate MOVES_UP (1.00)
+           drops: -
+           ok   driver drv:in_repo_rate MOVES_UP: expected=('drv:in_repo_rate', 'MOVES_UP') actual=[('drv:in_repo_rate', 'MOVES_UP')]
+           ok   sector realty: expected=-1 actual=-1
+           ok   sector automobile_and_auto_components: expected=-1 actual=-1
+CD-02    PASS  [OPEC+ deepens output cuts]  llm=ok
+           extracted: drv:crude_oil_price MOVES_UP (0.90); NSE:INDIGO HURTS (0.80)
+           drops: -
+           ok   driver drv:crude_oil_price MOVES_UP: expected=('drv:crude_oil_price', 'MOVES_UP') actual=[('drv:crude_oil_price', 'MOVES_UP')]
+           ok   sector oil_gas_and_consumable_fuels: expected=1 actual=1
+           ok   security NSE:INDIGO: expected=-1 actual=-1
+CD-03    PASS  [Rupee falls to record low against dollar]  llm=ok
+           extracted: drv:inr_strength MOVES_DOWN (0.95); drv:fpi_flows_india MOVES_DOWN (0.90)
+           drops: -
+           ok   driver drv:inr_strength MOVES_DOWN: expected=('drv:inr_strength', 'MOVES_DOWN') actual=[('drv:inr_strength', 'MOVES_DOWN'), ('drv:fpi_flows_india', 'MOVES_DOWN')]
+           ok   sector information_technology: expected=1 actual=1
+CD-04    FAIL  [IMD forecasts above-normal monsoon]  llm=ok
+           extracted: -
+           drops: -
+           FAIL driver drv:monsoon_rainfall MOVES_UP: expected=('drv:monsoon_rainfall', 'MOVES_UP') actual=[]
+           FAIL sector fast_moving_consumer_goods: expected=1 actual=0
+CD-05    PASS  [US raises tariffs on Indian textiles]  llm=ok
+           extracted: drv:us_tariffs_on_india MOVES_UP (0.95); textiles HURTS (0.90)
+           drops: -
+           ok   driver drv:us_tariffs_on_india MOVES_UP: expected=('drv:us_tariffs_on_india', 'MOVES_UP') actual=[('drv:us_tariffs_on_india', 'MOVES_UP')]
+           ok   sector textiles: expected=-1 actual=-1
+CD-06    FAIL  [Government cuts GST on small cars]  llm=ok
+           extracted: automobile_and_auto_components BENEFITS (0.95)
+           drops: -
+           FAIL driver drv:in_gst_rates MOVES_DOWN: expected=('drv:in_gst_rates', 'MOVES_DOWN') actual=[]
+           ok   sector automobile_and_auto_components: expected=1 actual=1
+CD-07    PASS  [Global chip shortage worsens]  llm=ok
+           extracted: drv:semiconductor_supply MOVES_DOWN (0.90); automobile_and_auto_components HURTS (0.90)
+           drops: -
+           ok   sector automobile_and_auto_components: expected=-1 actual=-1
+CD-08    FAIL  [China announces large infrastructure stimulus]  llm=ok
+           extracted: drv:steel_price MOVES_UP (0.95); drv:iron_ore_price MOVES_UP (0.95)
+           drops: -
+           FAIL driver drv:china_demand MOVES_UP: expected=('drv:china_demand', 'MOVES_UP') actual=[('drv:steel_price', 'MOVES_UP'), ('drv:iron_ore_price', 'MOVES_UP')]
+           ok   sector metals_and_mining: expected=1 actual=1
+CD-09    PASS  [Safeguard duty on steel imports]  llm=ok
+           extracted: drv:in_import_duties MOVES_UP (0.95); metals_and_mining BENEFITS (0.90); capital_goods HURTS (0.90)
+           drops: -
+           ok   driver drv:in_import_duties MOVES_UP: expected=('drv:in_import_duties', 'MOVES_UP') actual=[('drv:in_import_duties', 'MOVES_UP')]
+           ok   sector metals_and_mining: expected=1 actual=1
+           ok   sector capital_goods: expected=-1 actual=-1
+CD-10    PASS  [Brent jumps after surprise OPEC+ cut]  llm=ok
+           extracted: drv:crude_oil_price MOVES_UP (0.95); NSE:ONGC BENEFITS (0.90); NSE:ASIANPAINT HURTS (0.90)
+           drops: evidence_not_found
+           ok   driver drv:crude_oil_price MOVES_UP: expected=('drv:crude_oil_price', 'MOVES_UP') actual=[('drv:crude_oil_price', 'MOVES_UP')]
+           ok   security NSE:ASIANPAINT: expected=-1 actual=-1
+           ok   security NSE:ONGC: expected=1 actual=1
+           ok   security NSE:BPCL: expected=-1 actual=-1
+CD-11    PASS  [RBI cuts repo rate by 25 bps]  llm=ok
+           extracted: drv:in_repo_rate MOVES_DOWN (1.00)
+           drops: -
+           ok   driver drv:in_repo_rate MOVES_DOWN: expected=('drv:in_repo_rate', 'MOVES_DOWN') actual=[('drv:in_repo_rate', 'MOVES_DOWN')]
+           ok   sector realty: expected=1 actual=1
+           ok   sector automobile_and_auto_components: expected=1 actual=1
+CD-12    PASS  [US Fed cuts rates]  llm=ok
+           extracted: drv:us_fed_rate MOVES_DOWN (0.95)
+           drops: -
+           ok   driver drv:us_fed_rate MOVES_DOWN: expected=('drv:us_fed_rate', 'MOVES_DOWN') actual=[('drv:us_fed_rate', 'MOVES_DOWN')]
+           ok   sector information_technology: expected=1 actual=1
+CD-13    PASS  [Budget raises capex allocation]  llm=ok
+           extracted: drv:in_govt_capex MOVES_UP (0.95); capital_goods BENEFITS (0.90); construction BENEFITS (0.90)
+           drops: -
+           ok   driver drv:in_govt_capex MOVES_UP: expected=('drv:in_govt_capex', 'MOVES_UP') actual=[('drv:in_govt_capex', 'MOVES_UP')]
+           ok   sector capital_goods: expected=1 actual=1
+           ok   sector construction: expected=1 actual=1
+CD-14    PASS  [Rupee at 6-month high]  llm=ok
+           extracted: drv:inr_strength MOVES_UP (0.90); drv:fpi_flows_india MOVES_UP (0.80); information_technology HURTS (0.80)
+           drops: -
+           ok   driver drv:inr_strength MOVES_UP: expected=('drv:inr_strength', 'MOVES_UP') actual=[('drv:inr_strength', 'MOVES_UP'), ('drv:fpi_flows_india', 'MOVES_UP')]
+           ok   sector information_technology: expected=-1 actual=-1
+CD-15    PASS  [CPI inflation above RBI band]  llm=ok
+           extracted: drv:in_cpi_inflation MOVES_UP (0.95); fast_moving_consumer_goods HURTS (0.80)
+           drops: -
+           ok   driver drv:in_cpi_inflation MOVES_UP: expected=('drv:in_cpi_inflation', 'MOVES_UP') actual=[('drv:in_cpi_inflation', 'MOVES_UP')]
+           ok   sector fast_moving_consumer_goods: expected=-1 actual=-1
+CD-16    PASS  [GST raised on aerated drinks]  llm=ok
+           extracted: drv:in_gst_rates MOVES_UP (0.95); fast_moving_consumer_goods HURTS (0.90)
+           drops: -
+           ok   driver drv:in_gst_rates MOVES_UP: expected=('drv:in_gst_rates', 'MOVES_UP') actual=[('drv:in_gst_rates', 'MOVES_UP')]
+           ok   sector fast_moving_consumer_goods: expected=-1 actual=-1
+CD-17    PASS  [Cotton prices surge on poor crop]  llm=ok
+           extracted: drv:cotton_price MOVES_UP (0.95); textiles HURTS (0.95)
+           drops: -
+           ok   driver drv:cotton_price MOVES_UP: expected=('drv:cotton_price', 'MOVES_UP') actual=[('drv:cotton_price', 'MOVES_UP')]
+           ok   sector textiles: expected=-1 actual=-1
+CD-18    PASS  [Coal prices surge on supply crunch]  llm=ok
+           extracted: drv:coal_price MOVES_UP (0.95); power HURTS (0.90)
+           drops: -
+           ok   driver drv:coal_price MOVES_UP: expected=('drv:coal_price', 'MOVES_UP') actual=[('drv:coal_price', 'MOVES_UP')]
+           ok   sector power: expected=-1 actual=-1
+.
+1 passed in 896.48s (0:14:56)

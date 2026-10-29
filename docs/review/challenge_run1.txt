@@ -1,0 +1,234 @@
+
+[CLEAR_DIRECTION] cases=18 rate=69.0% target>=90%
+CD-01    PASS  [RBI hikes repo rate by 25 bps]  llm=ok
+           extracted: drv:in_repo_rate MOVES_UP (1.00)
+           drops: -
+           ok   driver drv:in_repo_rate MOVES_UP: expected=('drv:in_repo_rate', 'MOVES_UP') actual=[('drv:in_repo_rate', 'MOVES_UP')]
+           ok   sector realty: expected=-1 actual=-1
+           ok   sector automobile_and_auto_components: expected=-1 actual=-1
+CD-02    FAIL  [OPEC+ deepens output cuts]  llm=http_503
+           extracted: -
+           drops: http_503
+           FAIL driver drv:crude_oil_price MOVES_UP: expected=('drv:crude_oil_price', 'MOVES_UP') actual=[]
+           FAIL sector oil_gas_and_consumable_fuels: expected=1 actual=0
+           FAIL security NSE:INDIGO: expected=-1 actual=0
+CD-03    FAIL  [Rupee falls to record low against dollar]  llm=http_503
+           extracted: -
+           drops: http_503
+           FAIL driver drv:inr_strength MOVES_DOWN: expected=('drv:inr_strength', 'MOVES_DOWN') actual=[]
+           FAIL sector information_technology: expected=1 actual=0
+CD-04    FAIL  [IMD forecasts above-normal monsoon]  llm=ok
+           extracted: -
+           drops: -
+           FAIL driver drv:monsoon_rainfall MOVES_UP: expected=('drv:monsoon_rainfall', 'MOVES_UP') actual=[]
+           FAIL sector fast_moving_consumer_goods: expected=1 actual=0
+CD-05    PASS  [US raises tariffs on Indian textiles]  llm=ok
+           extracted: drv:us_tariffs_on_india MOVES_UP (0.95); textiles HURTS (0.95)
+           drops: -
+           ok   driver drv:us_tariffs_on_india MOVES_UP: expected=('drv:us_tariffs_on_india', 'MOVES_UP') actual=[('drv:us_tariffs_on_india', 'MOVES_UP')]
+           ok   sector textiles: expected=-1 actual=-1
+CD-06    PASS  [Government cuts GST on small cars]  llm=ok
+           extracted: drv:in_gst_rates MOVES_DOWN (0.95); automobile_and_auto_components BENEFITS (0.95)
+           drops: -
+           ok   driver drv:in_gst_rates MOVES_DOWN: expected=('drv:in_gst_rates', 'MOVES_DOWN') actual=[('drv:in_gst_rates', 'MOVES_DOWN')]
+           ok   sector automobile_and_auto_components: expected=1 actual=1
+CD-07    PASS  [Global chip shortage worsens]  llm=ok
+           extracted: drv:semiconductor_supply MOVES_DOWN (0.90); automobile_and_auto_components HURTS (0.90)
+           drops: -
+           ok   sector automobile_and_auto_components: expected=-1 actual=-1
+CD-08    FAIL  [China announces large infrastructure stimulus]  llm=ok
+           extracted: drv:steel_price MOVES_UP (0.95); drv:iron_ore_price MOVES_UP (0.95)
+           drops: -
+           FAIL driver drv:china_demand MOVES_UP: expected=('drv:china_demand', 'MOVES_UP') actual=[('drv:steel_price', 'MOVES_UP'), ('drv:iron_ore_price', 'MOVES_UP')]
+           ok   sector metals_and_mining: expected=1 actual=1
+CD-09    PASS  [Safeguard duty on steel imports]  llm=ok
+           extracted: drv:in_import_duties MOVES_UP (0.95); metals_and_mining BENEFITS (0.90); capital_goods HURTS (0.85)
+           drops: -
+           ok   driver drv:in_import_duties MOVES_UP: expected=('drv:in_import_duties', 'MOVES_UP') actual=[('drv:in_import_duties', 'MOVES_UP')]
+           ok   sector metals_and_mining: expected=1 actual=1
+           ok   sector capital_goods: expected=-1 actual=-1
+CD-10    FAIL  [Brent jumps after surprise OPEC+ cut]  llm=http_503
+           extracted: -
+           drops: http_503
+           FAIL driver drv:crude_oil_price MOVES_UP: expected=('drv:crude_oil_price', 'MOVES_UP') actual=[]
+           FAIL security NSE:ASIANPAINT: expected=-1 actual=0
+           FAIL security NSE:ONGC: expected=1 actual=0
+           FAIL security NSE:BPCL: expected=-1 actual=0
+CD-11    PASS  [RBI cuts repo rate by 25 bps]  llm=ok
+           extracted: drv:in_repo_rate MOVES_DOWN (0.95)
+           drops: -
+           ok   driver drv:in_repo_rate MOVES_DOWN: expected=('drv:in_repo_rate', 'MOVES_DOWN') actual=[('drv:in_repo_rate', 'MOVES_DOWN')]
+           ok   sector realty: expected=1 actual=1
+           ok   sector automobile_and_auto_components: expected=1 actual=1
+CD-12    FAIL  [US Fed cuts rates]  llm=ok
+           extracted: information_technology BENEFITS (0.90)
+           drops: -
+           FAIL driver drv:us_fed_rate MOVES_DOWN: expected=('drv:us_fed_rate', 'MOVES_DOWN') actual=[]
+           ok   sector information_technology: expected=1 actual=1
+CD-13    PASS  [Budget raises capex allocation]  llm=ok
+           extracted: drv:in_govt_capex MOVES_UP (0.95)
+           drops: -
+           ok   driver drv:in_govt_capex MOVES_UP: expected=('drv:in_govt_capex', 'MOVES_UP') actual=[('drv:in_govt_capex', 'MOVES_UP')]
+           ok   sector capital_goods: expected=1 actual=1
+           ok   sector construction: expected=1 actual=1
+CD-14    PASS  [Rupee at 6-month high]  llm=ok
+           extracted: drv:inr_strength MOVES_UP (0.95); information_technology HURTS (0.90)
+           drops: -
+           ok   driver drv:inr_strength MOVES_UP: expected=('drv:inr_strength', 'MOVES_UP') actual=[('drv:inr_strength', 'MOVES_UP')]
+           ok   sector information_technology: expected=-1 actual=-1
+CD-15    PASS  [CPI inflation above RBI band]  llm=ok
+           extracted: drv:in_cpi_inflation MOVES_UP (0.95); fast_moving_consumer_goods HURTS (0.80)
+           drops: -
+           ok   driver drv:in_cpi_inflation MOVES_UP: expected=('drv:in_cpi_inflation', 'MOVES_UP') actual=[('drv:in_cpi_inflation', 'MOVES_UP')]
+           ok   sector fast_moving_consumer_goods: expected=-1 actual=-1
+CD-16    PASS  [GST raised on aerated drinks]  llm=ok
+           extracted: drv:in_gst_rates MOVES_UP (0.95); fast_moving_consumer_goods HURTS (0.90)
+           drops: -
+           ok   driver drv:in_gst_rates MOVES_UP: expected=('drv:in_gst_rates', 'MOVES_UP') actual=[('drv:in_gst_rates', 'MOVES_UP')]
+           ok   sector fast_moving_consumer_goods: expected=-1 actual=-1
+CD-17    PASS  [Cotton prices surge on poor crop]  llm=ok
+           extracted: drv:cotton_price MOVES_UP (0.95); textiles HURTS (0.95)
+           drops: -
+           ok   driver drv:cotton_price MOVES_UP: expected=('drv:cotton_price', 'MOVES_UP') actual=[('drv:cotton_price', 'MOVES_UP')]
+           ok   sector textiles: expected=-1 actual=-1
+CD-18    PASS  [Coal prices surge on supply crunch]  llm=ok
+           extracted: drv:coal_price MOVES_UP (0.90)
+           drops: -
+           ok   driver drv:coal_price MOVES_UP: expected=('drv:coal_price', 'MOVES_UP') actual=[('drv:coal_price', 'MOVES_UP')]
+           ok   sector power: expected=-1 actual=-1
+F
+[HALLUCINATION_TRAPS] cases=12 rate=100.0% target>=100%
+TRAP-01  PASS  [Company named in text but not linked]  llm=ok
+           extracted: -
+           drops: -
+           ok   NSE:RELIANCE is not a target: expected=False actual=False
+TRAP-02  PASS  [Evidence quote not in text]  llm=ok
+           extracted: -
+           drops: -
+           ok   kept evidence quotes are real: expected=True actual=True
+           ok   injected fake quote dropped: expected=0 actual=0
+TRAP-03  PASS  [Invented driver]  llm=ok
+           extracted: -
+           drops: -
+           ok   kept drivers are in the closed list: expected=True actual=True
+           ok   injected invented driver dropped: expected=0 actual=0
+TRAP-04  PASS  [Invented sector]  llm=ok
+           extracted: -
+           drops: -
+           ok   injected invented sector dropped: expected=0 actual=0
+TRAP-05  PASS  [Target security not in article links]  llm=ok
+           extracted: NSE:TCS BENEFITS (0.95)
+           drops: -
+           ok   NSE:INFY is not a target: expected=False actual=False
+TRAP-06  PASS  [Non-English or garbled input]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+TRAP-07  PASS  [Gold forecast is not a move]  llm=ok
+           extracted: -
+           drops: -
+           ok   no drv:gold_price move with confidence >= 0.5: expected=[] actual=[]
+TRAP-08  PASS  [Stock commentary yields no macro driver]  llm=ok
+           extracted: NSE:CGPOWER BENEFITS (0.90)
+           drops: -
+           ok   no driver moves at all: expected=0 actual=0
+TRAP-09  PASS  [Advice wording must not reach the summary]  llm=http_503
+           extracted: -
+           drops: http_503
+           ok   stored summary has no advice word: expected=[] actual=[]
+TRAP-10  PASS  [Injected direct effect with empty evidence]  llm=ok
+           extracted: NSE:INFY BENEFITS (0.80)
+           drops: -
+           ok   direct effect with empty evidence dropped: expected=(0, True) actual=(0, True)
+TRAP-11  PASS  [Injected driver move with DISRUPTS]  llm=ok
+           extracted: drv:crude_oil_price MOVES_UP (0.80)
+           drops: -
+           ok   driver move with DISRUPTS dropped: expected=(0, True) actual=(0, True)
+TRAP-12  PASS  [Only the linked company may be a target]  llm=ok
+           extracted: NSE:BHARTIARTL BENEFITS (0.90)
+           drops: -
+           ok   NSE:RELIANCE is not a target: expected=False actual=False
+.
+[NO_SIGNAL] cases=10 rate=100.0% target>=90%
+NS-01    PASS  [Sports victory]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-02    PASS  [Celebrity news]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-03    PASS  [Weather with no economic angle]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-04    PASS  [Local crime report]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-05    PASS  [Film release postponement]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-06    PASS  [General trivia quiz]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-07    PASS  [Cricket result]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-08    PASS  [Film box-office weekend]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-09    PASS  [Light drizzle with no impact]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+NS-10    PASS  [Celebrity wedding]  llm=ok
+           extracted: -
+           drops: -
+           ok   no event stored: expected=0 actual=0
+.
+[MIXED_CASES] cases=4 rate=75.0% target>=75%
+MX-01    PASS  [Rupee swings both ways and ends flat]  llm=ok
+           extracted: -
+           drops: -
+           ok   every kept item MIXED or confidence < 0.6: expected=[] actual=[]
+MX-02    PASS  [Monsoon on time but uneven]  llm=http_503
+           extracted: -
+           drops: http_503
+           ok   every kept item MIXED or confidence < 0.6: expected=[] actual=[]
+MX-03    PASS  [Crude steady as OPEC+ hike offsets tension]  llm=ok
+           extracted: -
+           drops: -
+           ok   every kept item MIXED or confidence < 0.6: expected=[] actual=[]
+MX-04    FAIL  [SEBI tightens F&O rules but extends deadline]  llm=ok
+           extracted: financial_services HURTS (0.80)
+           drops: -
+           FAIL every kept item MIXED or confidence < 0.6: expected=[] actual=[('HURTS', 0.8)]
+.
+================================== FAILURES ===================================
+____________________ test_challenge_group[clear_direction] ____________________
+
+group = 'clear_direction'
+pg_session = <sqlalchemy.orm.session.Session object at 0x000001FFFFDADD60>
+llm_client = <tkg.llm.client.GeminiClient object at 0x000001FFFFCCBEF0>
+
+    @pytest.mark.parametrize("group", ["clear_direction", "hallucination_traps", "no_signal", "mixed_cases"])
+    def test_challenge_group(group, pg_session, llm_client):
+        results, rate = run_group(group, pg_session, llm_client)
+        failures = [r.case_id for r in results if not r.passed]
+>       assert rate >= TARGETS[group], f"{group}: {rate:.1f}% < {TARGETS[group]:.0f}%; failing cases: {failures}"
+E       AssertionError: clear_direction: 69.0% < 90%; failing cases: ['CD-02', 'CD-03', 'CD-04', 'CD-08', 'CD-10', 'CD-12']
+E       assert 69.04761904761905 >= 90.0
+
+tests\test_challenge_llm.py:41: AssertionError
+------------------------------ Captured log call ------------------------------
+ERROR    tkg.llm.client:client.py:142 Gemini returned status 503 (model=gemini-3.5-flash-lite)
+ERROR    tkg.llm.client:client.py:142 Gemini returned status 503 (model=gemini-3.5-flash-lite)
+ERROR    tkg.llm.client:client.py:142 Gemini returned status 503 (model=gemini-3.5-flash-lite)
+=========================== short test summary info ===========================
+FAILED tests/test_challenge_llm.py::test_challenge_group[clear_direction] - A...
+1 failed, 3 passed in 2048.55s (0:34:08)

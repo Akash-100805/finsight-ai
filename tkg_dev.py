@@ -9,6 +9,7 @@ Usage:
   python tkg_dev.py migrate --target main|test [--revision head] [--stamp REV] [--downgrade REV (test only)]
   python tkg_dev.py priors-load --target main|test
   python tkg_dev.py process --target main|test [--max-requests N] [--dry-run] [--no-llm]
+  python tkg_dev.py fix-report | owner-check-export | owner-check-score [--file CSV]
   python tkg_dev.py run-loop [--target main|test] [--interval-minutes 30] [--initial-delay-minutes 2]
   python tkg_dev.py report
   python tkg_dev.py test
@@ -331,6 +332,41 @@ def cmd_report(args):
             print(f"Error querying report data: {e}")
 
 
+def cmd_fix_report(args):
+    """Write the real-data report (read-only)."""
+    from tkg.reporting import build_fix_report
+    engine = get_engine(get_target_url(args.target))
+    with engine.connect() as conn:
+        conn.execute(text("SET TRANSACTION READ ONLY"))
+        body = build_fix_report(conn, os.path.join(repo_root, "docs", "review", "backfill_*.txt"))
+    with open(args.out, "w", encoding="utf-8") as fh:
+        fh.write(body)
+    print(f"Wrote {args.out} ({len(body.splitlines())} lines)")
+
+
+def cmd_owner_check_export(args):
+    """Write 40 stratified real events to a CSV for the owner check (guide 16.4)."""
+    from tkg.reporting import owner_check_export
+    engine = get_engine(get_target_url(args.target))
+    with engine.connect() as conn:
+        conn.execute(text("SET TRANSACTION READ ONLY"))
+        n = owner_check_export(conn, args.out)
+    print(f"Wrote {n} events to {args.out}. Mark each row Y or N in the 'correct' column, add a note for every N.")
+
+
+def cmd_owner_check_score(args):
+    """Precision over the graded rows of the owner-check CSV (gate: 85% Y)."""
+    from tkg.reporting import owner_check_score
+    res = owner_check_score(args.file)
+    if res["precision"] is None:
+        print(f"Nothing graded yet ({res['ungraded']} rows ungraded).")
+        return
+    print(f"Y={res['y']} N={res['n']} ungraded={res['ungraded']} precision={res['precision']:.1%} gate>={res['gate']:.0%} -> "
+          f"{'PASS' if res['passes'] else 'BELOW GATE'}")
+    for event_id, item, note in res["n_notes"]:
+        print(f"  N: {event_id[:8]} {item} | {note or '(no note)'}")
+
+
 def cmd_test(args):
     """Run pytest suite."""
     cmd = [sys.executable, "-m", "pytest", "services/tkg/tests", "-v"]
@@ -380,6 +416,16 @@ def main():
     rep_p = subparsers.add_parser("report", help="Show TKG status report")
     rep_p.add_argument("--target", choices=["main", "test"], default="main", help="Target database")
 
+    # fix-report / owner check
+    fr_p = subparsers.add_parser("fix-report", help="Write the real-data report (read-only)")
+    fr_p.add_argument("--target", choices=["main", "test"], default="main", help="Target database")
+    fr_p.add_argument("--out", default=os.path.join(repo_root, "docs", "review", "tkg_fix_report.md"))
+    oe_p = subparsers.add_parser("owner-check-export", help="Export 40 stratified real events for the owner check")
+    oe_p.add_argument("--target", choices=["main", "test"], default="main", help="Target database")
+    oe_p.add_argument("--out", default=os.path.join(repo_root, "docs", "review", "tkg_owner_check.csv"))
+    os_p = subparsers.add_parser("owner-check-score", help="Precision of the graded owner-check CSV")
+    os_p.add_argument("--file", default=os.path.join(repo_root, "docs", "review", "tkg_owner_check.csv"))
+
     # test
     test_p = subparsers.add_parser("test", help="Execute pytest suite")
     test_p.add_argument("-m", "--marker", default=None, help="Pytest marker filter (e.g. 'not llm')")
@@ -394,6 +440,9 @@ def main():
         "process": cmd_process,
         "run-loop": cmd_run_loop,
         "report": cmd_report,
+        "fix-report": cmd_fix_report,
+        "owner-check-export": cmd_owner_check_export,
+        "owner-check-score": cmd_owner_check_score,
         "test": cmd_test,
     }
 

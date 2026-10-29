@@ -535,18 +535,24 @@ Code style, test internals, library choices that don't change behaviour, and rou
 
 ---
 
-## 17. Deferred Items
+## 17. Owner decisions and deferrals (28 Oct 2026)
 
-The following architectural and operational items are explicitly deferred:
+Decided by Akash and recorded here; status as of the 30-day backfill on 29 Oct 2026. Numbers are in `docs/review/tkg_fix_report.md`.
 
-1. **Alembic Migrations Framework**:
-   - Currently, migrations are executed idempotently using `services/tkg/migrations/0001_initial.sql` and tracked via the `tkg.schema_migrations` table.
-   - Alembic autogenerate will be introduced once schema changes stabilize across all multi-agent consumers.
+**Done**
+1. **Vocabulary location: aligned with T5.** The drivers, actors and relations vocabulary lives in `shared/finsight_shared/tkg_vocab.py` (the only addition to `shared/`). `services/tkg` imports it and keeps `tkg/vocab.py` as a thin re-export. No service imports another service's code: the agents read driver labels from `tkg.drivers` (granted to `tkg_reader`) and relation names from `finsight_shared.tkg_vocab`.
+2. **Alembic is done** (this replaces the earlier "SQL migrations, Alembic deferred" decision). Revision 1 is the baseline, revision 2 holds the integration fixes (new `tkg.runs` columns, the `event_type` index, completed-runs-only latest views, `v_events` title/url, the contract grants). The version table is `tkg.alembic_version`. MAIN was stamped at 0001 and upgraded to 0002 on 29 Oct 2026 (rollback point: Neon branch `pre-alembic-2026-10-29`, auto-deleted after 7 days). Downgrades are refused on MAIN.
+3. **Prompt v2 rules**: evidence is mandatory, no `DISRUPTS` on drivers, advice words are filtered from summaries, the API key goes in a header and never in a URL or log.
+4. **Oldest-first within the 30-day window**; every HTTP request (including retries and repairs) counts against `TKG_LLM_RPD`; the quota day ends at midnight Pacific (about 12:30 IST).
+5. **Max output tokens 4096.**
+6. **Advisory lock** is a defect fix: lock and unlock on one connection, and a lock error ends the run with a non-zero exit.
+7. **Transient Gemini failures** (5xx, timeout) are retried twice (5 s, 15 s); each attempt is its own `tkg.llm_calls` row.
+8. **Challenge set** is 44 cases. Result with prompt v2: clear direction 90.5% (target 90%), traps 100%, no-signal 100%, mixed 75% (target 75%). No prompt tuning round was used.
+9. **Agents integration**: Indian holdings use the TKG, US holdings use `tkg_lite` (run label `tkg+tkg_lite`); company-level TKG scores are attached as evidence only and do not enter fusion.
 
-2. **Owner Human Review of Extracted Events (Phase 6 gate)**:
-   - Automated LLM challenge suite (100% pass on 20 challenge cases) is in place.
-   - The manual CSV export (`docs/review/tkg_owner_check.csv`) for human precision grading will be conducted after the first week of live scheduled news ingestion.
+**Pending**
+10. **k = 3.0 and c = 4.0 are provisional**, pending Akash's confirmation. The report shows the score distribution under k = 1 to 4; at k = 3 three of twenty 30-day sector scores exceed 0.9.
+11. **Owner check scheduled.** 40 stratified real events were exported on 29 Oct 2026 (`docs/review/tkg_owner_check.csv`); a second export is due 7 days after the backfill (about 5 Nov 2026) and Akash grades that one. `python tkg_dev.py owner-check-score` reports precision (gate 85% Y). Until it is graded, the agents' UI labels the TKG sector view "provisional".
 
-3. **Standalone UI Dashboard Rebuild**:
-   - The priority is backend integration with the multi-agent system (Sector TKG Agent) via the SQL contract and FastAPI service.
-   - The interactive web dashboard rebuild is deferred until the agent orchestration layer is complete.
+**Deferred**
+12. **Standalone TKG dashboard** is folded into the product UI step. `GET /graph/export` returns nodes with types and labels, edges with relation, sign and weight, and `as_of`; its shape is documented in `docs/TKG_OUTPUT_CONTRACT.md`.

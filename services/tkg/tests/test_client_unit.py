@@ -58,6 +58,7 @@ def gemini(monkeypatch):
     FakeHttpClient.queue, FakeHttpClient.requests = [], []
     monkeypatch.setattr(client_module.httpx, "Client", FakeHttpClient)
     monkeypatch.setattr(settings, "GEMINI_API_KEY", KEY)
+    monkeypatch.setattr(client_module.time, "sleep", lambda s: None)
     c = GeminiClient()
     c._min_interval = 0.0
     return c
@@ -104,10 +105,19 @@ def test_parse_failed_after_repair(gemini):
     (response(200, {"candidates": [{"finishReason": "SAFETY"}]}), "safety_blocked"),
 ])
 def test_status_codes(gemini, queued, expected):
-    FakeHttpClient.queue = [queued]
+    FakeHttpClient.queue = [queued] * 3
     results, meta = gemini.extract_events([ARTICLE])
     assert results == [] and meta["status"] == expected
-    assert len(meta["calls"]) == 1 and meta["calls"][0]["status"] == expected
+    transient = expected in GeminiClient.TRANSIENT_STATUSES
+    assert len(meta["calls"]) == (3 if transient else 1)             # a 5xx / timeout is retried twice, nothing else is
+    assert all(c["status"] == expected for c in meta["calls"])
+
+
+def test_a_transient_503_is_retried_and_every_attempt_is_reported(gemini):
+    FakeHttpClient.queue = [response(503), response(200, gemini_body(GOOD))]
+    results, meta = gemini.extract_events([ARTICLE])
+    assert len(results) == 1 and meta["status"] == "ok"
+    assert [c["status"] for c in meta["calls"]] == ["http_503", "ok"] and len(FakeHttpClient.requests) == 2
 
 
 def test_no_api_key_makes_no_request(monkeypatch):
@@ -122,7 +132,7 @@ def test_no_api_key_makes_no_request(monkeypatch):
 
 def test_key_never_appears_in_logs_or_status(gemini, caplog):
     err = httpx.ConnectError(f"cannot reach https://x/?key={KEY}", request=httpx.Request("POST", "https://x"))
-    FakeHttpClient.queue = [err, response(500, {"error": f"bad key {KEY}"})]
+    FakeHttpClient.queue = [err] * 3 + [response(500, {"error": f"bad key {KEY}"})] * 3          # each is retried twice
     with caplog.at_level(logging.DEBUG):
         _, meta1 = gemini.extract_events([ARTICLE])
         _, meta2 = gemini.extract_events([ARTICLE])
