@@ -151,6 +151,10 @@ def run_case(session, client: LLMClient, case: Dict[str, Any], group: str) -> Ca
             want = (case["expected_driver"], case.get("expected_driver_relation"))
             got = [(m["driver_id"], m["relation"]) for m in out["moves"]]
             add(f"driver {want[0]} {want[1]}", want, got, want in got)
+        if case.get("expected_driver_any"):
+            wants = [tuple(w) for w in case["expected_driver_any"]]
+            got = [(m["driver_id"], m["relation"]) for m in out["moves"]]
+            add("any of " + ", ".join(f"{d} {r}" for d, r in wants), wants, got, any(w in got for w in wants))
         for sector, expected in (case.get("asserted_directions") or {}).items():
             row = out["sectors"].get(sector)
             actual = _direction(row["score"]) if row else 0
@@ -168,9 +172,10 @@ def run_case(session, client: LLMClient, case: Dict[str, Any], group: str) -> Ca
         add("no event stored", 0, len(out["events"]), len(out["events"]) == 0)
 
     elif group == "mixed_cases":
-        items = [(m["relation"], m["confidence"]) for m in out["moves"]] + [
-            (e["relation"], e["confidence"]) for e in out["effects"]]
-        bad = [(r, c) for r, c in items if not (r == "MIXED" or c < 0.6)]
+        accepted = {(a["target_id"], a["relation"]) for a in (case.get("accepted_items") or [])}
+        items = [(m["relation"], m["confidence"], m["driver_id"]) for m in out["moves"]] + [
+            (e["relation"], e["confidence"], e["target_id"]) for e in out["effects"]]
+        bad = [(r, c) for r, c, target in items if not (r == "MIXED" or c < 0.6 or (target, r) in accepted)]
         add("every kept item MIXED or confidence < 0.6", [], bad, not bad)
 
     return result

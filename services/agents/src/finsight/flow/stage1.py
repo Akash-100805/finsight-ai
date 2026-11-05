@@ -92,7 +92,7 @@ def sector_verdict(sector: str | None, signals: dict, source: str) -> dict:
     return verdict(signal, sc.sector_confidence(sig["confidence"], sig["source"]), sc.limit_words(rationale, 25),
                    {"source": sig["source"], "sector": sector, "n": sig["n"], "raw_score": sig["score"], "provider_confidence": sig["confidence"],
                     "evidence_article_ids": sig.get("evidence_article_ids", []), "neutral": False,
-                    **({"paths": sig["explanations"], "as_of": sig.get("as_of")} if sig.get("explanations") else {})})
+                    **({"paths": sig["explanations"], "evidence_items": sig.get("evidence_items", []), "as_of": sig.get("as_of")} if sig.get("explanations") else {})})
 
 
 def combine_sources(used: set[str], default: str) -> str:

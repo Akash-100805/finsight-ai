@@ -33,7 +33,8 @@ def test_up_down_up_on_test(pg_engine):
     cfg = tkg_dev.alembic_config("test", settings.TKG_TEST_DATABASE_URL)
 
     def check_head():
-        assert scalar(pg_engine, "SELECT version_num FROM tkg.alembic_version") == "0002"
+        assert scalar(pg_engine, "SELECT version_num FROM tkg.alembic_version") == "0003"
+        assert "drop_reasons" in columns(pg_engine, "processed_articles")
         assert {"llm_requests", "rate_limited", "articles_skipped_purged", "request_budget",
                 "disrupts_excluded"} <= columns(pg_engine, "runs")
         assert {"title", "url", "source_id", "published_at"} <= columns(pg_engine, "v_events")
@@ -47,6 +48,10 @@ def test_up_down_up_on_test(pg_engine):
 
     try:
         check_head()
+
+        command.downgrade(cfg, "0002")                       # revision 3 down
+        assert scalar(pg_engine, "SELECT version_num FROM tkg.alembic_version") == "0002"
+        assert "drop_reasons" not in columns(pg_engine, "processed_articles")
 
         command.downgrade(cfg, "0001")                       # revision 2 down
         assert scalar(pg_engine, "SELECT version_num FROM tkg.alembic_version") == "0001"
@@ -82,6 +87,6 @@ def test_alembic_files_exist_and_use_the_tkg_version_table():
     root = os.path.join(repo_root, "services", "tkg", "alembic")
     assert os.path.isfile(os.path.join(root, "env.py"))
     assert sorted(f for f in os.listdir(os.path.join(root, "versions")) if f.endswith(".py")) == [
-        "0001_baseline.py", "0002_integration_fixes.py"]
+        "0001_baseline.py", "0002_integration_fixes.py", "0003_drop_reasons.py"]
     env = open(os.path.join(root, "env.py"), encoding="utf-8").read()
     assert 'version_table_schema="tkg"' in env and 'version_table="alembic_version"' in env

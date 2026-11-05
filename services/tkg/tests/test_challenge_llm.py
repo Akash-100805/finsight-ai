@@ -5,6 +5,8 @@ Every case goes through the real pipeline (extraction -> validation -> storage -
 isolated TEST database state. Expectations live in challenge/tkg_cases.yaml and are never edited by the tests.
 Targets: clear direction >= 90% of assertions, traps 100%, no-signal >= 90%, mixed >= 75%.
 """
+import os
+
 import pytest
 
 from tkg.llm.client import get_llm_client
@@ -27,6 +29,9 @@ def llm_client():
 
 def run_group(group, pg_session, llm_client):
     cases = load_cases()[KEYS[group]]
+    only = {c for c in os.environ.get("CHALLENGE_ONLY", "").replace(",", " ").split() if c}   # re-run chosen case ids only
+    if only:
+        cases = [c for c in cases if c["id"] in only]
     results = [run_case(pg_session, llm_client, case, group) for case in cases]
     rate = group_rate(results)
     print(f"\n[{group.upper()}] cases={len(results)} rate={rate:.1f}% target>={TARGETS[group]:.0f}%")

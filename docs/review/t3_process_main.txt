@@ -1,0 +1,65 @@
+2026-11-06 02:08:45,254 [INFO] tkg.processing.runner: Processing run b112949e-9570-4d39-8d58-432025f31558: budget = 25 LLM requests
+2026-11-06 02:08:46,385 [INFO] tkg.processing.runner: Eligible articles to extract: 82
+2026-11-06 02:08:50,600 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:08:50,601 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:08:50,602 [WARNING] tkg.llm.client: Gemini transient failure (http_503); retrying in 5s
+2026-11-06 02:09:00,099 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-11-06 02:09:06,083 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-11-06 02:09:11,720 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:09:11,721 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:09:11,721 [WARNING] tkg.llm.client: Gemini transient failure (http_503); retrying in 5s
+2026-11-06 02:09:20,602 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:09:20,603 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:09:20,604 [WARNING] tkg.llm.client: Gemini transient failure (http_503); retrying in 15s
+2026-11-06 02:09:38,891 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:09:38,892 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:09:44,600 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-11-06 02:09:52,661 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-11-06 02:09:52,663 [WARNING] tkg.llm.validation: Article 7a707754-1934-4475-8ca0-085861139209: 1 validation errors: ['evidence_not_found:US Treasury yields face pressure despite expected ']
+2026-11-06 02:09:52,663 [INFO] tkg.processing.runner: Article 7a707754-1934-4475-8ca0-085861139209 had validation errors dropped: ['evidence_not_found:US Treasury yields face pressure despite expected ']
+2026-11-06 02:09:58,540 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-11-06 02:10:04,823 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-11-06 02:10:09,834 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:10:09,835 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:10:09,835 [WARNING] tkg.llm.client: Gemini transient failure (http_503); retrying in 5s
+2026-11-06 02:10:18,901 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-11-06 02:10:24,139 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:10:24,140 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:10:24,140 [WARNING] tkg.llm.client: Gemini transient failure (http_503); retrying in 5s
+2026-11-06 02:10:31,338 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:10:31,339 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:10:31,339 [WARNING] tkg.llm.client: Gemini transient failure (http_503); retrying in 15s
+2026-11-06 02:10:48,794 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:10:48,795 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:10:54,862 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:10:54,863 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:10:54,864 [WARNING] tkg.llm.client: Gemini transient failure (http_503); retrying in 5s
+2026-11-06 02:11:03,509 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:11:03,510 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:11:03,510 [WARNING] tkg.llm.client: Gemini transient failure (http_503); retrying in 15s
+2026-11-06 02:11:20,779 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 503 Service Unavailable"
+2026-11-06 02:11:20,780 [ERROR] tkg.llm.client: Gemini returned status 503 (model=gemini-3.5-flash-lite)
+2026-11-06 02:11:25,130 [INFO] httpx: HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent "HTTP/1.1 200 OK"
+2026-11-06 02:11:26,525 [INFO] tkg.graph.stories: Story grouping: 257 events -> 240 stories (8 story_id changes)
+2026-11-06 02:11:27,080 [INFO] tkg.graph.builder: Graph rebuilt: 99 nodes, 146 edges
+2026-11-06 02:11:29,442 [INFO] tkg.processing.runner: Processing run b112949e-9570-4d39-8d58-432025f31558 completed successfully in 168.0s
+=== Executing TKG Processing Run on main DB (dry_run=False, max_requests=None) ===
+Run completed successfully!
+  Run ID: b112949e-9570-4d39-8d58-432025f31558
+  Articles Seen: 400
+  Articles Processed: 8
+  Articles Skipped Ineligible: 318
+  Articles Not Relevant: 50
+  Articles Failed: 0
+  Events Created: 8
+  Driver Moves Created: 2
+  Direct Effects Created: 6
+  LLM Requests: 19
+  LLM Tokens (In/Out): 25963 / 7458
+  Snapshots Written: 46
+  Request budget: 25  rate_limited: False
+  Validation drops: {'evidence_not_found': 1}
+  Articles skipped (purged): 0
+  DISRUPTS excluded (driver paths / company overrides): 0 / 0
+  DB Size (MB): 3.11
+  Duration (s): 167.98

@@ -74,11 +74,11 @@ def test_missing_api_key_makes_no_llm_calls_and_writes_no_articles(pg_session):
 
 def test_attempts_increment_and_cap_at_three(pg_session):
     aid = add_article(pg_session, "Crude oil jumps", 1)
-    client = FakeLLMClient(status="timeout")
+    client = FakeLLMClient(status="parse_failed")
     for expected in (1, 2, 3):
         stats = run_processing(db_session=pg_session, llm_client=client, max_requests=5)
         row = pa_rows(pg_session)[str(aid)]
-        assert (row.status, row.attempts, row.last_error) == ("failed", expected, "timeout")
+        assert (row.status, row.attempts, row.last_error) == ("failed", expected, "parse_failed")
         assert stats["failed"] == 1
     calls_before = len(client.calls)
     stats = run_processing(db_session=pg_session, llm_client=client, max_requests=5)
@@ -125,7 +125,9 @@ def test_all_items_dropped_is_recorded_with_reasons(pg_session):
     row = pa_rows(pg_session)[str(aid)]
     assert row.status == "not_relevant" and row.last_error == "all_items_dropped: evidence_not_found"
     assert stats["validation_drops"] == {"evidence_not_found": 1}
-    assert row.prompt_version == "v2"
+    assert row.prompt_version == "v2.1"
+    assert pg_session.execute(text("SELECT drop_reasons FROM tkg.processed_articles WHERE article_id = :a"),
+                              {"a": aid}).scalar() == {"evidence_not_found": 1}          # stored per article (revision 3)
 
 
 def test_advice_word_summary_is_stored_as_null(pg_session):
@@ -254,3 +256,71 @@ def test_a_lock_error_aborts_the_run(pg_session, monkeypatch):
         run_processing(db_session=pg_session, llm_client=client, max_requests=5)
     assert client.calls == []
     assert pg_session.execute(text("SELECT count(*) FROM tkg.runs")).scalar() == 0
+
+
+def test_advice_titles_are_skipped_before_extraction_with_the_reason(pg_session):
+    advice = add_article(pg_session, "Reliance shares: why is it wise to buy RIL amid a falling market", 1)
+    normal = add_article(pg_session, "Crude oil jumps", 2)
+    client = FakeLLMClient(responses={str(normal): [relevant(normal, "Crude oil jumps")]})
+    stats = run_processing(db_session=pg_session, llm_client=client, max_requests=5)
+    rows = pa_rows(pg_session)
+    assert rows[str(advice)].status == "skipped_ineligible" and rows[str(advice)].last_error == "advice_content"
+    assert rows[str(normal)].status == "done" and stats["skipped_ineligible"] == 1
+    assert client.calls[0]["article_ids"] == [str(normal)]                                  # the advice article never reached the LLM
+
+
+def test_runs_stuck_as_running_for_over_two_hours_are_marked_failed_on_start(pg_session):
+    old = uuid.uuid4()
+    recent = uuid.uuid4()
+    pg_session.execute(text("INSERT INTO tkg.runs (run_id, started_at, status) VALUES (:o, now() - interval '3 hours', 'running'), "
+                            "(:r, now() - interval '10 minutes', 'running')"), {"o": old, "r": recent})
+    pg_session.commit()
+    stats = run_processing(db_session=pg_session, llm_client=FakeLLMClient(), max_requests=1)
+    assert stats["stale_runs_closed"] == 1
+    rows = {str(r.run_id): r for r in pg_session.execute(text("SELECT run_id, status, error_summary, finished_at FROM tkg.runs")).all()}
+    assert rows[str(old)].status == "failed" and rows[str(old)].error_summary == "stale: process ended" and rows[str(old)].finished_at
+    assert rows[str(recent)].status == "running"                                            # not old enough: left alone
+
+
+def test_dry_run_makes_zero_llm_requests_and_writes_nothing(pg_session, monkeypatch):
+    monkeypatch.setattr(settings, "TKG_LLM_BATCH_SIZE", 2)
+    for i in range(3):
+        add_article(pg_session, f"Crude oil jumps {i}", 1 + i)
+
+    class Boom(LLMClient):
+        def __init__(self, *a, **k):
+            raise AssertionError("the real LLM client must not be created in a dry run")
+
+    monkeypatch.setattr(runner, "get_llm_client", lambda *a, **k: Boom())
+    stats = run_processing(db_session=pg_session, dry_run=True, max_requests=5)
+    assert stats["llm_requests"] == 0 and stats["would_extract"] == 3 and stats["estimated_requests"] == 2
+    assert pg_session.execute(text("SELECT count(*) FROM tkg.llm_calls")).scalar() == 0
+    assert pg_session.execute(text("SELECT count(*) FROM tkg.processed_articles")).scalar() == 0
+    assert pg_session.execute(text("SELECT count(*) FROM tkg.runs")).scalar() == 0
+
+
+def test_5xx_does_not_burn_attempts_and_three_in_a_row_stop_the_run(pg_session, monkeypatch):
+    monkeypatch.setattr(settings, "TKG_LLM_BATCH_SIZE", 1)
+    for i in range(5):
+        add_article(pg_session, f"Crude oil jumps {i}", 1 + i)
+    client = FakeLLMClient(status="http_503")
+    stats = run_processing(db_session=pg_session, llm_client=client, max_requests=10)
+    assert len(client.calls) == 3                                                           # stopped after 3 consecutive 5xx
+    assert stats["failed"] == 0 and stats["transient_failures"] == 3 and "consecutive http_503" in stats["llm_unavailable"]
+    assert pa_rows(pg_session) == {}                                                        # no attempts burned: all articles stay pending
+    assert pg_session.execute(text("SELECT status FROM tkg.runs")).scalar() == "completed"
+
+
+def test_a_good_response_resets_the_consecutive_5xx_count(pg_session, monkeypatch):
+    monkeypatch.setattr(settings, "TKG_LLM_BATCH_SIZE", 1)
+    for i in range(4):
+        add_article(pg_session, f"Crude oil jumps {i}", 1 + i)
+
+    class Flaky(FakeLLMClient):
+        def extract_events(self, articles, allow_repair=True):
+            self.status = "http_503" if len(self.calls) in (0, 1, 3) else "ok"
+            return super().extract_events(articles, allow_repair)
+
+    client = Flaky()
+    stats = run_processing(db_session=pg_session, llm_client=client, max_requests=10)
+    assert len(client.calls) == 4 and stats["transient_failures"] == 3 and not stats.get("llm_unavailable")

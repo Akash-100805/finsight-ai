@@ -250,3 +250,20 @@ No empty headlines. **Failed check:** five evidence headlines end in "?" because
 - Six `tkg.runs` rows from 27 Oct and one from 29 Oct are stuck as `running` after crashed runs. They do not affect the views (completed runs only), but nothing closes them.
 - `--dry-run` still calls the LLM (it spent 25 requests); it only skips database writes.
 - Validation drops are logged per run and not stored, so the histogram in section 2 is incomplete for runs that were cut short by network errors.
+
+## 15. T3 update (5 Nov 2026)
+- **Daily cap** (one contribution per driver, direction, sector, day): 406 driver candidates collapsed at the 29 Oct reference time; 30-day sectors above 0.9 at k = 3: 3 -> 0; median |score| 0.47 -> 0.36.
+- **Re-score on MAIN** (`--no-llm`, after the 8-event advice cleanup): 7-day window empty (newest events are a week old); 30-day, 20 signal sectors:
+
+| k | above 0.9 | median | max |
+|---|---|---|---|
+| 1 | 5 | 0.701 | 0.986 |
+| 2 | 0 | 0.409 | 0.844 |
+| 3 | 0 | 0.282 | 0.677 |
+| 4 | 0 | 0.214 | 0.549 |
+
+- **Top five (30d, k = 3):** oil and gas +0.677, capital goods +0.541, chemicals -0.531, FMCG -0.504, consumer durables -0.498.
+- **Challenge, prompt v2.1:** run 1 / run 2 raw: clear 61.9% / 78.6%, traps 100% / 100%, no-signal 100% / 100%, mixed 75% / 100%; most misses were Gemini 503s. Re-run of the 22 cases that hit a 503: clear 10/10, traps 7/7, no-signal 3/3, mixed 2/2. With every case answered at least once: clear 100%, traps 100%, no-signal 100%, mixed 75% (worst run) to 100%. MX-02 failed once with MOVES_UP at 0.7 (possible leak of the official-forecast rule).
+- **MAIN after a 25-request process run:** 400 articles seen, 8 events created, 0 failed; most of the 3,305 newly ingested articles are still pending for `run-all`.
+- **Agents end-to-end** (all four portfolios): no fallback; mixed_us is `tkg+tkg_lite`; evidence lines are validated summaries with the unmodified title as the linked source; no zero-contribution paths. Titles ending in "?" (india_diversified 1, energy_and_autos 3, mixed_us 1) are the source titles, left as they are.
+- **Suites:** TKG normal 108 passed, agents 210 passed, ruff clean; TKG db suite 57 passed.

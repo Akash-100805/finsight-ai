@@ -7,7 +7,7 @@ from typing import List, Dict, Any
 from tkg.vocab import DRIVER_IDS, ACTOR_IDS, RELATION_NAMES, DRIVERS
 from finsight_shared.sectors import ALL_SECTOR_IDS
 
-PROMPT_VERSION = "v2"
+PROMPT_VERSION = "v2.1"
 
 
 def get_system_prompt() -> str:
@@ -31,11 +31,12 @@ RULES:
 5. Summary must be ≤25 words, purely factual. It must not contain buy, sell, trim, hedge or any recommendation.
 6. If the article has no market relevance, set is_market_relevant=false and return empty driver_moves and direct_effects.
 7. Actors can be from the actor list, or a security_id for company actors (e.g. "NSE:RELIANCE"), or "cty:XX" for country actors.
-8. Report a driver move only when the article states that the driver HAS moved or that a decision HAS been made. Forecasts, targets, questions, opinions and passing background mentions are not moves.
+8. Report a driver move when the article states that the driver HAS moved, that a decision HAS been made, or that an OFFICIAL body (IMD, RBI or another central bank, the government, a regulator) has issued a forecast or decision about it: an official forecast counts as a driver move at medium confidence (0.5 to 0.7). Analyst, brokerage and media speculation, targets, questions, opinions and passing background mentions are not moves.
 9. Company-specific stories (stock moves, analyst ratings, a single company's results) do not produce macro driver moves unless the text explicitly reports the macro change itself.
-10. Do not add a direct sector effect that only restates a driver move you already extracted for the same article. Direct effects are for effects the article states directly.
+10. Give direct effects only for effects the article states beyond the driver move. Do not add a direct sector effect that only restates a driver move you already extracted for the same article.
 11. Driver moves take only MOVES_UP or MOVES_DOWN. A supply disruption of a commodity is MOVES_UP on its price.
 12. Confidence: use 0.9 or above only when the text states the move or effect plainly; use 0.5 to 0.7 when it is implied.
+13. A change in a tax rate or a policy rate (GST, customs or import duty, the repo rate, a reserve ratio and the like) is always reported as the corresponding driver move: MOVES_UP for an increase and MOVES_DOWN for a cut, even when the article also names the sectors affected.
 
 DRIVERS (closed list):
 {driver_list}

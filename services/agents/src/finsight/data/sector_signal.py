@@ -29,6 +29,7 @@ from finsight.settings import Settings, get_settings
 CONFIDENCE_FULL_AT = 20
 TOP_EVIDENCE = 5
 TOP_PATHS = 3
+MIN_SHOWN_CONTRIB = 0.005          # a path that rounds to +0.00 is never shown as evidence
 logger = logging.getLogger(__name__)
 
 
@@ -140,42 +141,53 @@ class TkgProvider:
             raise SectorProviderError(f"tkg.drivers has no label for {sorted(missing)}")
         return labels
 
-    def _event_titles(self, event_ids: set[str]) -> dict[str, str]:
-        """event_id -> headline: tkg.v_events.title (the news article title), else the event summary."""
+    def _event_info(self, event_ids: set[str]) -> dict[str, dict]:
+        """event_id -> {title, url, summary} from tkg.v_events (the TKG output contract). The title is the article's own, never altered."""
         if not event_ids or self._module is not None:
             return {}
         try:
             engine = self._engine or get_news_engine(self._target)
             with engine.connect() as conn:
                 rows = list(conn.execute(
-                    text("SELECT event_id::text AS event_id, title, summary FROM tkg.v_events WHERE event_id::text = ANY(:e)"),
+                    text("SELECT event_id::text AS event_id, title, url, summary FROM tkg.v_events WHERE event_id::text = ANY(:e)"),
                     {"e": list(event_ids)}).mappings())
         except Exception as exc:
             raise SectorProviderError(f"tkg.v_events is not readable: {type(exc).__name__}") from exc
-        return {r["event_id"]: (r["title"] or r["summary"] or "") for r in rows}
+        return {r["event_id"]: {"title": r["title"], "url": r.get("url"), "summary": r["summary"]} for r in rows}
 
-    def _path_texts(self, paths: list[dict]) -> tuple[list[str], list[str]]:
-        """The top paths as readable sentences with real headlines, plus the article ids behind them."""
-        top = sorted((p for p in paths or [] if isinstance(p, dict)), key=lambda p: -abs(float(p.get("contrib") or 0)))[:TOP_PATHS]
+    def _path_texts(self, paths: list[dict]) -> tuple[list[str], list[str], list[dict]]:
+        """The top paths as (evidence lines, article ids, evidence items).
+
+        The evidence line is the event's validated summary (null when validation removed an advice word). The article title is carried
+        unmodified as the linked source in the item. A path with zero contribution is never shown.
+        """
+        shown = [p for p in paths or [] if isinstance(p, dict) and abs(float(p.get("contrib") or 0)) >= MIN_SHOWN_CONTRIB]
+        top = sorted(shown, key=lambda p: -abs(float(p.get("contrib") or 0)))[:TOP_PATHS]
         labels = self._driver_labels({p["driver_id"] for p in top if p.get("driver_id")})
-        titles = self._event_titles({str(p["event_id"]) for p in top if p.get("event_id")})
-        texts, articles = [], []
+        info = self._event_info({str(p["event_id"]) for p in top if p.get("event_id")})
+        texts, articles, items = [], [], []
         for p in top:
-            headline = titles.get(str(p.get("event_id"))) or p.get("summary") or "(headline unavailable)"
+            ev = info.get(str(p.get("event_id")), {})
+            summary = ev.get("summary") or p.get("summary") or ""
+            lead = f"{summary} -> " if summary else ""
             contrib = float(p.get("contrib") or 0)
             kind = p.get("type")
             if kind == "driver" and p.get("driver_id"):
-                texts.append(f"{headline} -> {labels[p['driver_id']]} {relation_arrow(p.get('relation'))} ({p.get('magnitude')}) -> {contrib:+.2f}")
+                texts.append(f"{lead}{labels[p['driver_id']]} {relation_arrow(p.get('relation'))} ({p.get('magnitude')}) -> {contrib:+.2f}")
             elif kind == "driver_override" and p.get("driver_id"):
-                texts.append(f"{headline} -> {labels[p['driver_id']]} {relation_arrow(p.get('relation'))} ({p.get('magnitude')}) -> "
+                texts.append(f"{lead}{labels[p['driver_id']]} {relation_arrow(p.get('relation'))} ({p.get('magnitude')}) -> "
                              f"company sensitivity {float(p.get('sensitivity') or 0):+.2f} = {contrib:+.2f}")
             elif kind == "direct":
-                texts.append(f"{headline} -> {p.get('relation')} -> {contrib:+.2f}")
+                texts.append(f"{lead}{p.get('relation')} -> {contrib:+.2f}")
             else:
                 texts.append(str(p.get("explanation") or f"{p.get('from_sector')} ({p.get('link')}) -> {p.get('to_sector')} = {contrib:+.2f}"))
+            items.append({"text": texts[-1], "summary": summary or None, "contrib": round(contrib, 4), "type": kind,
+                          "driver": labels.get(p.get("driver_id")) if p.get("driver_id") else None,
+                          "event_id": p.get("event_id"), "article_id": p.get("article_id"),
+                          "source_title": ev.get("title"), "source_url": ev.get("url")})
             if p.get("article_id") and str(p["article_id"]) not in articles:
                 articles.append(str(p["article_id"]))
-        return texts, articles
+        return texts, articles, items
 
     def sector_signals(self, sector_ids: list[str], window_days: int | None = None) -> dict[str, dict | Unavailable]:
         days = self._settings.NEWS_WINDOW_DAYS if window_days is None else window_days
@@ -209,9 +221,9 @@ class TkgProvider:
             if not -1.0 <= score <= 1.0 or not 0.0 <= confidence <= 1.0:
                 raise SectorProviderError(f"tkg.sector_impacts result for {sid} is out of range (score {score}, confidence {confidence})")
             paths = item.get("top_paths") or []
-            explanations, article_ids = self._path_texts(paths) if self._module is None else ([str(p) for p in paths][:TOP_PATHS], [])
+            explanations, article_ids, items = self._path_texts(paths) if self._module is None else ([str(p) for p in paths][:TOP_PATHS], [], [])
             out[sid] = {"score": score, "confidence": confidence, "n": int(item.get("n_events", 0)), "source": "tkg",
-                        "evidence_article_ids": article_ids, "top_paths": paths, "explanations": explanations,
+                        "evidence_article_ids": article_ids, "top_paths": paths, "explanations": explanations, "evidence_items": items,
                         "as_of": item["as_of"].isoformat() if isinstance(item.get("as_of"), datetime) else None}
         return out
 
@@ -237,11 +249,11 @@ class TkgProvider:
         for r in rows:
             if not r.get("n_direct_events"):
                 continue
-            texts, article_ids = self._path_texts(r.get("top_paths") or [])
+            texts, article_ids, items = self._path_texts(r.get("top_paths") or [])
             out[r["security_id"]] = {
                 "direct_score": float(r["direct_score"]), "direct_confidence": float(r["direct_confidence"]),
                 "via_sector_score": float(r["via_sector_score"]) if r.get("via_sector_score") is not None else None,
-                "n_direct_events": int(r["n_direct_events"]), "paths": texts, "evidence_article_ids": article_ids,
+                "n_direct_events": int(r["n_direct_events"]), "paths": texts, "evidence_items": items, "evidence_article_ids": article_ids,
                 "as_of": r["as_of"].isoformat() if isinstance(r.get("as_of"), datetime) else None}
         return out
 

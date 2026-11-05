@@ -33,7 +33,7 @@ from tkg.models import (
 )
 from tkg.input.adapter import NewsReader
 from tkg.input.eligibility import is_eligible, get_skip_reason
-from tkg.llm.client import get_llm_client, LLMClient
+from tkg.llm.client import get_llm_client, LLMClient, FakeLLMClient, GeminiClient
 from tkg.llm.validation import validate_extraction
 from tkg.llm.prompt import PROMPT_VERSION
 from tkg.graph.builder import TKGGraph
@@ -104,6 +104,22 @@ def get_database_size_mb(session: Session) -> Optional[float]:
     except Exception:
         pass
     return None
+
+
+MAX_CONSECUTIVE_5XX = 3
+STALE_RUN_AFTER = timedelta(hours=2)
+
+
+def close_stale_runs(session: Session, now: datetime) -> int:
+    """Rows left 'running' by a process that ended (crash, network loss, kill) are marked failed. Called once the advisory
+    lock is held, so no live run can be touched; only rows older than STALE_RUN_AFTER are closed."""
+    result = session.execute(
+        text("UPDATE tkg.runs SET status = 'failed', finished_at = :now, error_summary = 'stale: process ended' "
+             "WHERE status = 'running' AND started_at < :cutoff"),
+        {"now": now, "cutoff": now - STALE_RUN_AFTER},
+    )
+    session.commit()
+    return result.rowcount or 0
 
 
 def _drop_category(error: str) -> str:
@@ -184,11 +200,13 @@ def run_processing(
     run_record = None
     try:
         if not dry_run:
+            stats["stale_runs_closed"] = close_stale_runs(session, started_at)
             run_record = Run(run_id=run_id, started_at=started_at, status="running")
             session.add(run_record)
             session.commit()
 
-        client = None if no_llm else (llm_client or get_llm_client())
+        # --dry-run never talks to Gemini: it selects and counts the work with the fake client (zero requests)
+        client = None if no_llm else (FakeLLMClient() if dry_run else (llm_client or get_llm_client()))
         llm_enabled = client is not None
         if llm_enabled and not client.has_api_key:
             llm_enabled = False
@@ -254,6 +272,7 @@ def run_processing(
 
         # 5. Extract events with LLM in batches
         drop_counter: Counter = Counter()
+        consecutive_5xx = 0
 
         for i in range(0, len(articles_to_process), batch_size):
             if stats["rate_limited"] or stats["llm_requests"] >= request_budget:
@@ -276,6 +295,11 @@ def run_processing(
             }
             if not dry_run:
                 session.commit()  # close the read transaction before the external HTTP call
+
+            if dry_run:
+                stats["would_extract"] = stats.get("would_extract", 0) + len(batch)
+                stats["estimated_requests"] = stats.get("estimated_requests", 0) + 1
+                continue
 
             allow_repair = (request_budget - stats["llm_requests"]) >= 2
             extraction_results, meta = client.extract_events(batch, allow_repair=allow_repair)
@@ -306,6 +330,19 @@ def run_processing(
                 if not dry_run:
                     session.commit()
                 break
+            if status in GeminiClient.TRANSIENT_STATUSES:
+                # A 5xx or timeout is the provider's fault, like a rate limit: no article attempts are burned, the batch stays
+                # pending, and three in a row stop the LLM calls for the rest of the run.
+                consecutive_5xx += 1
+                stats["transient_failures"] = stats.get("transient_failures", 0) + 1
+                if not dry_run:
+                    session.commit()
+                if consecutive_5xx >= MAX_CONSECUTIVE_5XX:
+                    stats["llm_unavailable"] = f"LLM unavailable: {consecutive_5xx} consecutive {status} responses"
+                    logger.warning(stats["llm_unavailable"])
+                    break
+                continue
+            consecutive_5xx = 0
             if status == "no_api_key":
                 stats["llm_unavailable"] = "LLM unavailable: no API key"
                 if not dry_run:
@@ -316,13 +353,14 @@ def run_processing(
 
             batch_rows: List[Dict[str, Any]] = []
 
-            def record(aid, new_status, last_error=None):
+            def record(aid, new_status, last_error=None, drops=None):
                 if dry_run:
                     return
                 batch_rows.append({
                     "article_id": aid, "status": new_status,
                     "attempts": prev_attempts.get(str(aid), 0) + 1,
                     "last_error": last_error,
+                    "drop_reasons": drops or None,
                     "prompt_version": PROMPT_VERSION, "model": client.model_name,
                     "processed_at": datetime.now(timezone.utc),
                 })
@@ -343,6 +381,7 @@ def run_processing(
 
                 linked_sec_ids = {s["security_id"] for s in linked_securities_map.get(aid, [])}
                 cleaned_ext, val_errors = validate_extraction(ext, article, linked_sec_ids)
+                article_drops = dict(Counter(_drop_category(e) for e in val_errors))
                 if val_errors:
                     logger.info(f"Article {aid} had validation errors dropped: {val_errors}")
                     drop_counter.update(_drop_category(e) for e in val_errors)
@@ -353,7 +392,7 @@ def run_processing(
                         if not e.startswith("invalid_actor") and e != "summary_advice_word"
                     })
                     record(aid, "not_relevant",
-                           f"all_items_dropped: {', '.join(item_errors)}" if item_errors else None)
+                           f"all_items_dropped: {', '.join(item_errors)}" if item_errors else None, article_drops)
                     stats["not_relevant"] += 1
                     continue
 
@@ -365,7 +404,7 @@ def run_processing(
                     stats["failed"] += 1
                     continue
 
-                record(aid, "done")
+                record(aid, "done", None, article_drops)
                 stats["processed"] += 1
 
                 event_id = uuid.uuid4()
@@ -405,7 +444,7 @@ def run_processing(
                     stmt = stmt.on_conflict_do_update(
                         index_elements=["article_id"],
                         set_={c: getattr(stmt.excluded, c) for c in (
-                            "status", "attempts", "last_error", "prompt_version", "model", "processed_at")},
+                            "status", "attempts", "last_error", "drop_reasons", "prompt_version", "model", "processed_at")},
                     )
                     session.execute(stmt)
                 session.commit()

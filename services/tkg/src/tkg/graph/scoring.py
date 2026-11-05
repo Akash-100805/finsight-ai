@@ -11,6 +11,8 @@ Aggregation: tanh normalization to keep scores in -1..1
 
 Story de-duplication: for each (story, target) only the single strongest contribution
 (by absolute value) is kept; the weaker ones are removed before anything is summed.
+Driver daily cap (deviation from guide 7.4, owner decision 30 Oct 2026): after that, driver paths keep one contribution
+per (driver, direction, sector, calendar day), the largest in absolute value; the days are then summed.
 The second hop is computed once from the frozen first-hop totals (no feedback).
 """
 import math
@@ -150,6 +152,25 @@ def reduce_candidates(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     for cand in ordered:
         kept.setdefault((cand["story"], cand["target"]), cand)
     return sorted(kept.values(), key=lambda c: (c["target"], c["event_id"], c["tie"]))
+
+
+def reduce_driver_daily(candidates: List[Dict[str, Any]]) -> tuple:
+    """
+    Driver-level saturation guard (owner decision, deviation from guide 7.4). Runs AFTER story de-duplication.
+    Driver-path candidates carry `driver`, `direction` and `day`: for each (driver, direction, sector, calendar day)
+    only the largest |contrib| is kept; the days are then summed as usual. Direct-effect candidates pass through.
+    Returns (kept candidates, number of driver candidates collapsed). Order-independent (ties by event_id, tie).
+    """
+    kept: Dict[tuple, Dict[str, Any]] = {}
+    passthrough: List[Dict[str, Any]] = []
+    for cand in sorted(candidates, key=lambda c: (-round(abs(c["contrib"]), 12), c["event_id"], c["tie"])):
+        if cand.get("driver") is None:
+            passthrough.append(cand)
+            continue
+        kept.setdefault((cand["driver"], cand["direction"], cand["target"], cand["day"]), cand)
+    collapsed = sum(1 for c in candidates if c.get("driver") is not None) - len(kept)
+    out = sorted(list(kept.values()) + passthrough, key=lambda c: (c["target"], c["event_id"], c["tie"]))
+    return out, collapsed
 
 
 def propagate_second_hop(
@@ -368,6 +389,7 @@ def compute_sector_impacts(
                     "story": story, "target": sid, "contrib": contrib, "event_id": eid,
                     "tie": f"driver:{dm['driver_id']}", "conf_term": w_e * dm["confidence"],
                     "reviewed": reviewed, "path": path,
+                    "driver": dm["driver_id"], "direction": dm["relation"], "day": parse_dt(event["occurred_at"]).date().isoformat(),
                 })
 
         for de in effects_by_event.get(eid, []):
@@ -389,7 +411,9 @@ def compute_sector_impacts(
             })
 
     first_hop: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for cand in reduce_candidates(candidates):
+    reduced, collapsed = reduce_driver_daily(reduce_candidates(candidates))
+    report["driver_daily_collapsed"] = report.get("driver_daily_collapsed", 0) + collapsed
+    for cand in reduced:
         first_hop[cand["target"]].append(cand)
 
     second_hop = propagate_second_hop(
@@ -514,11 +538,13 @@ def compute_security_impacts(
                 "story": _story_key(r.get("story_id"), eid), "target": security_id, "contrib": contrib,
                 "event_id": eid, "tie": f"override:{r['driver_id']}", "conf_term": w_e * r["confidence"],
                 "reviewed": reviewed, "path": path,
+                "driver": r["driver_id"], "direction": r["relation"], "day": parse_dt(r["occurred_at"]).date().isoformat(),
             })
 
     results: Dict[str, Dict[str, Any]] = {}
     for security_id in security_ids:
-        kept = reduce_candidates(candidates.get(security_id, []))
+        kept, collapsed = reduce_driver_daily(reduce_candidates(candidates.get(security_id, [])))   # same daily cap as the sector paths
+        report["override_daily_collapsed"] = report.get("override_daily_collapsed", 0) + collapsed
         sector = sector_of.get(security_id)
         via_sector_score = sector_impacts.get(sector, {}).get("score", 0.0) if sector else 0.0
         direct_score = aggregate_score([x["contrib"] for x in kept]) if kept else 0.0

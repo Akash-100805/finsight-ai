@@ -1,0 +1,132 @@
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights:   2%|2         | 4/199 [00:00<00:05, 35.21it/s]Loading weights:  13%|#3        | 26/199 [00:00<00:01, 122.11it/s]Loading weights:  26%|##5       | 51/199 [00:00<00:00, 168.73it/s]Loading weights:  39%|###8      | 77/199 [00:00<00:00, 200.39it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 363.49it/s]
+C:\FinSight\finsight-ai\services\news\src\news\embed\model.py:48: FutureWarning: The `get_sentence_embedding_dimension` method has been renamed to `get_embedding_dimension`.
+  self._dim = int(self._model.get_sentence_embedding_dimension())
+fetched 4024, rejected 440, exact dupes 47, surviving 3537
+Loading weights:   0%|          | 0/199 [00:00<?, ?it/s]Loading weights:   9%|8         | 17/199 [00:00<00:01, 149.08it/s]Loading weights:  19%|#8        | 37/199 [00:00<00:00, 168.25it/s]Loading weights:  27%|##7       | 54/199 [00:00<00:00, 160.20it/s]Loading weights:  44%|####3     | 87/199 [00:00<00:00, 211.12it/s]Loading weights: 100%|##########| 199/199 [00:00<00:00, 394.23it/s]
+[transformers] [1mBertForTokenClassification LOAD REPORT[0m from: dslim/bert-base-NER
+Key                      | Status     |  | 
+-------------------------+------------+--+-
+bert.pooler.dense.bias   | UNEXPECTED |  | 
+bert.pooler.dense.weight | UNEXPECTED |  | 
+
+Notes:
+- UNEXPECTED:	can be ignored when loading from different task/architecture; not ok if you expect identical arch.
+Loading weights:   0%|          | 0/201 [00:00<?, ?it/s]Loading weights:  12%|#1        | 24/201 [00:00<00:00, 215.65it/s]Loading weights:  23%|##2       | 46/201 [00:00<00:00, 210.32it/s]Loading weights:  34%|###3      | 68/201 [00:00<00:00, 214.03it/s]Loading weights:  54%|#####3    | 108/201 [00:00<00:00, 283.81it/s]Loading weights: 100%|##########| 201/201 [00:00<00:00, 403.55it/s]
+Traceback (most recent call last):
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1953, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 1192, in do_execute
+    cursor.execute(statement, parameters)
+psycopg2.OperationalError: server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "C:\FinSight\finsight-ai\services\news\src\news\pipeline\ingest.py", line 255, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "C:\FinSight\finsight-ai\services\news\src\news\pipeline\ingest.py", line 239, in main
+    summary = run_ingest(get_engine(args.target), args.target, registry, only=only, ignore_interval=args.ignore_interval,
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\FinSight\finsight-ai\services\news\src\news\pipeline\ingest.py", line 218, in run_ingest
+    lock.release()
+  File "C:\FinSight\finsight-ai\services\news\src\news\pipeline\ops.py", line 37, in release
+    self.conn.execute(text("SELECT pg_advisory_unlock(:k)"), {"k": self.key})
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1458, in execute
+    return meth(
+           ^^^^^
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\sql\elements.py", line 533, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1678, in _execute_clauseelement
+    ret = self._execute_context(
+          ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1832, in _execute_context
+    return self._exec_single_context(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1972, in _exec_single_context
+    self._handle_dbapi_exception(
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 2342, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\base.py", line 1953, in _exec_single_context
+    self.dialect.do_execute(
+  File "C:\FinSight\finsight-ai\services\news\.venv\Lib\site-packages\sqlalchemy\engine\default.py", line 1192, in do_execute
+    cursor.execute(statement, parameters)
+sqlalchemy.exc.OperationalError: (psycopg2.OperationalError) server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+server closed the connection unexpectedly
+	This probably means the server terminated abnormally
+	before or while processing the request.
+
+[SQL: SELECT pg_advisory_unlock(%(k)s)]
+[parameters: {'k': 487219}]
+(Background on this error at: https://sqlalche.me/e/21/e3q8)
+  enriched+stored 64/3537
+  enriched+stored 128/3537
+  enriched+stored 192/3537
+  enriched+stored 256/3537
+  enriched+stored 320/3537
+  enriched+stored 384/3537
+  enriched+stored 448/3537
+  enriched+stored 512/3537
+  enriched+stored 576/3537
+  enriched+stored 640/3537
+  enriched+stored 704/3537
+  enriched+stored 768/3537
+  enriched+stored 832/3537
+  enriched+stored 896/3537
+  enriched+stored 960/3537
+  enriched+stored 1024/3537
+  enriched+stored 1088/3537
+  enriched+stored 1152/3537
+  enriched+stored 1216/3537
+  enriched+stored 1280/3537
+  enriched+stored 1344/3537
+  enriched+stored 1408/3537
+  enriched+stored 1472/3537
+  enriched+stored 1536/3537
+  enriched+stored 1600/3537
+  enriched+stored 1664/3537
+  enriched+stored 1728/3537
+  enriched+stored 1792/3537
+  enriched+stored 1856/3537
+  enriched+stored 1920/3537
+  enriched+stored 1984/3537
+  enriched+stored 2048/3537
+  enriched+stored 2112/3537
+  enriched+stored 2176/3537
+  enriched+stored 2240/3537
+  enriched+stored 2304/3537
+  enriched+stored 2368/3537
+  enriched+stored 2432/3537
+  enriched+stored 2496/3537
+  enriched+stored 2560/3537
+  enriched+stored 2624/3537
+  enriched+stored 2688/3537
+  enriched+stored 2752/3537
+  enriched+stored 2816/3537
+  enriched+stored 2880/3537
+  enriched+stored 2944/3537
+  enriched+stored 3008/3537
+  enriched+stored 3072/3537
+  enriched+stored 3136/3537
+  enriched+stored 3200/3537
+  enriched+stored 3264/3537
+  enriched+stored 3328/3537
+  enriched+stored 3392/3537
+  enriched+stored 3456/3537
+  enriched+stored 3520/3537
+  enriched+stored 3537/3537
+stored 3305 (store duplicates 0, failed 0)
+embedded 2000, failed 0 (10323.4s)
+text sectors: {'candidates': 777, 'classified': 273, 'macro_fallback': 273, 'no_sector': 504, 'sectors_assigned': 273}; near-dupes: {'candidates': 592, 'pairs': 21, 'clusters': 13, 'marked_duplicate': 18, 'securities_copied': 1}; complete 2885, without sector 504

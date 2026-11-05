@@ -64,7 +64,8 @@ def contract_tables(**over):
         "tkg.sector_impacts": [{"sector_id": "information_technology", "as_of": NOW, "score": -0.4, "confidence": 0.7, "status": "signal",
                                 "n_events": 2, "top_paths": [PATH], "uses_unreviewed_prior": False}],
         "tkg.drivers": [{"driver_id": "drv:crude_oil_price", "label": "Crude Oil Price"}, {"driver_id": "drv:coal_price", "label": "Coal Price"}],
-        "tkg.v_events": [{"event_id": EVENT, "title": "Brent jumps after OPEC+ cut", "summary": "Crude jumps"}],
+        "tkg.v_events": [{"event_id": EVENT, "title": "Brent jumps after OPEC+ cut: is $120 next?", "url": "https://example.com/brent",
+                         "summary": "Crude jumps"}],
         "tkg.v_security_impacts_latest": [{"security_id": "NSE:AAA", "as_of": NOW, "via_sector_score": -0.1, "direct_score": -0.2,
                                            "direct_confidence": 0.5, "n_direct_events": 1, "top_paths": [COMPANY_PATH]},
                                           {"security_id": "NSE:BBB", "as_of": NOW, "via_sector_score": 0.0, "direct_score": 0.0,
@@ -84,17 +85,38 @@ def test_driver_labels_and_headlines_come_from_the_contract():
     engine = ContractEngine(contract_tables())
     out = provider(engine).sector_signals(["information_technology"])
     text = out["information_technology"]["explanations"][0]
-    assert text == "Brent jumps after OPEC+ cut -> Crude Oil Price ↑ (high) -> -0.40"
+    assert text == "Crude jumps -> Crude Oil Price ↑ (high) -> -0.40"                 # the evidence line is the validated summary
     joined = " ".join(engine.sql)
     assert "tkg.drivers" in joined and "tkg.v_events" in joined
     assert "news.v_articles" not in joined and "news." not in joined          # no reaching into the news schema
     assert out["information_technology"]["evidence_article_ids"] == [ARTICLE]
 
 
-def test_the_event_summary_is_used_only_when_the_title_is_null():
-    engine = ContractEngine(contract_tables(**{"tkg.v_events": [{"event_id": EVENT, "title": None, "summary": "Crude jumps"}]}))
-    text = provider(engine).sector_signals(["information_technology"])["information_technology"]["explanations"][0]
-    assert text.startswith("Crude jumps -> Crude Oil Price")
+def test_the_article_title_is_the_linked_source_and_is_never_altered():
+    out = provider(ContractEngine(contract_tables())).sector_signals(["information_technology"])["information_technology"]
+    item = out["evidence_items"][0]
+    assert item["source_title"] == "Brent jumps after OPEC+ cut: is $120 next?"          # a trailing "?" in the title is left alone
+    assert item["source_url"] == "https://example.com/brent" and item["summary"] == "Crude jumps"
+    assert "?" not in out["explanations"][0]                                              # the evidence line (summary) is not the title
+
+
+def test_a_null_summary_leaves_the_line_without_a_headline_and_never_borrows_the_title():
+    engine = ContractEngine(contract_tables(**{"tkg.v_events": [{"event_id": EVENT, "title": "Brent jumps?", "url": "u", "summary": None}]}))
+    path = {**PATH, "summary": ""}
+    engine.tables["tkg.sector_impacts"][0]["top_paths"] = [path]
+    out = provider(engine).sector_signals(["information_technology"])["information_technology"]
+    assert out["explanations"][0] == "Crude Oil Price ↑ (high) -> -0.40"
+    assert out["evidence_items"][0]["source_title"] == "Brent jumps?"
+
+
+def test_paths_with_zero_contribution_are_never_shown():
+    zero = {**PATH, "contrib": 0.0, "summary": "Reliance advice piece", "event_id": "33333333-3333-3333-3333-333333333333"}
+    tiny = {**PATH, "contrib": 0.0004, "event_id": "44444444-4444-4444-4444-444444444444"}
+    engine = ContractEngine(contract_tables())
+    engine.tables["tkg.sector_impacts"][0]["top_paths"] = [zero, tiny, PATH]
+    out = provider(engine).sector_signals(["information_technology"])["information_technology"]
+    assert len(out["explanations"]) == 1 and len(out["evidence_items"]) == 1
+    assert all("+0.00" not in t and "-0.00" not in t for t in out["explanations"])
 
 
 def test_unreadable_drivers_is_an_error_not_a_title_cased_guess():
@@ -127,7 +149,8 @@ def test_company_impacts_are_read_from_the_contract_view():
     assert set(out) == {"NSE:AAA"}                                      # BBB has no direct events: omitted
     ev = out["NSE:AAA"]
     assert (ev["direct_score"], ev["direct_confidence"], ev["n_direct_events"], ev["via_sector_score"]) == (-0.2, 0.5, 1, -0.1)
-    assert ev["paths"] == ["Brent jumps after OPEC+ cut -> Coal Price ↓ (medium) -> company sensitivity +0.60 = -0.20"]
+    assert ev["paths"] == ["Crude jumps -> Coal Price ↓ (medium) -> company sensitivity +0.60 = -0.20"]
+    assert ev["evidence_items"][0]["source_title"] == "Brent jumps after OPEC+ cut: is $120 next?"
     assert any("tkg.v_security_impacts_latest" in q for q in engine.sql)
 
 

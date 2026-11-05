@@ -169,6 +169,7 @@ class ProcessedArticle(Base):
     status = Column(String, nullable=False, default="pending")
     attempts = Column(Integer, default=0)
     last_error = Column(Text, nullable=True)
+    drop_reasons = Column(JSON, nullable=True)          # validation drops for this article: {reason: count}
     prompt_version = Column(String, nullable=True)
     model = Column(String, nullable=True)
     processed_at = Column(DateTime(timezone=True), nullable=True)

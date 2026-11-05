@@ -556,3 +556,13 @@ Decided by Akash and recorded here; status as of the 30-day backfill on 29 Oct 2
 
 **Deferred**
 12. **Standalone TKG dashboard** is folded into the product UI step. `GET /graph/export` returns nodes with types and labels, edges with relation, sign and weight, and `as_of`; its shape is documented in `docs/TKG_OUTPUT_CONTRACT.md`.
+
+## 17.1 T3 changes (5 Nov 2026)
+
+1. **Driver-level saturation: deviation from guide 7.4 (owner decision).** After story de-duplication, driver paths keep at most one contribution per (driver, direction, sector, calendar day), the largest in absolute value; the days are then summed. Direct effects are unchanged. Company driver overrides get the same cap per (driver, direction, security, day). k stays 3.0 (provisional). At the 29 Oct reference time, 30-day sectors above 0.9 at k = 3 fell from 3 to 0 and the median |score| from 0.47 to 0.36.
+2. **Advice-style articles** are marked `skipped_ineligible` / `advice_content` before extraction. Only advice forms match ("should you/investors buy/sell/hold", "wise to buy", "buy or sell", stop-loss, "top N stocks to", "stocks to buy"); "target price" alone does not, so real analyst actions (Swiggy, L&T) stay. Eight advice events were removed from MAIN with their moves and effects; two were kept.
+3. **Prompt v2.1**: official forecasts and decisions (IMD, RBI, government, regulators) are driver moves at medium confidence, analyst and media speculation is not; a tax or policy rate change is always the driver move; direct effects only for effects stated beyond the driver.
+4. **Challenge rulings (owner, 30 Oct 2026)**: CD-08 accepts china_demand, steel_price or iron_ore_price moving up; MX-04 accepts financial services as negative or mixed. Two full runs plus a re-run of the cases that hit Gemini 503s are in the report.
+5. **Defects fixed**: runs stuck `running` for over 2 hours are marked `failed` ("stale: process ended") at the next start; `--dry-run` uses the fake client and makes zero requests; HTTP 5xx and timeouts behave like `rate_limited` (no attempts burned, three in a row stop the run's LLM calls, articles stay pending); validation drop reasons are stored per article in `tkg.processed_articles.drop_reasons` (Alembic revision 3).
+6. **Agents evidence display**: the evidence line is the event's validated summary; the article title is the linked source, unmodified (a trailing "?" is kept); paths with zero contribution are never shown.
+7. **Owner check 2** is not exported yet. Akash runs `dev.py run-all`; the export is generated around 9 Nov 2026 from events after 29 Oct as `docs/review/tkg_owner_check_2.csv`.
