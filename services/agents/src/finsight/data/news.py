@@ -52,10 +52,12 @@ def security_news(security_ids: list[str], days: int | None = None, *, engine: E
                   target: Literal["main", "test"] = "main", limit: int | None = None) -> list[dict]:
     """Rows of news.v_security_news (confidence >= 0.70 by the view), newest first."""
     days = get_settings().NEWS_WINDOW_DAYS if days is None else days
-    sql = ("SELECT article_id::text AS article_id, security_id, exchange, symbol, sector, role, confidence, method, finbert_score, finbert_label, "
-           "sentiment_method, sentiment_model, provider_sentiment, published_at, title, url, category, event_type, source_reliability, recency_weight "
-           "FROM news.v_security_news WHERE security_id = ANY(:ids) AND published_at >= now() - make_interval(days => :d) "
-           "ORDER BY published_at DESC" + (" LIMIT :n" if limit else ""))
+    sql = ("SELECT n.article_id::text AS article_id, n.security_id, n.exchange, n.symbol, n.sector, n.role, n.confidence, n.method, n.finbert_score, "
+           "n.finbert_label, n.sentiment_method, n.sentiment_model, n.provider_sentiment, n.published_at, n.title, n.url, n.category, n.event_type, "
+           "n.source_reliability, n.recency_weight, a.source_id AS publisher "
+           "FROM news.v_security_news n LEFT JOIN news.v_articles a ON a.article_id = n.article_id "
+           "WHERE n.security_id = ANY(:ids) AND n.published_at >= now() - make_interval(days => :d) "
+           "ORDER BY n.published_at DESC" + (" LIMIT :n" if limit else ""))
     params: dict[str, Any] = {"ids": list(security_ids), "d": days}
     if limit:
         params["n"] = limit
@@ -104,12 +106,43 @@ def top_articles(security_id: str, days: int | None = None, k: int = 8, *, engin
         return [dict(r) for r in rows]
 
 
+NEUTRAL_BAND = 0.10          # |weighted score| below this is "neutral"
+TOP_HEADLINES = 3
+
+
+def sentiment_aggregate(rows: list[dict], shared_clause_weight: float, min_articles: int) -> dict:
+    """Pure and deterministic. Stage 1 sentiment of ONE security, from its v_security_news rows (no LLM):
+
+        {direction: positive|negative|neutral|insufficient, magnitude 0-1, score (-1..1, None when insufficient), n_articles,
+         top_headlines[<=3]: {article_id, title, publisher, published_at, url, method}, top_article_ids, reason}
+
+    score = sum(w * finbert_score) / sum(w), w = recency_weight x source_reliability x link confidence (x shared_clause_weight for a shared_clause row).
+    Fewer than `min_articles` scored articles (or total weight 0) -> direction 'insufficient' (never a fake 0); fusion leaves it out.
+    """
+    raw = weighted_sentiment(rows, shared_clause_weight, min_articles)
+    if isinstance(raw, Unavailable):
+        n = len([r for r in rows if r.get("finbert_score") is not None])
+        return {"direction": "insufficient", "magnitude": 0.0, "score": None, "n_articles": n, "top_headlines": [], "top_article_ids": [],
+                "reason": raw.reason, "detail": raw.detail}
+    score = raw["score"]
+    direction = "neutral" if abs(score) < NEUTRAL_BAND else "positive" if score > 0 else "negative"
+    by_id = {str(r["article_id"]): r for r in rows}
+    heads = []
+    for a in raw["top_article_ids"][:TOP_HEADLINES]:
+        r = by_id[a]
+        pub = r.get("published_at")
+        heads.append({"article_id": a, "title": r.get("title"), "publisher": r.get("publisher"), "published_at": pub.isoformat() if hasattr(pub, "isoformat") else pub,
+                      "url": r.get("url"), "method": r.get("sentiment_method")})
+    return {"direction": direction, "magnitude": round(min(1.0, abs(score)), 4), "score": score, "n_articles": raw["n_articles"], "top_headlines": heads,
+            "top_article_ids": raw["top_article_ids"], "reason": None, "detail": None}
+
+
 def sentiment_with_index(security_id: str, days: int | None = None, *, engine: Engine | None = None,
-                         target: Literal["main", "test"] = "main") -> tuple[dict | Unavailable, dict[str, dict]]:
-    """sentiment_signal plus {article_id: {title, url, published_at}} for the articles it cites, from the SAME query (one round trip)."""
+                         target: Literal["main", "test"] = "main") -> tuple[dict, dict[str, dict]]:
+    """sentiment_aggregate plus {article_id: {title, url, published_at, source_id}} for the articles it cites, from the SAME query (one round trip)."""
     s = get_settings()
     rows = security_news([security_id], days, engine=engine, target=target)
-    signal = weighted_sentiment(rows, s.SHARED_CLAUSE_WEIGHT, s.SENTIMENT_MIN_ARTICLES)
+    agg = sentiment_aggregate(rows, s.SHARED_CLAUSE_WEIGHT, s.SENTIMENT_MIN_ARTICLES)
     by_id = {r["article_id"]: r for r in rows}
-    cited = signal["top_article_ids"] if isinstance(signal, dict) else []
-    return signal, {a: {"title": by_id[a]["title"], "url": by_id[a]["url"], "published_at": by_id[a]["published_at"].isoformat()} for a in cited if a in by_id}
+    return agg, {a: {"title": by_id[a]["title"], "url": by_id[a]["url"], "published_at": by_id[a]["published_at"].isoformat(), "source_id": by_id[a].get("publisher")}
+                 for a in agg["top_article_ids"] if a in by_id}

@@ -258,6 +258,30 @@ class TkgProvider:
         return out
 
 
+    def sector_candidates(self, sector_ids: list[str], window_days: int | None = None, per_sector: int = 10) -> dict[str, list[dict]]:
+        """sector -> active securities with company-level TKG events (tkg.v_security_impacts_latest x news.securities), strongest first.
+        Portfolio independent, so the Sector TKG Agent's cached output can be shared across users. Never raises (evidence is optional)."""
+        if not sector_ids or self._module is not None:
+            return {}
+        days = self._settings.NEWS_WINDOW_DAYS if window_days is None else window_days
+        try:
+            engine = self._engine or get_news_engine(self._target)
+            with engine.connect() as conn:
+                rows = [dict(r) for r in conn.execute(text(
+                    "SELECT s.sector AS sector, v.security_id, s.name, v.direct_score, v.direct_confidence, v.n_direct_events "
+                    "FROM tkg.v_security_impacts_latest v JOIN news.securities s ON s.security_id = v.security_id "
+                    "WHERE s.sector = ANY(:s) AND s.is_active AND v.window_days = :d AND v.n_direct_events > 0"),
+                    {"s": list(sector_ids), "d": days}).mappings()]
+        except Exception as exc:
+            logger.warning("TKG sector candidates unavailable (%s); continuing without them", type(exc).__name__)
+            return {}
+        out: dict[str, list[dict]] = {}
+        for r in sorted(rows, key=lambda r: (-abs(float(r["direct_score"])), r["security_id"])):
+            if len(out.setdefault(r["sector"], [])) < per_sector:
+                out[r["sector"]].append({k: r[k] for k in ("security_id", "name", "direct_score", "direct_confidence", "n_direct_events")})
+        return out
+
+
 class FallbackSectorProvider:
     """SECTOR_PROVIDER=tkg as the user runs it: try the TKG; on any error or a stale snapshot log a warning and use tkg_lite for THIS run.
     `source` is the provider that actually produced the last result; `fallback_reason` says why tkg_lite was used (None otherwise).

@@ -16,9 +16,13 @@ from finsight.schemas.state import (
 )
 
 # Provisional pending backtesting (build guide Phase 8). Do not adjust
-# without empirical validation.
+# without empirical validation. The opportunity numbers are also settings
+# (OPPORTUNITY_THRESHOLD, OPPORTUNITY_MIN_COMPONENT); these are the defaults.
 UNDERPERFORMER_THRESHOLD = -0.3
 OPPORTUNITY_THRESHOLD = 0.3
+OPPORTUNITY_MIN_COMPONENT = -0.10      # an opportunity needs every signal at or above this: no hidden negative
+
+DRIVER_NAMES = {"portfolio_agent": "structural", "sector_tkg_agent": "sector", "sentiment_agent": "sentiment"}
 
 
 def fuse_and_flag(
@@ -26,6 +30,9 @@ def fuse_and_flag(
     sector_tkg_agent_output: SectorTKGAgentOutput | None,
     sentiment_agent_output: SentimentAgentOutput | None,
     holding_metrics: dict[str, HoldingMetrics],
+    *,
+    opportunity_threshold: float = OPPORTUNITY_THRESHOLD,
+    opportunity_min_component: float = OPPORTUNITY_MIN_COMPONENT,
 ) -> list[ShortlistedStock]:
     """Cross-reference Stage 1 agent signals against holding metrics.
 
@@ -68,7 +75,7 @@ def fuse_and_flag(
             reason = ShortlistReason.UNDERPERFORMER
         elif combined_score <= UNDERPERFORMER_THRESHOLD and metrics.unrealized_return_pct > 0:
             reason = ShortlistReason.AT_RISK
-        elif combined_score >= OPPORTUNITY_THRESHOLD:
+        elif combined_score >= opportunity_threshold and min(v for _, v in present) >= opportunity_min_component:
             reason = ShortlistReason.OPPORTUNITY
         else:
             continue
@@ -81,7 +88,21 @@ def fuse_and_flag(
                 ticker=ticker,
                 reason=reason,
                 supporting_evidence=supporting_evidence,
+                drivers=[{"signal": DRIVER_NAMES.get(name, name), "value": round(value, 4)} for name, value in present],
             )
         )
 
     return shortlist
+
+
+def select_shortlist(hits: list[ShortlistedStock], fused: dict[str, float], shortlist_max: int, opportunity_max: int
+                     ) -> tuple[list[ShortlistedStock], list[ShortlistedStock]]:
+    """-> (kept, dropped). Risks (underperformer, at_risk) fill first, ranked by |fused| (ties by ticker), up to `shortlist_max`;
+    opportunities take up to `opportunity_max` of the slots that remain, ranked the same way. Kept = risks then opportunities."""
+    rank = lambda s: (-abs(fused[s.ticker]), s.ticker)
+    risks = sorted((h for h in hits if h.reason != ShortlistReason.OPPORTUNITY), key=rank)
+    opps = sorted((h for h in hits if h.reason == ShortlistReason.OPPORTUNITY), key=rank)
+    kept_risks = risks[:shortlist_max]
+    room = min(opportunity_max, shortlist_max - len(kept_risks))
+    kept_opps = opps[:max(room, 0)]
+    return kept_risks + kept_opps, risks[shortlist_max:] + opps[max(room, 0):]
