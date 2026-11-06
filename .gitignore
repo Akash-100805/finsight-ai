@@ -31,3 +31,6 @@ venv/
 
 # Downloaded source files and caches
 data_cache/
+
+# Raw backfill logs contain database host names
+docs/review/backfill_run*.txt
