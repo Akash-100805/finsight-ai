@@ -7,7 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from finsight.data import news, prices
+from finsight.data import fundamentals, news, prices
+from finsight.data.app_store import MemoryAppStore, default_app_store
 from finsight.data.llm import LLMClient
 from finsight.data.sector_signal import SectorSignalProvider, get_sector_provider
 from finsight.settings import Settings, get_settings
@@ -26,13 +27,16 @@ class Deps:
     top_articles: Callable[[str, int], list[dict]]               # (security_id, k) -> rows
     sector_provider: SectorSignalProvider
     target: str = "main"
+    app_store: Any = field(default_factory=MemoryAppStore)       # app-schema caches (sector narratives, fundamentals)
+    sector_candidates: Callable[[list[str]], dict[str, list[dict]]] | None = None     # sector ids -> securities with TKG company evidence
+    fundamentals: Callable[[str], Any] | None = None             # security_id -> metrics bundle | Unavailable (None = not configured)
     extra: dict = field(default_factory=dict)
 
 
 def default_deps(target: str = "main", settings: Settings | None = None, llm: LLMClient | None = None) -> Deps:
     s = settings or get_settings()
     provider = get_sector_provider(s, target=target)
-    return Deps(
+    deps = Deps(
         settings=s, llm=llm or LLMClient(s),
         security_info=lambda t: news.security_info(t, target=target),
         current_price=prices.current_price,
@@ -41,4 +45,7 @@ def default_deps(target: str = "main", settings: Settings | None = None, llm: LL
         usd_inr=prices.usd_inr,
         sentiment=lambda sid: news.sentiment_with_index(sid, s.NEWS_WINDOW_DAYS, target=target),
         top_articles=lambda sid, k: news.top_articles(sid, s.NEWS_WINDOW_DAYS, k, target=target),
-        sector_provider=provider, target=target)
+        sector_provider=provider, target=target, app_store=default_app_store(s, target),
+        sector_candidates=getattr(getattr(provider, "primary", provider), "sector_candidates", None))
+    deps.fundamentals = lambda sid: fundamentals.get_fundamentals(sid, deps.app_store, s)
+    return deps

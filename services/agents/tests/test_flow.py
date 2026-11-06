@@ -8,7 +8,7 @@ from finsight.flow import portfolio, scoring as sc, stage1, stage2, synthesis as
 from finsight.flow.models import RecheckOutput
 from finsight.graph import build_graph, run_analysis
 from finsight.schemas.state import AnalysisState, Holding, HoldingMetrics, ShortlistedStock, ShortlistReason, Stage2StockVerdict
-from tests.flow_helpers import (UNIVERSE, article_ids_in, good_handler, llm_for, make_deps, rows_for, series, sig, wild_series)
+from tests.flow_helpers import (UNIVERSE, article_ids_in, good_handler, insufficient, llm_for, make_deps, rows_for, series, sig, wild_series)
 
 PORT = {"user_id": "t", "holdings": [{"ticker": "AAA", "quantity": 10, "average_cost": 90.0}, {"ticker": "BBB", "quantity": 5, "average_cost": 180.0},
                                      {"ticker": "CCC", "quantity": 20, "average_cost": 40.0}]}
@@ -44,33 +44,6 @@ def test_price_signal(rel6, expected):
                                           (0.50, -0.45, ["high_volatility", "deep_drawdown"]), (0.10, 0.0, [])])
 def test_risk_flags(vol, dd, flags):
     assert sc.risk_flags(vol, dd) == flags
-
-
-def test_vote_weights_and_renormalisation():
-    v = sc.vote(0.5, -0.1)
-    assert v["combined"] == pytest.approx(0.4 * 0.5 + 0.6 * -0.1) and v["weights"] == {"price": 0.4, "recheck": 0.6} and v["status"] == "ok"
-    only_price, only_recheck = sc.vote(0.5, None), sc.vote(None, -0.3)
-    assert only_price["combined"] == 0.5 and only_price["weights"] == {"price": 1.0} and only_price["status"] == "single_voter"
-    assert only_recheck["combined"] == -0.3 and only_recheck["weights"] == {"recheck": 1.0}
-    none = sc.vote(None, None)
-    assert none["combined"] is None and none["status"] == "no_voters" and none["attention"] is None
-
-
-@pytest.mark.parametrize("p,r,conflict", [(0.4, -0.4, True), (0.3, -0.3, True), (-0.9, 0.9, True), (0.29, -0.9, False), (0.9, -0.29, False),
-                                          (0.5, 0.5, False), (0.0, -0.9, False), (0.4, None, False)])
-def test_conflict_rule(p, r, conflict):
-    v = sc.vote(p, r)
-    assert v["conflict"] is conflict and (v["status"] == "conflicting_signals") is conflict
-    if conflict:
-        assert v["attention"] == "high"
-
-
-@pytest.mark.parametrize("p,r,attention,label", [(0.6, 0.6, "high", "positive momentum"), (-0.5, -0.5, "high", "negative pressure"), (0.3, 0.3, "medium", "positive momentum"),
-                                                 (0.25, 0.25, "medium", "positive momentum"), (-0.25, -0.25, "medium", "negative pressure"),
-                                                 (0.2, 0.2, "low", "mixed/neutral"), (0.0, 0.0, "low", "mixed/neutral")])
-def test_attention_and_labels(p, r, attention, label):
-    v = sc.vote(p, r)
-    assert (v["attention"], v["label"]) == (attention, label)
 
 
 def test_limit_words():
@@ -149,8 +122,8 @@ def test_sentiment_neutral_threshold_and_confidence():
     assert neutral["signal"] == 0.0 and "neutral news tone" in neutral["rationale"] and neutral["confidence"] == 0.4
     tone = stage1.sentiment_verdict(sig(-0.35, 12), {})
     assert tone["signal"] == pytest.approx(-0.35) and tone["confidence"] == 1.0 and tone["evidence"]["article_ids"] == ["a1"]
-    gone = stage1.sentiment_verdict(Unavailable("insufficient_news", "2 scored article(s), 3 needed"), {})
-    assert gone["unavailable"] and gone["reason"] == "insufficient_news"
+    gone = stage1.sentiment_verdict(insufficient(2), {})
+    assert gone["unavailable"] and gone["reason"] == "insufficient_news"                       # left out of fusion, never a fake 0
 
 
 def test_sector_neutral_threshold_confidence_cap_and_source_in_the_evidence():
@@ -191,11 +164,13 @@ def fusion_state(n: int) -> AnalysisState:
         stage1_sector={t: ok(-0.3 - 0.05 * i) for i, t in enumerate(tickers)}, sector_signal_source="tkg_lite")
 
 
-def test_the_shortlist_is_capped_at_five_by_absolute_fused_value():
-    out = stage1.fusion(fusion_state(8), None)
+def test_the_shortlist_is_capped_at_shortlist_max_by_absolute_fused_value():
+    deps = make_deps(llm=llm_for(good_handler, SHORTLIST_MAX=5)[0])
+    out = stage1.fusion(fusion_state(8), deps)
     assert [s.ticker for s in out["shortlist"]] == ["T7", "T6", "T5", "T4", "T3"]                  # the strongest |fused| first
     assert [d["ticker"] for d in out["not_deep_dived"]] == ["T2", "T1", "T0"] and all(d["reason"] == "not deep-dived, cap" for d in out["not_deep_dived"])
     assert out["fused_values"]["T7"] == pytest.approx(-0.65)
+    assert len(stage1.fusion(fusion_state(8), None)["shortlist"]) == 8                           # default SHORTLIST_MAX
 
 
 def test_a_neutral_sector_is_excluded_from_the_fused_average_but_a_neutral_sentiment_still_counts_as_zero():
@@ -229,7 +204,7 @@ def test_fusion_ranks_positive_and_negative_by_absolute_value():
     s = s.model_copy(update={"stage1_structural": {"T0": {"signal": 0.9, "confidence": 1, "rationale": "", "evidence": {}}, "T1": {"signal": -0.5, "confidence": 1, "rationale": "", "evidence": {}}},
                              "stage1_sentiment": {}, "stage1_sector": {}})
     out = stage1.fusion(s, None)
-    assert [x.ticker for x in out["shortlist"]] == ["T0", "T1"] and out["shortlist"][0].reason == ShortlistReason.OPPORTUNITY
+    assert [x.ticker for x in out["shortlist"]] == ["T1", "T0"] and out["shortlist"][1].reason == ShortlistReason.OPPORTUNITY      # risks fill first
 
 
 # ── Stage 2 ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -298,7 +273,7 @@ def test_recheck_unavailable_after_retries_is_llm_unavailable_and_the_vote_uses_
     s, deps = state_after_scan(make_deps(llm=llm, returns={"NSE:AAA": 0.40}, bench_return=0.0))
     bundle, _ = stage2.stage2_for("AAA", s, deps)
     assert bundle.unavailable["sentiment_recheck"].startswith("llm_unavailable") and bundle.recheck_signal is None
-    assert bundle.combined_signal == bundle.price_signal and bundle.status == "single_voter"
+    assert bundle.valuation_verdict.stance == "supportive" and bundle.combined_signal == 1.0 and bundle.status == "single_voter"       # one voter: its stance carries the vote
     assert len(backend.attempts) == 4 and 5.0 in sleeps and 15.0 in sleeps and 30.0 in sleeps
 
 
@@ -307,7 +282,8 @@ def test_stage2_bundle_maps_to_the_existing_fields():
     bundle, arts = stage2.stage2_for("AAA", s, deps)
     assert isinstance(bundle, Stage2StockVerdict) and bundle.valuation_verdict.confidence == 0.8 and bundle.sentiment_recheck_verdict.confidence == 0.7
     assert bundle.vote_aggregation.consensus_score == pytest.approx(bundle.combined_signal) and bundle.vote_aggregation.conflict_detected == (bundle.status == "conflicting_signals")
-    assert bundle.fundamental_verdict is None and set(arts) == {"a1", "a2", "a3"}
+    assert bundle.fundamental_verdict.stance == "no_data" and "fundamental" in bundle.unavailable and set(arts) == {"a1", "a2", "a3"}   # no fundamentals source in this fake
+    assert bundle.valuation_verdict.stance == "concerning" and bundle.sentiment_recheck_verdict.stance == "concerning"
 
 
 # ── synthesis + compliance ────────────────────────────────────────────────────────────────────────────────────────
@@ -449,8 +425,8 @@ def test_the_graph_continues_after_a_node_failure_and_synthesis_mentions_the_gap
 def test_parallel_stage1_nodes_each_write_only_their_own_fields():
     s, deps = state_after_scan()
     assert set(stage1.stage1_structural(s, deps)) == {"stage1_structural"}
-    assert set(stage1.stage1_sentiment(s, deps)) == {"stage1_sentiment", "article_index"}
-    assert set(stage1.stage1_sector(s, deps)) == {"stage1_sector", "sector_signal_source", "sector_signal_sources", "sector_fallback_reason", "tkg_company_evidence"}
+    assert set(stage1.stage1_sentiment(s, deps)) == {"stage1_sentiment", "sentiment_aggregates", "article_index"}
+    assert set(stage1.stage1_sector(s, deps)) == {"stage1_sector", "sector_signal_source", "sector_signal_sources", "sector_fallback_reason", "tkg_company_evidence", "sector_tkg_inputs"}
 
 
 def test_a_sector_provider_error_is_recorded_and_the_other_signals_still_work(monkeypatch):

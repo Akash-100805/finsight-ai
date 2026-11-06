@@ -1,6 +1,6 @@
 """The analysis flow as a LangGraph StateGraph over AnalysisState:
 
-  load_holdings -> prices_and_fx -> portfolio_scan -> [stage1_structural | stage1_sentiment | stage1_sector] -> fusion -> stage2 -> synthesis -> compliance -> END
+  load_holdings -> prices_and_fx -> portfolio_scan -> [stage1_structural | stage1_sentiment | stage1_sector -> stage1_sector_agent] -> fusion -> stage2 -(conflict?)-> conflict_resolver -> synthesis -> compliance -> END
 
 Each node returns ONLY the fields it owns. A node that raises is recorded in `errors` and the graph carries on (synthesis still runs and mentions the gaps).
 """
@@ -14,7 +14,7 @@ from typing import Any, Callable
 
 from langgraph.graph import END, START, StateGraph
 
-from finsight.flow import portfolio, stage1, stage2, synthesis
+from finsight.flow import conflict_resolver, portfolio, sector_agent, stage1, stage2, synthesis
 from finsight.flow.deps import Deps, default_deps
 from finsight.schemas.state import AnalysisState, Holding
 
@@ -22,8 +22,8 @@ log = logging.getLogger("finsight.graph")
 
 NODES: dict[str, Callable[[AnalysisState, Deps], dict]] = {
     "load_holdings": portfolio.load_holdings, "prices_and_fx": portfolio.prices_and_fx, "portfolio_scan": portfolio.portfolio_scan,
-    "stage1_structural": stage1.stage1_structural, "stage1_sentiment": stage1.stage1_sentiment, "stage1_sector": stage1.stage1_sector,
-    "fusion": stage1.fusion, "stage2": stage2.stage2, "synthesis": synthesis.synthesis, "compliance": synthesis.compliance}
+    "stage1_structural": stage1.stage1_structural, "stage1_sentiment": stage1.stage1_sentiment, "stage1_sector": stage1.stage1_sector, "stage1_sector_agent": sector_agent.stage1_sector_agent,
+    "fusion": stage1.fusion, "stage2": stage2.stage2, "conflict_resolver": conflict_resolver.conflict_resolver, "synthesis": synthesis.synthesis, "compliance": synthesis.compliance}
 
 
 def _safe(name: str, fn: Callable[[AnalysisState, Deps], dict], deps: Deps) -> Callable[[AnalysisState], dict]:
@@ -46,9 +46,11 @@ def build_graph(deps: Deps):
     g.add_edge("prices_and_fx", "portfolio_scan")
     for n in ("stage1_structural", "stage1_sentiment", "stage1_sector"):
         g.add_edge("portfolio_scan", n)
-    g.add_edge(["stage1_structural", "stage1_sentiment", "stage1_sector"], "fusion")        # fusion waits for all three
+    g.add_edge("stage1_sector", "stage1_sector_agent")                                         # the LLM narrates the TKG's sector chains; the score stays code
+    g.add_edge(["stage1_structural", "stage1_sentiment", "stage1_sector_agent"], "fusion")   # fusion waits for all three branches
     g.add_edge("fusion", "stage2")
-    g.add_edge("stage2", "synthesis")
+    g.add_conditional_edges("stage2", conflict_resolver.route_after_stage2, {"conflict_resolver": "conflict_resolver", "synthesis": "synthesis"})
+    g.add_edge("conflict_resolver", "synthesis")                                              # only reached when a stock's votes conflict
     g.add_edge("synthesis", "compliance")
     g.add_edge("compliance", END)
     return g.compile()

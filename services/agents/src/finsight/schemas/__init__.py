@@ -1,7 +1,7 @@
 from finsight.schemas.state import (
-    AgentVerdict,
+    ConflictResolution,
+    StockVerdict,
     AnalysisState,
-    ConflictResolverOutput,
     Holding,
     HoldingMetrics,
     PortfolioAgentOutput,
@@ -14,9 +14,9 @@ from finsight.schemas.state import (
 )
 
 __all__ = [
-    "AgentVerdict",
+    "ConflictResolution",
+    "StockVerdict",
     "AnalysisState",
-    "ConflictResolverOutput",
     "Holding",
     "HoldingMetrics",
     "PortfolioAgentOutput",

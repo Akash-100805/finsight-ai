@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from finsight.core.fusion import fuse_and_flag
+from finsight.core.fusion import fuse_and_flag, select_shortlist
 from finsight.core.valuation import compute_valuation
 from finsight.data.common import Unavailable
 from finsight.data.sector_signal import is_indian_security
@@ -14,6 +14,7 @@ from finsight.flow import scoring as sc
 from finsight.flow.deps import Deps
 from finsight.flow.models import unavailable_dict, verdict
 from finsight.schemas.state import AnalysisState, PortfolioAgentOutput, SectorTKGAgentOutput, SentimentAgentOutput
+from finsight.settings import Settings
 
 
 def included_tickers(state: AnalysisState) -> list[str]:
@@ -57,23 +58,26 @@ def stage1_structural(state: AnalysisState, deps: Deps) -> dict:
     return {"stage1_structural": out}
 
 
-def sentiment_verdict(sig, index: dict) -> dict:
-    if isinstance(sig, Unavailable):
-        return unavailable_dict(sig)
+def sentiment_verdict(sig: dict, index: dict) -> dict:
+    """The fusion view of a sentiment aggregate (data.news.sentiment_aggregate). 'insufficient' is left out of fusion, never a fake 0."""
+    if sig["direction"] == "insufficient":
+        return unavailable_dict(Unavailable(sig.get("reason") or "insufficient_news", sig.get("detail") or f"{sig['n_articles']} scored article(s)"))
     signal, neutral = sc.neutralize(sig["score"])
     n = sig["n_articles"]
     rationale = ("neutral news tone" if neutral else f"{'positive' if signal > 0 else 'negative'} news tone") + f" across {n} articles in the last 30 days"
     return verdict(signal, sc.sentiment_confidence(n), sc.limit_words(rationale, 25),
-                   {"article_ids": sig["top_article_ids"], "n_articles": n, "raw_score": sig["score"], "neutral": neutral})
+                   {"article_ids": sig["top_article_ids"], "n_articles": n, "raw_score": sig["score"], "neutral": neutral,
+                    "direction": sig["direction"], "magnitude": sig["magnitude"]})
 
 
 def stage1_sentiment(state: AnalysisState, deps: Deps) -> dict:
-    out, index = {}, {}
+    out, index, aggregates = {}, {}, {}
     for ticker in included_tickers(state):
         sig, idx = deps.sentiment(state.holding_info[ticker]["security_id"])
         out[ticker] = sentiment_verdict(sig, idx)
+        aggregates[ticker] = {k: v for k, v in sig.items() if k != "top_article_ids"}
         index.update(idx)
-    return {"stage1_sentiment": out, "article_index": {**state.article_index, **index}}
+    return {"stage1_sentiment": out, "sentiment_aggregates": aggregates, "article_index": {**state.article_index, **index}}
 
 
 def sector_verdict(sector: str | None, signals: dict, source: str) -> dict:
@@ -118,7 +122,8 @@ def stage1_sector(state: AnalysisState, deps: Deps) -> dict:
     per_ticker = {t: (source if t in indian else lite.source) for t in tickers}
     out = {"stage1_sector": {t: sector_verdict(info[t]["sector"], signals if t in indian else lite_signals, per_ticker[t]) for t in tickers},
            "sector_signal_source": combine_sources(set(per_ticker.values()), source), "sector_signal_sources": per_ticker,
-           "sector_fallback_reason": getattr(provider, "fallback_reason", None), "tkg_company_evidence": {}}
+           "sector_fallback_reason": getattr(provider, "fallback_reason", None), "tkg_company_evidence": {},
+           "sector_tkg_inputs": {sid: sig for sid, sig in signals.items() if isinstance(sig, dict) and sig.get("source") == "tkg"}}
     company_impacts = getattr(provider, "company_impacts", None)
     if callable(company_impacts) and any(v == "tkg" for v in per_ticker.values()):
         by_security = company_impacts([info[t]["security_id"] for t in tickers if per_ticker[t] == "tkg"])
@@ -126,8 +131,10 @@ def stage1_sector(state: AnalysisState, deps: Deps) -> dict:
     return out
 
 
-def fusion(state: AnalysisState, deps: Deps) -> dict:
-    """Feed the Stage 1 verdicts to fusion.py (unchanged), rank its hits by |fused value| and keep at most SHORTLIST_CAP."""
+def fusion(state: AnalysisState, deps: Deps | None) -> dict:
+    """Feed the Stage 1 verdicts to fusion.py, then select the shortlist: risks first (by |fused|) up to SHORTLIST_MAX, then up to OPPORTUNITY_MAX
+    opportunities in the slots that remain. Every flag carries the signals that drove it."""
+    cfg = deps.settings if deps is not None else Settings(_env_file=None)
     ok = lambda d: d is not None and not d.get("unavailable")
     tickers = included_tickers(state)
     portfolio = {t: state.stage1_structural[t]["signal"] for t in tickers if ok(state.stage1_structural.get(t))}
@@ -142,8 +149,7 @@ def fusion(state: AnalysisState, deps: Deps) -> dict:
         PortfolioAgentOutput(narrative="structural signals (price vs benchmark, concentration)", signals=portfolio),
         SectorTKGAgentOutput(narrative=f"sector news signals ({state.sector_signal_source})", affected_tickers=list(sector), signals=sector),
         SentimentAgentOutput(narrative="news sentiment signals", ticker_sentiment_scores=sentiment),
-        state.holding_metrics or {})
-    ranked = sorted(hits, key=lambda s: (-abs(fused[s.ticker]), s.ticker))
-    kept, dropped = ranked[:sc.SHORTLIST_CAP], ranked[sc.SHORTLIST_CAP:]
+        state.holding_metrics or {}, opportunity_threshold=cfg.OPPORTUNITY_THRESHOLD, opportunity_min_component=cfg.OPPORTUNITY_MIN_COMPONENT)
+    kept, dropped = select_shortlist(hits, fused, cfg.SHORTLIST_MAX, cfg.OPPORTUNITY_MAX)
     return {"shortlist": kept, "fused_values": fused,
             "not_deep_dived": [{"ticker": s.ticker, "reason": "not deep-dived, cap", "fused_value": fused[s.ticker], "flag": s.reason.value} for s in dropped]}

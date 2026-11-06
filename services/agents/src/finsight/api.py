@@ -118,6 +118,16 @@ def article_ref(state: AnalysisState, article_id: str) -> dict[str, Any]:
     return {"article_id": article_id, "title": m.get("title"), "url": m.get("url"), "published_at": m.get("published_at"), "source_id": m.get("source_id")}
 
 
+def votes_view(v) -> dict[str, Any] | None:
+    """The three Stage 2 stances, their weights and the consensus, for the shortlist card."""
+    if v is None or v.vote_aggregation is None:
+        return None
+    va = v.vote_aggregation
+    return {"consensus": va.consensus_score, "agreement": va.agreement_level, "conflict": va.conflict_detected, "weights": va.weights,
+            "voters": {name: ({"stance": x.stance, "confidence": x.confidence, "rationale": x.rationale, "source": x.source} if x is not None else None)
+                       for name, x in (("fundamental", v.fundamental_verdict), ("valuation", v.valuation_verdict), ("sentiment", v.sentiment_recheck_verdict))}}
+
+
 def build_response(state: AnalysisState, run_id: str, generated_at: str | None = None) -> dict[str, Any]:
     s = get_settings()
     synth = state.synthesis or {}
@@ -151,14 +161,15 @@ def build_response(state: AnalysisState, run_id: str, generated_at: str | None =
         shortlist.append({"security_id": info["security_id"], "name": info["name"], "flag": item.reason.value, "direction_label": v.direction_label if v else None,
                           "attention": v.attention if v else None, "combined": v.combined_signal if v else None, "status": v.status if v else None,
                           "price": price if price else {"unavailable_reason": (v.unavailable.get("price_check") if v else None) or "not_run"},
-                          "recheck": recheck, "summary": (stocks.get(info["security_id"]) or {}).get("summary")})
+                          "recheck": recheck, "summary": (stocks.get(info["security_id"]) or {}).get("summary"),
+                          "drivers": item.drivers, "votes": votes_view(v), "conflict": state.conflict_resolutions.get(item.ticker)})
     meta = {"duration_s": state.run_seconds, "llm_calls": state.llm_calls_used, "stock_model": s.AGENTS_LLM_MODEL or None, "synth_model_used": state.synthesis_model,
             "sector_source": state.sector_signal_source, "sector_fallback_reason": state.sector_fallback_reason, "fx_rate": state.fx_rate, "fx_date": state.fx_date,
             "generated_at": generated_at or datetime.now(timezone.utc).isoformat(timespec="seconds")}
     return {"run_id": run_id, "meta": meta, "headline": synth.get("headline"), "portfolio_overview": synth.get("portfolio_overview"),
             "synthesis_label": state.synthesis_label, "compliance": {k: synth.get("compliance", {}).get(k) for k in ("regenerated", "template")},
             "concentration_flags": state.concentration_flags or [], "sector_exposure": {k: round(v, 4) for k, v in (state.sector_exposure or {}).items()},
-            "holdings": holdings, "shortlist": shortlist,
+            "holdings": holdings, "shortlist": shortlist, "sector_narratives": state.sector_narratives,
             "not_deep_dived": [{"security_id": state.holding_info[n["ticker"]]["security_id"], "name": state.holding_info[n["ticker"]]["name"],
                                 "fused_value": n["fused_value"], "reason": n["reason"]} for n in state.not_deep_dived],
             "sector_notes": synth.get("sector_notes"), "data_notes": synth.get("data_notes"), "data_gaps": state.data_gaps, "errors": state.errors,

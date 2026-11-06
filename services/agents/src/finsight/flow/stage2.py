@@ -1,4 +1,5 @@
-"""Stage 2: for each shortlisted holding (sequentially, so the LLM spacing is respected) a code price check, an LLM sentiment recheck and a vote."""
+"""Stage 2: for each shortlisted holding (sequentially, so the LLM spacing is respected) three voters - Fundamental (LLM over computed metrics),
+Valuation (code price check) and Sentiment Recheck (LLM) - then the deterministic vote. Conflicts are routed to the Conflict Resolver by the graph."""
 from __future__ import annotations
 
 import json
@@ -10,7 +11,9 @@ from finsight.flow import scoring as sc
 from finsight.flow.deps import Deps
 from finsight.flow.models import RecheckOutput
 from finsight.flow.stage1 import closes
-from finsight.schemas.state import AgentVerdict, AnalysisState, Stage2StockVerdict, VoteAggregationResult
+from finsight.core.votes import aggregate_votes, legacy_fields
+from finsight.flow.fundamental_agent import fundamental_verdict
+from finsight.schemas.state import AnalysisState, Stage2StockVerdict, StockVerdict
 from finsight.settings import SettingsError
 
 RECHECK_SYSTEM = """You review the news about ONE company for a portfolio-insight tool.
@@ -78,32 +81,50 @@ def recheck(ticker: str, state: AnalysisState, deps: Deps) -> dict | Unavailable
     return {"signal": float(out.signal), "confidence": float(out.confidence), "key_points": points, "agrees_with_finbert": out.agrees_with_finbert, "articles": index}
 
 
+def valuation_verdict(security_id: str, price: dict) -> StockVerdict:
+    """Code: the price check as a verdict in the shared shape. Stance from the price signal, rationale from a template."""
+    m = price["metrics"]
+    rationale = sc.limit_words("6m return %s vs benchmark %s; flags: %s" % (f"{m['return_6m'] * 100:+.1f}%", f"{m['benchmark_return_6m'] * 100:+.1f}%",
+                                                                         ", ".join(price["risk_flags"]) or "none"), 40)
+    return StockVerdict(security_id=security_id, voter="valuation", stance=sc.stance_from_signal(price["price_signal"]), confidence=price["confidence"],
+                        rationale=rationale, metrics_cited=["return_6m", "benchmark_return_6m", "rel_6m", "annualized_volatility", "max_drawdown"], source="code")
+
+
+def sentiment_verdict(security_id: str, check: dict) -> StockVerdict:
+    """The recheck as a verdict in the shared shape (the LLM's signal and confidence; stance from the signal)."""
+    return StockVerdict(security_id=security_id, voter="sentiment", stance=sc.stance_from_signal(check["signal"]), confidence=check["confidence"],
+                        rationale=sc.limit_words(" ".join(k["text"] for k in check["key_points"]), 75), metrics_cited=["news_tone"], source="llm")
+
+
+def vote_weights(deps: Deps) -> dict[str, float]:
+    s = deps.settings
+    return {"fundamental": s.VOTE_WEIGHT_FUNDAMENTAL, "valuation": s.VOTE_WEIGHT_VALUATION, "sentiment": s.VOTE_WEIGHT_SENTIMENT}
+
+
 def stage2_for(ticker: str, state: AnalysisState, deps: Deps) -> tuple[Stage2StockVerdict, dict]:
-    """-> (the verdict bundle, the article titles the recheck saw)."""
-    price, check = price_check(ticker, state, deps), None
+    """The three voters for one stock, then the deterministic vote. -> (the verdict bundle, the article titles the recheck saw)."""
+    info = state.holding_info[ticker]
+    sid = info["security_id"]
+    fund, bundle, fund_why = fundamental_verdict(ticker, sid, info["name"], deps)
+    price = price_check(ticker, state, deps)
     check = recheck(ticker, state, deps)
     unavailable = {}
-    p_sig = price["price_signal"] if isinstance(price, dict) else None
-    r_sig = check["signal"] if isinstance(check, dict) else None
+    if fund.stance == "no_data":
+        unavailable["fundamental"] = fund_why or "no_data"
     if isinstance(price, Unavailable):
         unavailable["price_check"] = f"{price.reason}: {price.detail}" if price.detail else price.reason
     if isinstance(check, Unavailable):
         unavailable["sentiment_recheck"] = f"{check.reason}: {check.detail}" if check.detail else check.reason
-    v = sc.vote(p_sig, r_sig)
-    bundle = Stage2StockVerdict(
-        ticker=ticker,
-        valuation_verdict=AgentVerdict(action=("price signal %+.2f" % p_sig), confidence=price["confidence"],
-                                       rationale=sc.limit_words("6m return %s vs benchmark %s; flags: %s" % (
-                                           f"{price['metrics']['return_6m'] * 100:+.1f}%", f"{price['metrics']['benchmark_return_6m'] * 100:+.1f}%",
-                                           ", ".join(price["risk_flags"]) or "none"), 40)) if isinstance(price, dict) else None,
-        sentiment_recheck_verdict=AgentVerdict(action=("news tone %+.2f" % r_sig), confidence=check["confidence"],
-                                               rationale=sc.limit_words(" ".join(k["text"] for k in check["key_points"]), 75)) if isinstance(check, dict) else None,
-        vote_aggregation=(VoteAggregationResult(consensus_score=v["combined"], conflict_detected=v["conflict"],
-                                                notes=f"{v['status']}; weights {v['weights']}") if v["combined"] is not None else None),
-        price_signal=p_sig, price_metrics=price["metrics"] if isinstance(price, dict) else None, risk_flags=price["risk_flags"] if isinstance(price, dict) else [],
-        recheck_signal=r_sig, key_points=check["key_points"] if isinstance(check, dict) else [], unavailable=unavailable,
-        combined_signal=v["combined"], status=v["status"], attention=v["attention"], direction_label=v["label"])
-    return bundle, (check["articles"] if isinstance(check, dict) else {})
+    val = valuation_verdict(sid, price) if isinstance(price, dict) else None
+    sent = sentiment_verdict(sid, check) if isinstance(check, dict) else None
+    vote = aggregate_votes({"fundamental": fund, "valuation": val, "sentiment": sent}, vote_weights(deps))
+    bundle_out = Stage2StockVerdict(
+        ticker=ticker, fundamental_verdict=fund, valuation_verdict=val, sentiment_recheck_verdict=sent, vote_aggregation=vote,
+        fundamental_metrics=bundle, price_signal=price["price_signal"] if isinstance(price, dict) else None,
+        price_metrics=price["metrics"] if isinstance(price, dict) else None, risk_flags=price["risk_flags"] if isinstance(price, dict) else [],
+        recheck_signal=check["signal"] if isinstance(check, dict) else None, key_points=check["key_points"] if isinstance(check, dict) else [],
+        unavailable=unavailable, **legacy_fields(vote))
+    return bundle_out, (check["articles"] if isinstance(check, dict) else {})
 
 
 def stage2(state: AnalysisState, deps: Deps) -> dict:

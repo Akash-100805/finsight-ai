@@ -241,5 +241,5 @@ def test_company_evidence_is_attached_for_indian_holdings_only_and_never_enters_
 def test_the_stage1_sector_node_writes_only_its_own_fields():
     s, deps = state_after_scan()
     assert set(stage1.stage1_sector(s, deps)) == {"stage1_sector", "sector_signal_source", "sector_signal_sources",
-                                                   "sector_fallback_reason", "tkg_company_evidence"}
+                                                   "sector_fallback_reason", "tkg_company_evidence", "sector_tkg_inputs"}
     assert sc.sector_confidence(0.9, "tkg") == 0.9

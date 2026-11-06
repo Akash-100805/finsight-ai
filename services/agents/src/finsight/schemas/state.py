@@ -12,9 +12,9 @@ from __future__ import annotations
 
 import operator
 from enum import Enum
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Holding(BaseModel):
@@ -138,99 +138,62 @@ class ShortlistedStock(BaseModel):
     supporting_evidence: str = Field(
         description="Short explanation citing which of the three Stage 1 signals triggered the flag."
     )
-
-
-class AgentVerdict(BaseModel):
-    """Structured verdict shape shared by all three Stage 2 deep-dive agents.
-
-    Per Section 3.2: 'These three emit a short structured verdict each:
-    {stock, action, confidence, rationale}.' The `stock` ticker itself lives
-    on the enclosing `Stage2StockVerdict`, not here, to avoid duplication.
-    """
-
-    action: str = Field(
-        description=(
-            "Agent-recommended action label (e.g. 'monitor', 'hold', 'reduce'). "
-            "Exact vocabulary is finalized when the agent is implemented in Phase 6."
-        )
+    drivers: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="The signals behind the flag: [{signal: structural|sector|sentiment, value}].",
     )
-    confidence: float = Field(
-        ge=0.0,
-        le=1.0,
-        description="Agent's confidence in this verdict, from 0.0 to 1.0.",
-    )
-    rationale: str = Field(description="Free-text justification for the action and confidence.")
+
+
+class StockVerdict(BaseModel):
+    """The one verdict shape of the three Stage 2 voters (Fundamental, Valuation, Sentiment Recheck): {security_id, stance, confidence, rationale}."""
+
+    security_id: str
+    voter: Literal["fundamental", "valuation", "sentiment"]
+    stance: Literal["supportive", "neutral", "concerning", "no_data"] = Field(description="no_data = the voter had nothing to judge on; it does not vote.")
+    confidence: float = Field(ge=0.0, le=1.0)
+    rationale: str
+    metrics_cited: list[str] = Field(default_factory=list, description="Names of the computed metrics the rationale rests on.")
+    source: Literal["llm", "code", "template"] = Field(default="code", description="llm | code | template (the code fallback after a failed LLM validation).")
 
 
 class VoteAggregationResult(BaseModel):
-    """Deterministic weighted-consensus output (code), per stock.
+    """Deterministic weighted-consensus output (code), per stock. `conflict_detected` is the condition that routes to the Conflict Resolver."""
 
-    Computed by the Vote Aggregation function (Phase 6) across the three
-    Stage 2 agent verdicts. Its `conflict_detected` flag is the condition
-    that routes to the Conflict Resolver Agent.
-    """
-
-    consensus_score: float = Field(
-        description="Weighted consensus score across the fundamental, valuation, and sentiment-recheck verdicts."
-    )
-    conflict_detected: bool = Field(
-        description="True when the three verdicts genuinely disagree, triggering the Conflict Resolver Agent."
-    )
-    notes: str | None = Field(
-        default=None,
-        description="Optional short note on how the consensus score was reached.",
-    )
+    consensus_score: float | None = Field(default=None, description="Weighted mean of the stances (-1 concerning, 0 neutral, +1 supportive) over the voters that are not no_data; None with no voter.")
+    conflict_detected: bool = Field(description="True when at least two voters with confidence >= 0.5 hold opposite non-zero stances.")
+    notes: str | None = Field(default=None)
+    agreement_level: str | None = Field(default=None, description="unanimous | majority | split | single_voter | no_voters")
+    weights: dict[str, float] = Field(default_factory=dict, description="The re-normalised weight of each voter that voted.")
+    inputs: dict[str, dict[str, Any]] = Field(default_factory=dict, description="voter -> {stance, confidence} as aggregated.")
 
 
-class ConflictResolverOutput(BaseModel):
-    """Stage 2 output of the Conflict Resolver Agent (LLM).
+class ConflictResolution(BaseModel):
+    """Conflict Resolver Agent (LLM) output; only for stocks whose votes genuinely conflict. It explains the disagreement and adds no new facts."""
 
-    Only present when `VoteAggregationResult.conflict_detected` is True.
-    Populated in Phase 6.
-    """
-
-    explanation: str = Field(
-        description="LLM explanation of why the Stage 2 signals disagree (e.g. a 'value trap' case)."
-    )
+    model_config = ConfigDict(extra="forbid")
+    security_id: str
+    conflict_type: Literal["value_trap", "priced_for_perfection", "news_vs_fundamentals", "technical_vs_fundamental", "other"]
+    explanation: str
+    what_to_watch: list[str] = Field(default_factory=list, max_length=3)
 
 
 class Stage2StockVerdict(BaseModel):
-    """All Stage 2 deep-dive results for a single shortlisted stock.
-
-    One instance per entry in `AnalysisState.shortlist`. Populated
-    incrementally across Phase 6: the three agent verdicts first, then
-    vote aggregation, then (conditionally) conflict resolution.
-    """
+    """All Stage 2 deep-dive results for a single shortlisted stock (one per shortlist entry)."""
 
     ticker: str = Field(description="Ticker symbol this verdict bundle is for.")
-    fundamental_verdict: AgentVerdict | None = Field(
-        default=None,
-        description="Fundamental Agent (LLM) verdict: earnings, growth, balance sheet health.",
-    )
-    valuation_verdict: AgentVerdict | None = Field(
-        default=None,
-        description="Valuation Agent (code-computed metrics, LLM-narrated) verdict.",
-    )
-    sentiment_recheck_verdict: AgentVerdict | None = Field(
-        default=None,
-        description="Sentiment Recheck (LLM + FinBERT) verdict, scoped to this ticker only.",
-    )
-    vote_aggregation: VoteAggregationResult | None = Field(
-        default=None,
-        description="Deterministic consensus/conflict result across the three verdicts above.",
-    )
-    conflict_resolution: ConflictResolverOutput | None = Field(
-        default=None,
-        description="Present only when vote_aggregation.conflict_detected is True.",
-    )
-    # --- added in MA-2 (all optional) ---
+    fundamental_verdict: StockVerdict | None = Field(default=None, description="Fundamental Agent (LLM over computed metrics) verdict; stance no_data when nothing could be computed.")
+    valuation_verdict: StockVerdict | None = Field(default=None, description="Valuation (code) verdict from the price check.")
+    sentiment_recheck_verdict: StockVerdict | None = Field(default=None, description="Sentiment Recheck (LLM) verdict, scoped to this ticker only.")
+    vote_aggregation: VoteAggregationResult | None = Field(default=None, description="Deterministic consensus/conflict result across the voters.")
+    fundamental_metrics: dict[str, Any] | None = Field(default=None, description="The computed fundamental metrics shown to the Fundamental Agent (name -> value, quality), plus latest_results_date.")
+    # --- fields the API/synthesis read (kept populated from the votes) ---
     price_signal: float | None = Field(default=None, description="Price-check signal in -1..1 (code), None when unavailable.")
     price_metrics: dict[str, float] | None = Field(default=None, description="Period returns, annualized volatility, max drawdown, rel_6m.")
     risk_flags: list[str] = Field(default_factory=list, description="high_volatility / deep_drawdown from the price check.")
     recheck_signal: float | None = Field(default=None, description="Sentiment-recheck (LLM) signal in -1..1, None when unavailable.")
     key_points: list[dict[str, Any]] = Field(default_factory=list, description="Recheck key points: text, article_ids, titles.")
     unavailable: dict[str, str] = Field(default_factory=dict, description="voter -> reason it produced no signal (e.g. llm_unavailable).")
-    combined_signal: float | None = Field(default=None, description="Weighted vote of the available voters, -1..1.")
+    combined_signal: float | None = Field(default=None, description="The vote's consensus score, -1..1.")
     status: str | None = Field(default=None, description="ok | conflicting_signals | single_voter | no_voters")
     attention: str | None = Field(default=None, description="high | medium | low")
     direction_label: str | None = Field(default=None, description="positive momentum | negative pressure | mixed/neutral")
@@ -328,6 +291,10 @@ class AnalysisState(BaseModel):
     sector_fallback_reason: str | None = Field(default=None, description="Set when SECTOR_PROVIDER=tkg fell back to tkg_lite for this run: why.")
     sector_signal_sources: dict[str, str] = Field(default_factory=dict, description="ticker -> the sector provider that produced its sector signal (tkg for Indian holdings under SECTOR_PROVIDER=tkg, else tkg_lite).")
     tkg_company_evidence: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> company-level TKG scores and paths (direct_score, direct_confidence, paths). Evidence only: never enters fusion.")
+    sentiment_aggregates: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> Stage 1 sentiment aggregate: direction (positive|negative|neutral|insufficient), magnitude 0-1, n_articles, top_headlines[<=3].")
+    sector_tkg_inputs: dict[str, dict[str, Any]] = Field(default_factory=dict, description="sector -> the TKG's own signal dict (score, confidence, paths, as_of) for held Indian sectors with status signal. Input of the Sector TKG Agent.")
+    sector_narratives: dict[str, dict[str, Any]] = Field(default_factory=dict, description="sector -> Sector TKG Agent output (outlook, key_chains, affected_holdings, rationale) + provenance (llm|cache|template). The sector score itself stays the TKG's code score.")
+    conflict_resolutions: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> Conflict Resolver output + provenance, only for stocks whose Stage 2 votes conflict.")
     article_index: dict[str, dict[str, Any]] = Field(default_factory=dict, description="article_id -> title, url, published_at, source_id for the evidence cited in Stage 1.")
     fused_values: dict[str, float] = Field(default_factory=dict, description="ticker -> mean of the available Stage 1 signals (what the shortlist is ranked on).")
     not_deep_dived: list[dict[str, Any]] = Field(default_factory=list, description="Fusion hits dropped by the shortlist cap (ticker, reason, fused value).")

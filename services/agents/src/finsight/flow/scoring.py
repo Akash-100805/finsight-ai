@@ -10,12 +10,9 @@ STRUCTURAL_RELATIVE_WEIGHT = 0.5
 FULL_YEAR_DAYS = 350
 SENTIMENT_FULL_CONFIDENCE_N = 10
 TKG_LITE_CONFIDENCE_CAP = 0.6
-PRICE_VOTE_WEIGHT = 0.4
-RECHECK_VOTE_WEIGHT = 0.6
-CONFLICT_MIN_ABS = 0.3
+STANCE_THRESHOLD = 0.25            # a Stage 2 signal at or beyond +/- this is supportive / concerning, else neutral
 HIGH_VOLATILITY = 0.40
 DEEP_DRAWDOWN = 0.30
-SHORTLIST_CAP = 5
 USD_INR_SYMBOL = "USDINR=X"
 
 
@@ -60,26 +57,6 @@ def risk_flags(annualized_volatility: float, max_drawdown: float) -> list[str]:
     return flags
 
 
-def vote(price: float | None, recheck: float | None) -> dict:
-    """Weighted mean of the available voters (price 0.4, recheck 0.6, renormalised when one is missing)."""
-    voters = [(PRICE_VOTE_WEIGHT, price), (RECHECK_VOTE_WEIGHT, recheck)]
-    present = [(w, v) for w, v in voters if v is not None]
-    if not present:
-        return {"combined": None, "conflict": False, "attention": None, "label": None, "status": "no_voters", "weights": {}}
-    total = sum(w for w, _ in present)
-    combined = sum(w * v for w, v in present) / total
-    weights = {}
-    if price is not None:
-        weights["price"] = PRICE_VOTE_WEIGHT / total
-    if recheck is not None:
-        weights["recheck"] = RECHECK_VOTE_WEIGHT / total
-    conflict = (price is not None and recheck is not None and price * recheck < 0 and abs(price) >= CONFLICT_MIN_ABS and abs(recheck) >= CONFLICT_MIN_ABS)
-    attention = "high" if (abs(combined) >= 0.5 or conflict) else "medium" if abs(combined) >= 0.25 else "low"
-    label = "positive momentum" if combined >= 0.25 else "negative pressure" if combined <= -0.25 else "mixed/neutral"
-    status = "conflicting_signals" if conflict else ("ok" if len(present) == 2 else "single_voter")
-    return {"combined": combined, "conflict": conflict, "attention": attention, "label": label, "status": status, "weights": weights}
-
-
 def fused_value(signals: list[float]) -> float | None:
     """What fusion.py ranks on: the plain mean of the Stage 1 signals that exist for the ticker."""
     return sum(signals) / len(signals) if signals else None
@@ -88,3 +65,7 @@ def fused_value(signals: list[float]) -> float | None:
 def limit_words(text: str, n: int) -> str:
     words = (text or "").split()
     return " ".join(words) if len(words) <= n else " ".join(words[:n]).rstrip(",;:") + "…"
+
+
+def stance_from_signal(signal: float) -> str:
+    return "supportive" if signal >= STANCE_THRESHOLD else "concerning" if signal <= -STANCE_THRESHOLD else "neutral"

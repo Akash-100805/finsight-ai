@@ -39,6 +39,23 @@ class Settings(BaseSettings):
     AGENTS_LLM_RPM: float = 10            # calls per minute: the minimum spacing between calls is 60 / RPM seconds
     AGENTS_LLM_MAX_CALLS_PER_RUN: int = 8
 
+    # the app database (finsight_app login): caches, portfolios, runs. Migrations go to TEST first; MAIN writes need the owner's confirmation.
+    APP_DATABASE_URL: SecretStr = SecretStr("")
+    APP_TEST_DATABASE_URL: SecretStr = SecretStr("")
+
+    # fusion and the shortlist
+    SHORTLIST_MAX: int = 8                 # total deep-dives
+    OPPORTUNITY_MAX: int = 3               # of which at most this many opportunities (risks fill first)
+    OPPORTUNITY_THRESHOLD: float = 0.30    # fused score at or above this (and no component below OPPORTUNITY_MIN_COMPONENT)
+    OPPORTUNITY_MIN_COMPONENT: float = -0.10
+
+    # Stage 2 vote weights (re-normalised over the voters that are not no_data)
+    VOTE_WEIGHT_FUNDAMENTAL: float = 1 / 3
+    VOTE_WEIGHT_VALUATION: float = 1 / 3
+    VOTE_WEIGHT_SENTIMENT: float = 1 / 3
+    FUNDAMENTALS_TTL_HOURS: float = 24
+    FUNDAMENTALS_STALE_DAYS: int = 200
+
     # news signals
     NEWS_WINDOW_DAYS: int = 30
     SENTIMENT_MIN_ARTICLES: int = 3
@@ -82,6 +99,13 @@ class Settings(BaseSettings):
         value = getattr(self, name).get_secret_value().strip()
         if not value:
             raise SettingsError(f"{name} is not set (AGENTS_LLM_PROVIDER={provider})")
+        return value
+
+    def app_database_url(self, target: Literal["main", "test"] = "main") -> str:
+        name = "APP_DATABASE_URL" if target == "main" else "APP_TEST_DATABASE_URL"
+        value = getattr(self, name).get_secret_value().strip()
+        if not value:
+            raise SettingsError(f"{name} is not set")
         return value
 
     def database_url(self, target: Literal["main", "test"] = "main") -> str:

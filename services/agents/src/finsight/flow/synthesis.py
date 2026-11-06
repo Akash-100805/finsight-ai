@@ -71,13 +71,14 @@ def build_input(state: AnalysisState) -> dict:
                        "key_points": [{"text": k["text"], "article_ids": k["article_ids"], "titles": k.get("titles", [])} for k in v.key_points]})
     return {
         "holdings": [{"security_id": state.holding_info[h.ticker]["security_id"], "name": state.holding_info[h.ticker]["name"], "sector": h.sector,
-                      "weight": round(state.holding_metrics[h.ticker].weight, 3), "unrealized_return_pct": round(state.holding_metrics[h.ticker].unrealized_return_pct, 3)}
+                      "weight_pct": round(state.holding_metrics[h.ticker].weight * 100, 1)}
                      for h in state.holdings if h.ticker in (state.holding_metrics or {})],
-        "excluded_holdings": state.excluded_holdings, "sector_exposure": {k: round(v, 3) for k, v in (state.sector_exposure or {}).items()},
+        "excluded_holdings": state.excluded_holdings, "sector_exposure_pct": {k: round(v * 100, 1) for k, v in (state.sector_exposure or {}).items()},
         "concentration_flags": state.concentration_flags, "fx": {"usd_inr": state.fx_rate, "date": state.fx_date} if state.fx_rate else None,
         "sector_signal_source": state.sector_signal_source, "stage1": stage1,
-        "shortlist": [{"security_id": state.holding_info[s.ticker]["security_id"], "reason": s.reason.value, "evidence": s.supporting_evidence} for s in state.shortlist or []],
-        "not_deep_dived": state.not_deep_dived, "stage2": stage2, "article_titles": titles, "data_gaps": state.data_gaps}
+        "shortlist": [{"security_id": state.holding_info[s.ticker]["security_id"], "reason": "opportunity" if s.reason.value == "opportunity" else "risk", "drivers": s.drivers} for s in state.shortlist or []],
+        "not_deep_dived": [{"security_id": state.holding_info[n["ticker"]]["security_id"], "fused_value": round(n["fused_value"], 3),
+                            "flag": "opportunity" if n["flag"] == "opportunity" else "risk"} for n in state.not_deep_dived], "stage2": stage2, "article_titles": titles, "data_gaps": state.data_gaps}
 
 
 def known_article_ids(state: AnalysisState) -> set[str]:

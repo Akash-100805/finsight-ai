@@ -74,7 +74,16 @@ def good_handler(model, system, user):
 
 
 def sig(score=-0.5, n=8, ids=("a1",)):
-    return {"score": score, "n_articles": n, "top_article_ids": list(ids), "reason": None}
+    """A Stage 1 sentiment aggregate in the shape of data.news.sentiment_aggregate."""
+    direction = "neutral" if abs(score) < 0.10 else "positive" if score > 0 else "negative"
+    heads = [{"article_id": a, "title": f"headline {a}", "publisher": "et_markets", "published_at": "2026-10-20T00:00:00+00:00", "url": f"https://x/{a}", "method": "sentence_level"}
+             for a in ids]
+    return {"direction": direction, "magnitude": min(1.0, abs(score)), "score": score, "n_articles": n, "top_headlines": heads, "top_article_ids": list(ids), "reason": None, "detail": None}
+
+
+def insufficient(n=2):
+    return {"direction": "insufficient", "magnitude": 0.0, "score": None, "n_articles": n, "top_headlines": [], "top_article_ids": [], "reason": "insufficient_news",
+            "detail": f"{n} scored article(s), 3 needed"}
 
 
 def rows_for(security_id: str, k: int = 3) -> list[dict]:
@@ -130,7 +139,7 @@ def make_deps(*, llm=None, returns=None, bench_return=0.10, sentiments=None, sec
 
     def sentiment(sid):
         s = sentiments.get(sid, sig())
-        return s, ({} if isinstance(s, Unavailable) else {a: {"title": f"{sid} headline", "url": "u", "published_at": "2026-10-20T00:00:00+00:00"} for a in s["top_article_ids"]})
+        return s, {a: {"title": f"{sid} headline", "url": "u", "published_at": "2026-10-20T00:00:00+00:00"} for a in s["top_article_ids"]}
 
     return Deps(settings=llm.settings, llm=llm, security_info=info, current_price=price, price_history=history, benchmark_history=benchmark,
                 usd_inr=lambda: Unavailable("fx_unavailable", "offline") if usd_inr_unavailable else (fx or {"rate": 90.0, "date": "2026-10-27"}),
