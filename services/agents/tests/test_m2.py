@@ -177,6 +177,41 @@ def test_numbers_must_match_a_given_value_as_rounded(text, ok):
     assert (unfaithful_numbers(text, allowed) == []) is ok
 
 
+@pytest.mark.parametrize("text,ok", [
+    ("margin fell 3.2 points", True), ("margin declined by 3.2%", True), ("down 3.2 points", True), ("a lower figure of 3.2", True),     # right direction
+    ("margin rose 3.2 points", False), ("up 3.2%", False), ("grew 3.2 points", False), ("a higher 3.2", False),                         # flipped direction
+    ("margin of 3.2", False), ("trend 3.2 points", False),                                                                              # bare number, wrong sign
+    ("margin of -3.2", True), ("margin of \u22123.2", True), ("margin of +3.2", False), ("it rose and fell 3.2", False),               # explicit sign wins; ambiguous wording needs a sign
+    ("coverage 53.0", True), ("growth rose 12.3", True), ("growth fell 12.3", True), ("growth of -12.3", False)])
+def test_signs_must_match_or_the_wording_must_state_the_direction(text, ok):
+    allowed = [-3.2, 12.3, 52.9744]
+    assert (unfaithful_numbers(text, allowed) == []) is ok
+
+
+def test_window_labels_and_the_results_date_stay_exempt_from_sign_and_value_checks():
+    assert unfaithful_numbers("the 6-month return fell 3.2 over 4 quarters, 1y view", [-3.2]) == []
+    assert unfaithful_numbers("results for 30 September 2026 showed -3.2", [-3.2], ignore=["30", "2026"]) == []
+    assert unfaithful_numbers("results for 30 September 2026 showed 99", [-3.2], ignore=["30", "2026"]) == ["99"]
+
+
+def test_the_fundamental_validator_applies_the_sign_rule():
+    view = {"metrics": {"net_margin_trend_pp_per_quarter": {"value": -0.8, "quality": "ok"}, "roe_pct": {"value": 20.0, "quality": "ok"}}, "latest_results_date": "2026-09-30"}
+    mk = lambda r: fa.FundamentalLLMOutput(security_id="NSE:AAA", stance="neutral", confidence=0.6, rationale=r, metrics_cited=["roe_pct"])
+    assert fa.validate(mk("Margins fell 0.8 points a quarter and return on equity is 20."), "NSE:AAA", view) == []
+    assert fa.validate(mk("Margins rose 0.8 points a quarter."), "NSE:AAA", view) != []
+    assert fa.validate(mk("The margin trend is 0.8 a quarter."), "NSE:AAA", view) != []
+    assert fa.validate(mk("The margin trend is -0.8 a quarter."), "NSE:AAA", view) == []
+
+
+def test_the_resolver_validator_applies_the_sign_rule():
+    inp = resolver_input()
+    inp["evidence"]["price"]["max_drawdown_pct"] = -12.0
+    mk = lambda r: cr.ConflictResolution(security_id="NSE:AAA", conflict_type="other", explanation=r, what_to_watch=[])
+    assert cr.validate(mk("The price fell 12.0 from its peak."), inp) == []
+    assert cr.validate(mk("The price rose 12.0 from its peak."), inp) != []
+    assert cr.validate(mk("A drawdown of 12.0 from its peak."), inp) != []
+
+
 def test_faithfulness_helpers():
     assert numbers_in("up 12.5%, down -3 and Q2 2026") == ["12.5", "3", "2026"] or numbers_in("up 12.5%, down -3 and Q2 2026")[:2] == ["12.5", "3"]
     assert number_matches("12", [12.49]) and not number_matches("12", [12.51]) and number_matches("3", [-3.0])

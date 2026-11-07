@@ -29,7 +29,8 @@ Rules:
 - Use only the metrics given. Percent metrics are in percent. Never compute, estimate or infer a number that is not shown.
 - stance: supportive (growth, margins, balance sheet and returns look healthy), concerning (they look weak or deteriorating), or neutral (mixed).
 - confidence 0.0 to 1.0: lower it when many metrics are missing or marked stale; say so in the rationale when the data is stale.
-- rationale: at most 50 words. Any number you write must be a metric value exactly as shown (you may round it). No other numbers.
+- rationale: at most 50 words. Any number you write must be a metric value exactly as shown (you may round it). No other numbers. Keep the sign: write a
+  negative value with its minus sign (-3.2) or with a falling word (fell 3.2, down 3.2); never state a falling metric as rising.
 - metrics_cited: the names of the metrics your rationale rests on, exactly as given.
 - Describe the financial position. No advice language: never tell the reader to buy, sell, hold, trim, exit or act."""
 

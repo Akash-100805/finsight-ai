@@ -173,16 +173,23 @@ def test_the_shortlist_is_capped_at_shortlist_max_by_absolute_fused_value():
     assert len(stage1.fusion(fusion_state(8), None)["shortlist"]) == 8                           # default SHORTLIST_MAX
 
 
-def test_a_neutral_sector_is_excluded_from_the_fused_average_but_a_neutral_sentiment_still_counts_as_zero():
+def test_neutral_and_unavailable_components_are_shown_but_never_averaged_in():
+    """One rule for all Stage 1 components: |signal| < 0.10 (neutral) and unavailable (insufficient, no signal) are excluded from the fused average."""
     s = fusion_state(1)
     neutral_sector = {"unavailable": True, "reason": "neutral_sector", "detail": "sector news neutral", "rationale": "sector news neutral", "evidence": {}}
     ok = lambda x: {"signal": x, "confidence": 0.8, "rationale": "r", "evidence": {}}
     s = s.model_copy(update={"stage1_structural": {"T0": ok(-0.6)}, "stage1_sentiment": {"T0": ok(0.0)}, "stage1_sector": {"T0": neutral_sector}})
     out = stage1.fusion(s, None)
-    assert out["fused_values"]["T0"] == pytest.approx(-0.3)                                  # (-0.6 + 0.0) / 2: the sector is NOT averaged in as a 0
-    assert [x.ticker for x in out["shortlist"]] == ["T0"]                                    # -0.3 reaches the (unchanged) threshold; with a 0 sector it would be -0.2
-    with_zero = s.model_copy(update={"stage1_sector": {"T0": ok(0.0)}})
-    assert stage1.fusion(with_zero, None)["fused_values"]["T0"] == pytest.approx(-0.2) and stage1.fusion(with_zero, None)["shortlist"] == []
+    assert out["fused_values"]["T0"] == pytest.approx(-0.6)                                  # neither the neutral sentiment (0.0) nor the neutral sector dilutes it
+    assert [x.ticker for x in out["shortlist"]] == ["T0"] and out["shortlist"][0].drivers == [{"signal": "structural", "value": -0.6}]
+    for neutral in (0.0, 0.09, -0.09):                                                       # every component obeys the same band
+        for which in ("stage1_structural", "stage1_sentiment", "stage1_sector"):
+            mixed = s.model_copy(update={"stage1_structural": {"T0": ok(-0.6)}, "stage1_sentiment": {"T0": ok(-0.6)}, "stage1_sector": {"T0": ok(-0.6)}})
+            mixed = mixed.model_copy(update={which: {"T0": ok(neutral)}})
+            assert stage1.fusion(mixed, None)["fused_values"]["T0"] == pytest.approx(-0.6)
+    edge = s.model_copy(update={"stage1_sentiment": {"T0": ok(-0.10)}})                         # |0.10| is a signal and is averaged in
+    assert stage1.fusion(edge, None)["fused_values"]["T0"] == pytest.approx(-0.35)
+    assert stage1.fusion(s.model_copy(update={"stage1_structural": {"T0": ok(0.05)}, "stage1_sentiment": {}, "stage1_sector": {}}), None)["fused_values"] == {}
 
 
 def test_a_real_sector_signal_still_enters_the_average():
@@ -394,7 +401,7 @@ def test_everything_failing_gives_the_labelled_template_and_the_run_completes():
 
 # ── the graph ─────────────────────────────────────────────────────────────────────────────────────────────────────
 def test_full_graph_happy_path():
-    deps = make_deps(returns={"NSE:AAA": -0.4, "NSE:BBB": 0.12, "NSE:CCC": 0.1}, bench_return=0.1,
+    deps = make_deps(returns={"NSE:AAA": -0.4, "NSE:BBB": 0.22, "NSE:CCC": 0.22}, bench_return=0.1,
                      sentiments={"NSE:BBB": sig(0.0, 5), "NSE:CCC": sig(0.0, 5)})
     state = run_analysis(PORT, deps=deps)
     assert state.errors == [] and state.run_seconds is not None and state.llm_calls_used >= 1
@@ -404,7 +411,7 @@ def test_full_graph_happy_path():
 
 
 def test_an_empty_shortlist_is_a_valid_run():
-    state = run_analysis(PORT, deps=make_deps(returns={"NSE:AAA": 0.1, "NSE:BBB": 0.1, "NSE:CCC": 0.1}, bench_return=0.1,
+    state = run_analysis(PORT, deps=make_deps(returns={"NSE:AAA": 0.22, "NSE:BBB": 0.22, "NSE:CCC": 0.22}, bench_return=0.1,
                                               sentiments={f"NSE:{t}": sig(0.0, 5) for t in ("AAA", "BBB", "CCC")}))
     assert state.shortlist == [] and state.stage2_verdicts == [] and syn.DISCLAIMER in state.compliance_reviewed_output
     assert state.llm_calls_used == 1                                                           # only the synthesis call

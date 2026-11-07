@@ -26,7 +26,8 @@ action, sentiment = news tone) with their stance, confidence and evidence.
 Rules:
 - Explain the disagreement using ONLY the facts given. Do not add any fact, number, event or cause that is not in the input.
 - conflict_type: value_trap, priced_for_perfection, news_vs_fundamentals, technical_vs_fundamental, or other. Pick the one that fits; use other when none does.
-- explanation: at most 70 words. Any number you write must appear in the input.
+- explanation: at most 70 words. Any number you write must appear in the input, with its sign: write a negative value with a minus sign (-12.0) or a falling
+  word (fell 12.0, down 12.0).
 - what_to_watch: at most 3 short items (each at most 15 words) naming what would clarify the disagreement (a data point, a result, a trend). Not actions.
 - Describe and explain. No advice language and nothing directive: never tell the reader to buy, sell, hold, trim, exit or act."""
 

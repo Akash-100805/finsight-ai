@@ -15,7 +15,7 @@ from tests.test_flow import PORT
 @pytest.fixture(scope="module")
 def state_with_shortlist():
     """A real AnalysisState: AAA is shortlisted (price, recheck with a cited article, synthesis)."""
-    return real_run_analysis(PORT, deps=make_deps(returns={"NSE:AAA": -0.4, "NSE:BBB": 0.12, "NSE:CCC": 0.1}, bench_return=0.1,
+    return real_run_analysis(PORT, deps=make_deps(returns={"NSE:AAA": -0.4, "NSE:BBB": 0.22, "NSE:CCC": 0.22}, bench_return=0.1,
                                                   sentiments={"NSE:BBB": sig(0.0, 5), "NSE:CCC": sig(0.0, 5)}))
 
 
@@ -132,7 +132,7 @@ def test_the_disclaimer_is_always_present_even_with_the_template_and_an_empty_sh
 
     def down(model, system, user):
         raise Down("503 UNAVAILABLE")
-    template_state = real_run_analysis(PORT, deps=make_deps(llm=llm_for(down)[0], returns={"NSE:AAA": 0.1, "NSE:BBB": 0.1, "NSE:CCC": 0.1}, bench_return=0.1,
+    template_state = real_run_analysis(PORT, deps=make_deps(llm=llm_for(down)[0], returns={"NSE:AAA": 0.22, "NSE:BBB": 0.22, "NSE:CCC": 0.22}, bench_return=0.1,
                                                             sentiments={f"NSE:{t}": sig(0.0, 5) for t in ("AAA", "BBB", "CCC")}))
     monkeypatch.setattr(api, "run_analysis", lambda portfolio, deps=None, target="main": template_state)
     d = client.post("/analyze", json={"sample": "india_diversified"}).json()

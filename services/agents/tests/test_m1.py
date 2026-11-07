@@ -52,11 +52,15 @@ def test_fewer_than_the_minimum_is_insufficient_never_a_fake_zero():
     assert sentiment_aggregate(zero_weight, 0.5, 3)["direction"] == "insufficient"
 
 
-def test_insufficient_is_excluded_from_fusion_and_neutral_is_a_zero_signal():
+def test_insufficient_and_neutral_are_recorded_and_shown_but_excluded_from_the_fusion_average():
     out = stage1.sentiment_verdict(sentiment_aggregate(rows(0.9), 0.5, 3), {})
     assert out["unavailable"] and out["reason"] == "insufficient_news"
     neutral = stage1.sentiment_verdict(sentiment_aggregate(rows(0.01, 0.0, -0.01), 0.5, 3), {})
-    assert not neutral.get("unavailable") and neutral["signal"] == 0.0 and neutral["evidence"]["direction"] == "neutral"
+    assert not neutral.get("unavailable") and neutral["signal"] == 0.0 and neutral["evidence"]["direction"] == "neutral"       # shown with its signal
+    st = state_for({"X": (-0.6, None, None)}).model_copy(update={"stage1_sentiment": {"X": neutral}})
+    assert stage1.fusion(st, None)["fused_values"]["X"] == pytest.approx(-0.6)                                              # but not averaged in
+    st2 = st.model_copy(update={"stage1_sentiment": {"X": out}})
+    assert stage1.fusion(st2, None)["fused_values"]["X"] == pytest.approx(-0.6)
 
 
 def test_top_headlines_are_at_most_three_with_the_spec_fields_and_the_output_is_deterministic():

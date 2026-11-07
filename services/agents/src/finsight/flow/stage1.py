@@ -135,7 +135,9 @@ def fusion(state: AnalysisState, deps: Deps | None) -> dict:
     """Feed the Stage 1 verdicts to fusion.py, then select the shortlist: risks first (by |fused|) up to SHORTLIST_MAX, then up to OPPORTUNITY_MAX
     opportunities in the slots that remain. Every flag carries the signals that drove it."""
     cfg = deps.settings if deps is not None else Settings(_env_file=None)
-    ok = lambda d: d is not None and not d.get("unavailable")
+    # One rule for all three components: unavailable (incl. insufficient news, no sector signal) and neutral (|signal| < NEUTRAL_BAND) are recorded and shown
+    # in the stage1_* fields but excluded from the fused average, so a non-signal never dilutes a real one.
+    ok = lambda d: d is not None and not d.get("unavailable") and abs(d["signal"]) >= sc.NEUTRAL_BAND
     tickers = included_tickers(state)
     portfolio = {t: state.stage1_structural[t]["signal"] for t in tickers if ok(state.stage1_structural.get(t))}
     sector = {t: state.stage1_sector[t]["signal"] for t in tickers if ok(state.stage1_sector.get(t))}
