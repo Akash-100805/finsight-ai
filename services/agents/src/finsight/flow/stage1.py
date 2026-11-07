@@ -7,6 +7,7 @@ from __future__ import annotations
 import pandas as pd
 
 from finsight.core.fusion import fuse_and_flag, select_shortlist
+from finsight.core.hygiene import is_clickbait
 from finsight.core.valuation import compute_valuation
 from finsight.data.common import Unavailable
 from finsight.data.sector_signal import is_indian_security
@@ -70,14 +71,40 @@ def sentiment_verdict(sig: dict, index: dict) -> dict:
                     "direction": sig["direction"], "magnitude": sig["magnitude"]})
 
 
+def clean_sentiment_evidence(sig: dict, idx: dict) -> tuple[dict, dict, int]:
+    """Drop clickbait headlines from the shown evidence of one security's sentiment aggregate. -> (aggregate, article index, number excluded)."""
+    bad = {a for a, m in idx.items() if is_clickbait(m.get("title"))} | {h["article_id"] for h in sig.get("top_headlines", []) if is_clickbait(h.get("title"))}
+    if not bad:
+        return sig, idx, 0
+    return ({**sig, "top_headlines": [h for h in sig["top_headlines"] if h["article_id"] not in bad],
+             "top_article_ids": [a for a in sig.get("top_article_ids", []) if a not in bad]},
+            {a: m for a, m in idx.items() if a not in bad}, len(bad))
+
+
+def clean_tkg_signal(sig: dict) -> tuple[dict, int]:
+    """Drop TKG path items whose source headline is clickbait from the evidence (the TKG's score is untouched)."""
+    items = sig.get("evidence_items") or []
+    kept = [i for i in items if not is_clickbait(i.get("source_title"))]
+    if len(kept) == len(items):
+        return sig, 0
+    keep_texts = {i["text"] for i in kept}
+    return {**sig, "evidence_items": kept, "explanations": [e for e in sig.get("explanations", []) if e in keep_texts],
+            "evidence_article_ids": [a for a in sig.get("evidence_article_ids", []) if a not in {i.get("article_id") for i in items if i not in kept}]}, len(items) - len(kept)
+
+
 def stage1_sentiment(state: AnalysisState, deps: Deps) -> dict:
-    out, index, aggregates = {}, {}, {}
+    out, index, aggregates, excluded = {}, {}, {}, 0
     for ticker in included_tickers(state):
         sig, idx = deps.sentiment(state.holding_info[ticker]["security_id"])
+        sig, idx, n_out = clean_sentiment_evidence(sig, idx)          # hygiene: clickbait headlines are not shown as evidence (the score is unchanged)
+        excluded += n_out
         out[ticker] = sentiment_verdict(sig, idx)
         aggregates[ticker] = {k: v for k, v in sig.items() if k != "top_article_ids"}
         index.update(idx)
-    return {"stage1_sentiment": out, "sentiment_aggregates": aggregates, "article_index": {**state.article_index, **index}}
+    result = {"stage1_sentiment": out, "sentiment_aggregates": aggregates, "article_index": {**state.article_index, **index}}
+    if excluded:
+        result["evidence_exclusions"] = {"sentiment_headlines": excluded}
+    return result
 
 
 def sector_verdict(sector: str | None, signals: dict, source: str) -> dict:
@@ -117,6 +144,11 @@ def stage1_sector(state: AnalysisState, deps: Deps) -> dict:
     other = [t for t in tickers if t not in indian]
     sectors_of = lambda ts: sorted({info[t]["sector"] for t in ts if info[t]["sector"]})
     signals = provider.sector_signals(sectors_of(indian)) if sectors_of(indian) else {}   # ONE call for all Indian sectors; SectorProviderError -> node failure
+    excluded = 0
+    for sid, sig in list(signals.items()):
+        if isinstance(sig, dict) and sig.get("evidence_items"):
+            signals[sid], n = clean_tkg_signal(sig)
+            excluded += n
     source = provider.source                                                              # read AFTER the call: the fallback provider reports what it actually used
     lite_signals = lite.sector_signals(sectors_of(other)) if lite is not None and sectors_of(other) else {}
     per_ticker = {t: (source if t in indian else lite.source) for t in tickers}
@@ -128,6 +160,11 @@ def stage1_sector(state: AnalysisState, deps: Deps) -> dict:
     if callable(company_impacts) and any(v == "tkg" for v in per_ticker.values()):
         by_security = company_impacts([info[t]["security_id"] for t in tickers if per_ticker[t] == "tkg"])
         out["tkg_company_evidence"] = {t: by_security[info[t]["security_id"]] for t in tickers if info[t]["security_id"] in by_security}
+        for t, ev in out["tkg_company_evidence"].items():
+            out["tkg_company_evidence"][t], n = clean_tkg_signal(ev)
+            excluded += n
+    if excluded:
+        out["evidence_exclusions"] = {"tkg_evidence_items": excluded}
     return out
 
 

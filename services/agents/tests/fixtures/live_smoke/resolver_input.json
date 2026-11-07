@@ -1,0 +1,43 @@
+{
+ "security_id": "NSE:AAA",
+ "name": "Alpha Ltd",
+ "voters": {
+  "fundamental": {
+   "stance": "concerning",
+   "confidence": 0.7,
+   "rationale": "r"
+  },
+  "valuation": {
+   "stance": "supportive",
+   "confidence": 0.8,
+   "rationale": "r"
+  },
+  "sentiment": {
+   "stance": "neutral",
+   "confidence": 0.6,
+   "rationale": "r"
+  }
+ },
+ "evidence": {
+  "fundamental_metrics": {
+   "revenue_growth_qoq_pct": 1.2632,
+   "net_margin_pct": 18.9703,
+   "net_margin_trend_pp_per_quarter": 0.8321,
+   "debt_to_equity": 0.0992,
+   "interest_coverage": 52.9744,
+   "roe_pct": 43.3732,
+   "fcf_margin_pct": 17.1648
+  },
+  "price": {
+   "return_6m_pct": 30.0,
+   "return_1y_pct": 45.0,
+   "relative_6m_vs_benchmark_pct": 20.0,
+   "annualized_volatility_pct": 25.0,
+   "max_drawdown_pct": -12.0,
+   "risk_flags": []
+  },
+  "news_points": [
+   "Shares rallied on strong order wins."
+  ]
+ }
+}

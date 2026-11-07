@@ -546,6 +546,7 @@ def test_the_synthesis_input_carries_no_cost_derived_field_and_weights_in_percen
     assert all(set(h) == {"security_id", "name", "sector", "weight_pct"} for h in payload["holdings"])
     assert all(round(h["weight_pct"], 1) == h["weight_pct"] for h in payload["holdings"]) and payload["holdings"][0]["weight_pct"] == pytest.approx(33.3)
     assert all(round(v, 1) == v for v in payload["sector_exposure_pct"].values())
-    full = s.model_copy(update={"shortlist": [__import__("finsight.schemas.state", fromlist=["x"]).ShortlistedStock(ticker="AAA", reason="at_risk", supporting_evidence="x",
-                                                                                                                 drivers=[{"signal": "structural", "value": -0.5}])]})
-    assert syn.build_input(full)["shortlist"] == [{"security_id": "NSE:AAA", "reason": "risk", "drivers": [{"signal": "structural", "value": -0.5}]}]    # at_risk/underperformer reveal the sign of the gain
+    from finsight.schemas.state import ShortlistedStock
+    full = s.model_copy(update={"shortlist": [ShortlistedStock(ticker="AAA", reason="at_risk", supporting_evidence="x", drivers=[{"signal": "structural", "value": -0.5}])]})
+    shown = json.dumps(syn.build_input(full)).lower()
+    assert "at_risk" not in shown and "underperformer" not in shown and "flagged as risk" in shown        # at_risk / underperformer reveal the sign of the gain

@@ -67,10 +67,16 @@ def good_handler(model, system, user):
     if "ONE company" in system:
         return json.dumps({"signal": -0.6, "confidence": 0.7, "agrees_with_finbert": True,
                            "key_points": [{"text": "Guidance was cut and the shares fell.", "article_ids": article_ids_in(user)[:1]}]})
-    state = json.loads(user.split("Structured state (JSON):\n", 1)[1].split("\n\nYour previous", 1)[0])
-    return json.dumps({"headline": "Signals are mixed", "portfolio_overview": "Concentration is the main structural feature.",
-                       "stocks": [{"security_id": s["security_id"], "summary": "Negative news tone with a price signal.", "evidence_article_ids": ["a1"]} for s in state["stage2"]],
-                       "sector_notes": "Sector signals are a news-based estimate.", "data_notes": "No gaps."})
+    state = synth_input(user)
+    return json.dumps({"headline": "Signals are mixed", "portfolio_overview": "Concentration is the main structural feature.", "overview_evidence_ids": ["portfolio:structure"],
+                       "stocks": [{"security_id": s["security_id"], "summary": "Negative news tone with a price signal.", "evidence_ids": s["evidence_ids"][:2]} for s in state["stocks"]],
+                       "sector_notes": "", "sector_evidence_ids": [], "data_notes": ""})
+
+
+def synth_input(user: str) -> dict:
+    """The JSON the synthesis prompt carries (the regeneration prompt appends a rejection note after it)."""
+    body = user.split("Evidence and structure (JSON):", 1)[1].split("Your previous", 1)[0]
+    return json.loads(body.strip())
 
 
 def sig(score=-0.5, n=8, ids=("a1",)):

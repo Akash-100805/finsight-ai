@@ -20,6 +20,7 @@ from typing import Callable, Literal, Protocol, TypeVar
 
 from pydantic import BaseModel, ValidationError
 
+from finsight.core.privacy import check_prompt
 from finsight.settings import Settings, SettingsError, get_settings
 
 log = logging.getLogger("finsight.llm")
@@ -133,6 +134,7 @@ class LLMClient:
         self.calls_made = 0
         self.retries_made = 0
         self.records: list[CallRecord] = []
+        self.sentinels: frozenset[str] = frozenset()      # this run's identifying values (core.privacy); set by run_analysis
 
     @property
     def backend(self) -> Backend:
@@ -162,6 +164,7 @@ class LLMClient:
         return resp, err, self._last_call_at - started
 
     def _one_call(self, model: str, role: str, system: str, user: str, repaired: bool = False, retry: bool = True) -> RawResponse:
+        check_prompt(system, user, self.sentinels)          # the privacy filter: nothing identifying leaves the process
         if self.calls_made >= self.settings.AGENTS_LLM_MAX_CALLS_PER_RUN:
             raise LLMBudgetError(f"AGENTS_LLM_MAX_CALLS_PER_RUN={self.settings.AGENTS_LLM_MAX_CALLS_PER_RUN} calls already made in this run")
         backoffs = RETRY_BACKOFF_S if retry else ()
@@ -182,6 +185,12 @@ class LLMClient:
                 self.retries_made += 1
                 self._sleep(backoffs[attempt])
         raise LLMUnavailableError(f"model {model} unavailable after {len(backoffs) + 1} attempt(s): {type(last_error).__name__}: {str(last_error)[:160]}") from last_error
+
+    def complete_raw(self, system: str, user: str, schema: type[T], model_role: Literal["stock", "synth"] = "stock") -> RawResponse:
+        """EXACTLY one attempt, no retry and no repair: the raw text of the reply (live smoke tests). Same privacy guard and call accounting."""
+        model = self.settings.llm_model(model_role)
+        full_system = system.rstrip() + "\n\nReply with ONE JSON object only (no prose, no markdown fence) that matches this JSON schema:\n" + json.dumps(schema.model_json_schema())
+        return self._one_call(model, model_role, full_system, user, retry=False)
 
     def complete_json(self, system: str, user: str, schema: type[T], model_role: Literal["stock", "synth"] = "stock", *,
                       model_override: str | None = None, retry: bool = True) -> T:

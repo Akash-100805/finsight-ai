@@ -14,6 +14,7 @@ from typing import Any, Callable
 
 from langgraph.graph import END, START, StateGraph
 
+from finsight.core.privacy import sentinels_for
 from finsight.flow import conflict_resolver, portfolio, sector_agent, stage1, stage2, synthesis
 from finsight.flow.deps import Deps, default_deps
 from finsight.schemas.state import AnalysisState, Holding
@@ -68,6 +69,7 @@ def run_analysis(portfolio_path_or_dict: str | Path | dict, deps: Deps | None = 
     deps = deps or default_deps(target)
     user_id, _, holdings = load_portfolio(portfolio_path_or_dict)
     deps.llm.reset()
+    deps.llm.sentinels = sentinels_for(user_id, holdings)              # the privacy filter knows this portfolio's identifying values
     started = time.perf_counter()
     final = build_graph(deps).invoke(AnalysisState(user_id=user_id, holdings=holdings))
     state = final if isinstance(final, AnalysisState) else AnalysisState.model_validate(final)

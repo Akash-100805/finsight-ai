@@ -165,14 +165,16 @@ def build_response(state: AnalysisState, run_id: str, generated_at: str | None =
                           "drivers": item.drivers, "votes": votes_view(v), "conflict": state.conflict_resolutions.get(item.ticker)})
     meta = {"duration_s": state.run_seconds, "llm_calls": state.llm_calls_used, "stock_model": s.AGENTS_LLM_MODEL or None, "synth_model_used": state.synthesis_model,
             "sector_source": state.sector_signal_source, "sector_fallback_reason": state.sector_fallback_reason, "fx_rate": state.fx_rate, "fx_date": state.fx_date,
+            "sector_provider_note": synth.get("provider_note"), "evidence_excluded": state.evidence_exclusions,
             "generated_at": generated_at or datetime.now(timezone.utc).isoformat(timespec="seconds")}
     return {"run_id": run_id, "meta": meta, "headline": synth.get("headline"), "portfolio_overview": synth.get("portfolio_overview"),
-            "synthesis_label": state.synthesis_label, "compliance": {k: synth.get("compliance", {}).get(k) for k in ("regenerated", "template")},
+            "synthesis_label": state.synthesis_label, "compliance": {**{k: synth.get("compliance", {}).get(k) for k in ("regenerated", "template")},
+                                                                   **{k: (state.compliance_outcome or {}).get(k) for k in ("outcome", "violations_first")}},
             "concentration_flags": state.concentration_flags or [], "sector_exposure": {k: round(v, 4) for k, v in (state.sector_exposure or {}).items()},
             "holdings": holdings, "shortlist": shortlist, "sector_narratives": state.sector_narratives,
             "not_deep_dived": [{"security_id": state.holding_info[n["ticker"]]["security_id"], "name": state.holding_info[n["ticker"]]["name"],
                                 "fused_value": n["fused_value"], "reason": n["reason"]} for n in state.not_deep_dived],
-            "sector_notes": synth.get("sector_notes"), "data_notes": synth.get("data_notes"), "data_gaps": state.data_gaps, "errors": state.errors,
+            "sector_notes": " ".join(x for x in (synth.get("sector_notes"), synth.get("provider_note")) if x) or None, "data_notes": synth.get("data_notes"), "data_gaps": state.data_gaps, "errors": state.errors,
             "disclaimer": DISCLAIMER}
 
 

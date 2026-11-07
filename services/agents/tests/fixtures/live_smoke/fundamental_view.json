@@ -1,0 +1,39 @@
+{
+ "security_id": "NSE:TCS",
+ "name": "Tata Consultancy Services",
+ "latest_results_date": "2026-09-30",
+ "metrics": {
+  "revenue_growth_qoq_pct": {
+   "value": 1.2632,
+   "quality": "ok"
+  },
+  "net_margin_pct": {
+   "value": 18.9703,
+   "quality": "ok"
+  },
+  "net_margin_trend_pp_per_quarter": {
+   "value": 0.8321,
+   "quality": "ok"
+  },
+  "debt_to_equity": {
+   "value": 0.0992,
+   "quality": "ok"
+  },
+  "interest_coverage": {
+   "value": 52.9744,
+   "quality": "ok"
+  },
+  "roe_pct": {
+   "value": 43.3732,
+   "quality": "ok"
+  },
+  "fcf_margin_pct": {
+   "value": 17.1648,
+   "quality": "ok"
+  }
+ },
+ "missing_metrics": [
+  "eps_growth_yoy_pct",
+  "revenue_growth_yoy_pct"
+ ]
+}

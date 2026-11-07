@@ -24,15 +24,18 @@ class RecheckOutput(BaseModel):
 class SynthStock(BaseModel):
     security_id: str
     summary: str
-    evidence_article_ids: list[str] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(default_factory=list)
 
 
 class SynthesisOutput(BaseModel):
+    """What the synthesis model writes. Every claim cites evidence ids; data_notes is written by code, not by the model."""
     headline: str
     portfolio_overview: str
+    overview_evidence_ids: list[str] = Field(default_factory=list)
     stocks: list[SynthStock] = Field(default_factory=list)
-    sector_notes: str
-    data_notes: str
+    sector_notes: str = ""
+    sector_evidence_ids: list[str] = Field(default_factory=list)
+    data_notes: str = ""
 
 
 def verdict(signal: float, confidence: float, rationale: str, evidence: dict[str, Any]) -> dict[str, Any]:

@@ -323,18 +323,21 @@ def test_clean_synthesis_passes_has_the_disclaimer_and_costs_one_call():
     assert deps.llm.calls_made == 1 and s.synthesis_model == "synth-m" and s.synthesis_label is None
     assert s.synthesis["compliance"] == {"template": False, "violations_first": [], "regenerated": False}
     assert s.compliance_reviewed_output.rstrip().endswith(syn.DISCLAIMER) and syn.DISCLAIMER in s.final_synthesis_text
-    assert s.synthesis["stocks"][0]["evidence_article_ids"] == ["a1"]
+    assert s.synthesis["stocks"][0]["evidence_ids"][0].startswith("flag:") and s.compliance_outcome["outcome"] == "passed"
 
 
 def test_evidence_ids_not_in_the_state_are_dropped_and_unknown_stocks_removed():
     def handler(model, system, user):
         if "ONE company" in system:
             return good_handler(model, system, user)
-        return json.dumps({"headline": "h", "portfolio_overview": "o", "sector_notes": "s", "data_notes": "d",
-                           "stocks": [{"security_id": "NSE:AAA", "summary": "ok", "evidence_article_ids": ["a1", "ghost"]}, {"security_id": "NSE:FAKE", "summary": "x", "evidence_article_ids": []}]})
+        return json.dumps({"headline": "h", "portfolio_overview": "o", "overview_evidence_ids": ["portfolio:structure", "ghost"], "sector_notes": "", "data_notes": "d",
+                           "stocks": [{"security_id": "NSE:AAA", "summary": "ok", "evidence_ids": ["flag:NSE:AAA", "ghost"]}, {"security_id": "NSE:FAKE", "summary": "x", "evidence_ids": []}]})
     s, deps = flow_state(make_deps(llm=llm_for(handler)[0], returns={"NSE:AAA": -0.4}, bench_return=0.1))
     s = s.model_copy(update=syn.synthesis(s, deps))
-    assert [(x["security_id"], x["evidence_article_ids"]) for x in s.synthesis["stocks"]] == [("NSE:AAA", ["a1"])]
+    got = {x["security_id"]: x["evidence_ids"] for x in s.synthesis["stocks"]}
+    assert got["NSE:AAA"] == ["flag:NSE:AAA"] and "NSE:FAKE" not in got                                                         # invented ids and stocks are dropped
+    assert set(got) == {sh.ticker and s.holding_info[sh.ticker]["security_id"] for sh in s.shortlist}                              # a stock the model left out gets its code summary
+    assert s.synthesis["grounding"]["dropped_evidence_ids"] == 1 and s.synthesis["data_notes"] != "d"                           # data_notes is written by code
 
 
 def test_a_banned_phrase_triggers_exactly_one_regeneration_and_the_clean_rewrite_is_used():
@@ -344,8 +347,9 @@ def test_a_banned_phrase_triggers_exactly_one_regeneration_and_the_clean_rewrite
         if "ONE company" in system:
             return good_handler(model, system, user)
         texts.append(user)
-        bad = "previous summary used words" not in user
-        return json.dumps({"headline": "You should buy this" if bad else "Signals are negative", "portfolio_overview": "o", "stocks": [], "sector_notes": "s", "data_notes": "d"})
+        bad = "previous summary was rejected" not in user
+        return json.dumps({"headline": "You should buy this" if bad else "Signals are negative", "portfolio_overview": "o", "overview_evidence_ids": ["portfolio:structure"],
+                           "stocks": [], "sector_notes": "", "data_notes": ""})
     s, deps = flow_state(make_deps(llm=llm_for(handler)[0], returns={"NSE:AAA": -0.4}, bench_return=0.1))
     deps.llm.reset()
     s = s.model_copy(update=syn.synthesis(s, deps))

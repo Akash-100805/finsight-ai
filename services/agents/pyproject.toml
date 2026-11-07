@@ -34,5 +34,6 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = [
+    "live_smoke: REAL LLM calls (one per new agent, recorded inputs); skipped unless --run-live-smoke, never in the normal suite",
     "db: read-only tests against the news database through the finsight_agents login (AGENTS_TEST_DATABASE_URL; main if the test DB has no news rows)",
 ]

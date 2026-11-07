@@ -11,6 +11,7 @@ from finsight.flow import scoring as sc
 from finsight.flow.deps import Deps
 from finsight.flow.models import RecheckOutput
 from finsight.flow.stage1 import closes
+from finsight.core.hygiene import is_clickbait
 from finsight.core.votes import aggregate_votes, legacy_fields
 from finsight.flow.fundamental_agent import fundamental_verdict
 from finsight.schemas.state import AnalysisState, Stage2StockVerdict, StockVerdict
@@ -76,9 +77,14 @@ def recheck(ticker: str, state: AnalysisState, deps: Deps) -> dict | Unavailable
     points = validate_recheck(out, set(index))
     if not points:
         return Unavailable("recheck_failed", "no key point cites a provided article_id")
+    bad = {a for a, m in index.items() if is_clickbait(m["title"])}                     # hygiene: the signal stands, the headline is not shown as evidence
+    shown = []
     for p in points:
-        p["titles"] = [index[a]["title"] for a in p["article_ids"]]
-    return {"signal": float(out.signal), "confidence": float(out.confidence), "key_points": points, "agrees_with_finbert": out.agrees_with_finbert, "articles": index}
+        ids = [a for a in p["article_ids"] if a not in bad]
+        if ids:
+            shown.append({**p, "article_ids": ids, "titles": [index[a]["title"] for a in ids]})
+    return {"signal": float(out.signal), "confidence": float(out.confidence), "key_points": shown, "agrees_with_finbert": out.agrees_with_finbert,
+            "articles": {a: m for a, m in index.items() if a not in bad}, "excluded": len(bad)}
 
 
 def valuation_verdict(security_id: str, price: dict) -> StockVerdict:
@@ -123,12 +129,12 @@ def stage2_for(ticker: str, state: AnalysisState, deps: Deps) -> tuple[Stage2Sto
         fundamental_metrics=bundle, price_signal=price["price_signal"] if isinstance(price, dict) else None,
         price_metrics=price["metrics"] if isinstance(price, dict) else None, risk_flags=price["risk_flags"] if isinstance(price, dict) else [],
         recheck_signal=check["signal"] if isinstance(check, dict) else None, key_points=check["key_points"] if isinstance(check, dict) else [],
-        unavailable=unavailable, **legacy_fields(vote))
+        unavailable=unavailable, evidence_excluded=check.get("excluded", 0) if isinstance(check, dict) else 0, **legacy_fields(vote))
     return bundle_out, (check["articles"] if isinstance(check, dict) else {})
 
 
 def stage2(state: AnalysisState, deps: Deps) -> dict:
-    verdicts, index, errors = [], dict(state.article_index), []
+    verdicts, index, errors, excluded = [], dict(state.article_index), [], 0
     for s in state.shortlist or []:
         try:
             bundle, arts = stage2_for(s.ticker, state, deps)
@@ -136,8 +142,11 @@ def stage2(state: AnalysisState, deps: Deps) -> dict:
             errors.append(f"stage2 {s.ticker}: {type(exc).__name__}: {str(exc)[:160]}")
             bundle, arts = Stage2StockVerdict(ticker=s.ticker, unavailable={"stage2": f"{type(exc).__name__}"}, status="no_voters"), {}
         verdicts.append(bundle)
+        excluded += bundle.evidence_excluded
         index.update({a: {"title": m["title"], "source_id": m["source"], "published_at": m["date"], "url": m.get("url")} for a, m in arts.items()})
     out: dict = {"stage2_verdicts": verdicts, "article_index": index}
+    if excluded:
+        out["evidence_exclusions"] = {"recheck_articles": excluded}
     if errors:
         out["errors"] = errors
     return out
