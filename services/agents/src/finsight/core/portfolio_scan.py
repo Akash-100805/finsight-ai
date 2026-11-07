@@ -86,9 +86,10 @@ def scan_portfolio(holdings: list[Holding]) -> PortfolioScanResult:
             if total_portfolio_value != 0
             else 0.0
         )
+        # a zero cost (e.g. shares received free) has no return: it is reported as 0.0, not a division by zero
         unrealized_return_pct = (
-            holding.current_price - holding.average_cost
-        ) / holding.average_cost
+            (holding.current_price - holding.average_cost) / holding.average_cost if holding.average_cost > 0 else 0.0
+        )
         holding_metrics[holding.ticker] = HoldingMetrics(
             weight=weight, unrealized_return_pct=unrealized_return_pct
         )

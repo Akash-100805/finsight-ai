@@ -11,6 +11,7 @@ from finsight.migrate import alembic_config
 from finsight.settings import AGENTS_ROOT, SettingsError, get_settings
 
 TABLES = ("sector_narratives", "fundamentals_cache")
+NEW = ("portfolios", "holdings", "analysis_runs")
 
 
 def test_alembic_files_exist_and_use_the_app_version_table():
@@ -46,11 +47,14 @@ def test_up_down_up_on_test():
         return scalar(f"SELECT to_regclass('app.{table}') IS NOT NULL")
 
     command.upgrade(cfg, "head")
-    assert scalar("SELECT version_num FROM app.alembic_version") == "0001" and all(exists(t) for t in TABLES)
-    command.downgrade(cfg, "base")
-    assert scalar("SELECT count(*) FROM app.alembic_version") == 0 and not any(exists(t) for t in TABLES)
+    assert scalar("SELECT version_num FROM app.alembic_version") == "0002" and all(exists(t) for t in TABLES + NEW)
+    command.downgrade(cfg, "0001")                                                      # one step: the caches stay, portfolios / holdings / runs go
+    assert scalar("SELECT version_num FROM app.alembic_version") == "0001" and all(exists(t) for t in TABLES) and not any(exists(t) for t in NEW)
     command.upgrade(cfg, "head")
-    assert scalar("SELECT version_num FROM app.alembic_version") == "0001" and all(exists(t) for t in TABLES)
+    command.downgrade(cfg, "base")
+    assert scalar("SELECT count(*) FROM app.alembic_version") == 0 and not any(exists(t) for t in TABLES + NEW)
+    command.upgrade(cfg, "head")
+    assert scalar("SELECT version_num FROM app.alembic_version") == "0002" and all(exists(t) for t in TABLES + NEW)
     command.upgrade(cfg, "head")                                                        # idempotent
     assert not exists("schema_migrations")
     engine.dispose()

@@ -29,7 +29,7 @@ def art(score, recency=1.0, reliability=1.0, confidence=1.0, method="sentence_le
 # ── settings ──────────────────────────────────────────────────────────────────────────────────────────────────────
 def test_defaults_match_the_brief():
     s = Settings(_env_file=None)
-    assert (s.AGENTS_LLM_PROVIDER, s.AGENTS_LLM_RPM, s.AGENTS_LLM_MAX_CALLS_PER_RUN) == ("gemini", 10, 8)
+    assert (s.AGENTS_LLM_PROVIDER, s.AGENTS_LLM_RPM, s.AGENTS_LLM_MAX_CALLS_PER_RUN) == ("gemini", 10, 60)
     assert (s.NEWS_WINDOW_DAYS, s.SENTIMENT_MIN_ARTICLES, s.SECTOR_MIN_ARTICLES, s.SHARED_CLAUSE_WEIGHT, s.SECTOR_PROVIDER) == (30, 3, 5, 0.5, "tkg_lite")
 
 

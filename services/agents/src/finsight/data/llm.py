@@ -14,6 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import threading
 import time
 from dataclasses import dataclass
 from typing import Callable, Literal, Protocol, TypeVar
@@ -72,6 +73,7 @@ class CallRecord:
     input_tokens: int | None
     output_tokens: int | None
     repaired: bool = False
+    node: str | None = None            # the graph node that made the call
 
 
 class Backend(Protocol):
@@ -134,6 +136,7 @@ class LLMClient:
         self.calls_made = 0
         self.retries_made = 0
         self.records: list[CallRecord] = []
+        self._ctx = threading.local()
         self.sentinels: frozenset[str] = frozenset()      # this run's identifying values (core.privacy); set by run_analysis
 
     @property
@@ -141,6 +144,10 @@ class LLMClient:
         if self._backend is None:
             self._backend = make_backend(self.settings)
         return self._backend
+
+    def set_node(self, name: str | None) -> None:
+        """Attribute the calls made on THIS thread to a graph node (run accounting)."""
+        self._ctx.node = name
 
     def reset(self) -> None:
         """Start a new run: the call counter and the log of calls."""
@@ -173,7 +180,7 @@ class LLMClient:
             resp, err, latency = self._attempt(model, system, user)
             if err is None:
                 self.calls_made += 1                   # only a response counts toward the cap
-                self.records.append(CallRecord(model, role, latency, resp.input_tokens, resp.output_tokens, repaired))
+                self.records.append(CallRecord(model, role, latency, resp.input_tokens, resp.output_tokens, repaired, getattr(self._ctx, "node", None)))
                 log.info("llm call model=%s role=%s latency=%.2fs input_tokens=%s output_tokens=%s%s", model, role, latency, resp.input_tokens,
                          resp.output_tokens, " (repair)" if repaired else "")
                 return resp

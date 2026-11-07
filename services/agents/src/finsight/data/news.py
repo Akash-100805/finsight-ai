@@ -48,6 +48,20 @@ def security_info(symbol_or_id: str, *, engine: Engine | None = None, target: Li
     return dict(row)
 
 
+def search_securities(q: str, limit: int = 20, *, engine: Engine | None = None, target: Literal["main", "test"] = "main") -> list[dict]:
+    """Active securities whose id or name matches `q` (case-insensitive substring), exact-prefix matches first. For the portfolio builder's search box."""
+    q = (q or "").strip()
+    if len(q) < 1:
+        return []
+    like = "%" + q.replace("%", " ").replace("_", " ").strip() + "%"            # wildcard characters in the input are plain spaces
+    with _engine(engine, target).connect() as conn:
+        rows = conn.execute(text(
+            "SELECT security_id, name, exchange, sector, country FROM news.securities WHERE is_active AND (security_id ILIKE :like OR name ILIKE :like) "
+            "ORDER BY (security_id ILIKE :pre OR name ILIKE :pre) DESC, name LIMIT :n"),
+            {"like": like, "pre": like[1:], "n": max(1, min(limit, 50))}).mappings()
+        return [dict(r) for r in rows]
+
+
 def security_news(security_ids: list[str], days: int | None = None, *, engine: Engine | None = None,
                   target: Literal["main", "test"] = "main", limit: int | None = None) -> list[dict]:
     """Rows of news.v_security_news (confidence >= 0.70 by the view), newest first."""

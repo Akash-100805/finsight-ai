@@ -37,11 +37,23 @@ class Settings(BaseSettings):
     AGENTS_SYNTH_LLM_MODEL: str = ""      # the single final synthesis call
     AGENTS_SYNTH_FALLBACK_MODEL: str = "" # optional: ONE attempt with this model if the synth model stays unavailable after the retries
     AGENTS_LLM_RPM: float = 10            # calls per minute: the minimum spacing between calls is 60 / RPM seconds
-    AGENTS_LLM_MAX_CALLS_PER_RUN: int = 8
+    # Responses (valid replies, and replies with invalid JSON) one run may use. A busy run: ~8 held Indian sectors (1-2 each) + 8 stocks x (fundamental
+    # 1-2 + recheck 1-2) + up to 3 conflict resolutions (1-2 each) + synthesis and one regeneration = about 57 in the worst realistic case. A typical run is ~25.
+    AGENTS_LLM_MAX_CALLS_PER_RUN: int = 60
 
     # the app database (finsight_app login): caches, portfolios, runs. Migrations go to TEST first; MAIN writes need the owner's confirmation.
     APP_DATABASE_URL: SecretStr = SecretStr("")
     APP_TEST_DATABASE_URL: SecretStr = SecretStr("")
+
+    # which database the API keeps portfolios, holdings and runs in (finsight_app login). MAIN needs the owner's go-ahead for the migrations.
+    APP_DB_TARGET: Literal["main", "test"] = "main"
+    RUNS_MAX_PER_OWNER: int = 1            # concurrent analyses per owner
+    RUNS_MAX_GLOBAL: int = 2               # concurrent analyses in the process
+
+    # LangSmith tracing: OFF unless LANGSMITH_TRACING=true and a key is set. Inputs and outputs are redacted (quantities, costs, values, owner ids).
+    LANGSMITH_TRACING: bool = False
+    LANGSMITH_API_KEY: SecretStr = SecretStr("")
+    LANGSMITH_PROJECT: str = "finsight-ai"
 
     # fusion and the shortlist
     SHORTLIST_MAX: int = 8                 # total deep-dives

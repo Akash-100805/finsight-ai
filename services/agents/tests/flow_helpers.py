@@ -123,7 +123,7 @@ def make_deps(*, llm=None, returns=None, bench_return=0.10, sentiments=None, sec
     llm = llm or llm_for(good_handler)[0]
 
     def info(t):
-        key = t if t in UNIVERSE else None
+        key = t if t in UNIVERSE else (t[4:] if t.startswith("NSE:") and t[4:] in UNIVERSE else None)       # an exchange-qualified id also resolves
         if key is None:
             return Unavailable("security_not_found", f"{t} is not in the security master")
         sid, name, sector, country, _ = UNIVERSE[key]

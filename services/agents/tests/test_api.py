@@ -170,7 +170,7 @@ def test_runs_unknown_and_unsafe_ids_are_404(client):
 def test_health_reports_the_news_db_models_and_provider(client, monkeypatch):
     monkeypatch.setattr(api, "news_health", lambda: {"reachable": True, "user": "finsight_agents", "latest_published_at": "2026-10-27T10:00:00+00:00", "articles_in_view": 5})
     d = client.get("/health").json()
-    assert set(d) == {"status", "news_db", "llm", "sector_provider"} and d["news_db"]["user"] == "finsight_agents" and d["sector_provider"] in ("tkg_lite", "tkg")
+    assert set(d) == {"status", "news_db", "llm", "sector_provider", "app_db", "tracing"} and d["tracing"] == "off" and d["news_db"]["user"] == "finsight_agents" and d["sector_provider"] in ("tkg_lite", "tkg")
     assert set(d["llm"]) >= {"provider", "stock_model_configured", "synth_model_configured", "synth_fallback_configured", "api_key_configured"}
     assert all(isinstance(d["llm"][k], bool) for k in d["llm"] if k.endswith("configured"))
     assert "key" not in json.dumps(d).lower().replace("api_key_configured", "")                 # no key material

@@ -304,6 +304,7 @@ class AnalysisState(BaseModel):
     sector_tkg_inputs: dict[str, dict[str, Any]] = Field(default_factory=dict, description="sector -> the TKG's own signal dict (score, confidence, paths, as_of) for held Indian sectors with status signal. Input of the Sector TKG Agent.")
     sector_narratives: dict[str, dict[str, Any]] = Field(default_factory=dict, description="sector -> Sector TKG Agent output (outlook, key_chains, affected_holdings, rationale) + provenance (llm|cache|template). The sector score itself stays the TKG's code score.")
     evidence_exclusions: Annotated[dict[str, int], merge_counts] = Field(default_factory=dict, description="Evidence hygiene: how many clickbait / advice-shaped headlines were left out of the evidence shown, by source.")
+    run_accounting: dict[str, Any] | None = Field(default=None, description="LLM calls and tokens by node, cache hits, per-node seconds, duration.")
     compliance_outcome: dict[str, Any] | None = Field(default=None, description="outcome (passed | regenerated | template), violations found, checks applied.")
     conflict_resolutions: dict[str, dict[str, Any]] = Field(default_factory=dict, description="ticker -> Conflict Resolver output + provenance, only for stocks whose Stage 2 votes conflict.")
     article_index: dict[str, dict[str, Any]] = Field(default_factory=dict, description="article_id -> title, url, published_at, source_id for the evidence cited in Stage 1.")

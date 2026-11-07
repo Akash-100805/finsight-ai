@@ -1,6 +1,7 @@
-"""Test configuration: live_smoke tests make REAL LLM calls and are skipped unless explicitly requested.
+"""Test configuration.
 
-    pytest -m live_smoke --run-live-smoke -s tests/test_live_smoke.py
+* live_smoke tests make REAL LLM calls and are skipped unless explicitly requested:  pytest -m live_smoke --run-live-smoke -s tests/test_live_smoke.py
+* every test starts with in-memory API services, so no test can reach a real app database through the API by accident.
 """
 import pytest
 
@@ -16,3 +17,15 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if "live_smoke" in item.keywords:
             item.add_marker(skip)
+
+
+@pytest.fixture(autouse=True)
+def isolated_services():
+    from finsight import services
+    from tests.app_helpers import make_services
+    manager = None
+    services.set_services(make_services(lambda portfolio, progress: None))
+    manager = services._SERVICES.manager
+    yield
+    manager.shutdown(wait=False)
+    services.set_services(None)

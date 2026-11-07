@@ -20,6 +20,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy import text
 
+from finsight import api_app, tracing
 from finsight.data.db import get_news_engine
 from finsight.flow.synthesis import DISCLAIMER
 from finsight.graph import run_analysis
@@ -165,7 +166,7 @@ def build_response(state: AnalysisState, run_id: str, generated_at: str | None =
                           "drivers": item.drivers, "votes": votes_view(v), "conflict": state.conflict_resolutions.get(item.ticker)})
     meta = {"duration_s": state.run_seconds, "llm_calls": state.llm_calls_used, "stock_model": s.AGENTS_LLM_MODEL or None, "synth_model_used": state.synthesis_model,
             "sector_source": state.sector_signal_source, "sector_fallback_reason": state.sector_fallback_reason, "fx_rate": state.fx_rate, "fx_date": state.fx_date,
-            "sector_provider_note": synth.get("provider_note"), "evidence_excluded": state.evidence_exclusions,
+            "sector_provider_note": synth.get("provider_note"), "accounting": state.run_accounting, "evidence_excluded": state.evidence_exclusions,
             "generated_at": generated_at or datetime.now(timezone.utc).isoformat(timespec="seconds")}
     return {"run_id": run_id, "meta": meta, "headline": synth.get("headline"), "portfolio_overview": synth.get("portfolio_overview"),
             "synthesis_label": state.synthesis_label, "compliance": {**{k: synth.get("compliance", {}).get(k) for k in ("regenerated", "template")},
@@ -179,6 +180,9 @@ def build_response(state: AnalysisState, run_id: str, generated_at: str | None =
 
 
 # ── endpoints ─────────────────────────────────────────────────────────────────────────────────────────────────────
+app.include_router(api_app.router)
+
+
 @app.get("/", include_in_schema=False)
 def index():
     if not INDEX_HTML.exists():
@@ -204,11 +208,21 @@ def analyze(req: AnalyzeRequest):
             state = run_analysis(portfolio)
     except Exception as exc:                       # the UI always gets a message, never a blank page
         raise HTTPException(500, f"the analysis failed: {type(exc).__name__}: {str(exc)[:300]}") from exc
+    return finish_run(state, run_id)
+
+
+def finish_run(state: AnalysisState, run_id: str) -> dict[str, Any]:
+    """The response for a finished analysis, saved under runs/ (the response and the full state)."""
     response = build_response(state, run_id)
     RUNS_DIR.mkdir(parents=True, exist_ok=True)
     (RUNS_DIR / f"{run_id}.json").write_text(json.dumps(response, indent=1, ensure_ascii=False, default=str), encoding="utf-8")
     (RUNS_DIR / f"{run_id}.state.json").write_text(json.dumps(state.model_dump(mode="json"), indent=1, ensure_ascii=False, default=str), encoding="utf-8")
     return response
+
+
+def run_for_manager(portfolio: dict, progress) -> AnalysisState:
+    """What a background worker runs (looked up at call time, so tests can replace run_analysis)."""
+    return run_analysis(portfolio, progress=progress)
 
 
 @app.get("/runs/{run_id}")
@@ -238,7 +252,8 @@ def health():
            "synth_fallback_configured": bool(s.AGENTS_SYNTH_FALLBACK_MODEL.strip()), "api_key_configured": bool(s.AGENTS_LLM_PROVIDER == "gemini" and s.AGENTS_GEMINI_API_KEY.get_secret_value().strip()
                                                                                                      or s.AGENTS_LLM_PROVIDER == "anthropic" and s.ANTHROPIC_API_KEY.get_secret_value().strip())}
     ok = db["reachable"] and llm["stock_model_configured"] and llm["synth_model_configured"] and llm["api_key_configured"]
-    return {"status": "ok" if ok else "degraded", "news_db": db, "llm": llm, "sector_provider": s.SECTOR_PROVIDER}
+    return {"status": "ok" if ok else "degraded", "news_db": db, "llm": llm, "sector_provider": s.SECTOR_PROVIDER, "app_db": api_app.S().app_db,
+            "tracing": "on" if tracing.enabled(s) else "off"}
 
 
 def main() -> None:
